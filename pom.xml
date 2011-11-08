@@ -1,0 +1,654 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The contents of this file are subject to the terms of the Common Development and
+  Distribution License (the License). You may not use this file except in compliance with the
+  License.
+
+  You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+  specific language governing permission and limitations under the License.
+
+  When distributing Covered Software, include this CDDL Header Notice in each file and include
+  the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+  Header, with the fields enclosed by brackets [] replaced by your own identifying
+  information: "Portions Copyrighted [year] [name of copyright owner]".
+
+  Copyright © 2011 ForgeRock AS. All rights reserved.
+--><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.forgerock</groupId>
+        <artifactId>forgerock-parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <groupId>org.forgerock.openidm</groupId>
+    <artifactId>openidm-project</artifactId>
+    <version>2.0.0-EA</version>
+    <packaging>pom</packaging>
+    <name>OpenIDM project</name>
+    <description>OpenIDM is an open standards based Identity Management, Provisioning and Compliance solution. Experience shows that the most important features of an identity management product are: high flexibility in Business Process handling and compliance with open standards and interfaces. A highly flexible user interface combined with a very robust workflow engine make OpenIDM ready for any Identity Management project.</description>
+    <inceptionYear>2011</inceptionYear>
+    <url>http://openidm.forgerock.org</url>
+    <licenses>
+        <license>
+            <name>CDDL-1.0</name>
+            <url>http://www.opensource.org/licenses/cddl1.php</url>
+            <comments>Common Development and Distribution License (CDDL) 1.0.
+            This license applies to OpenIDM source code as indicated in the
+            source code.</comments>
+            <distribution>repo</distribution>
+        </license>
+        <license>
+            <name>CC BY-NC-ND 3.0</name>
+            <url>http://creativecommons.org/licenses/by-nc-nd/3.0/</url>
+            <comments>Creative Commons Attribution-NonCommercial-NoDerivs 3.0
+            Unported. This license applies to the site content, and to the
+            documentation as indicated in the documentation source code.</comments>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <scm>
+        <connection>scm:svn:https://svn.forgerock.org/openidm/trunk</connection>
+        <developerConnection>scm:svn:https://svn.forgerock.org/openidm/trunk</developerConnection>
+        <url>http://sources.forgerock.org/browse/openidm/trunk</url>
+    </scm>
+    <distributionManagement>
+        <site>
+            <id>forgerock.org</id>
+            <name>ForgeRock Community Server</name>
+            <url>${siteDistributionURL}</url>
+        </site>
+    </distributionManagement>
+
+    <!-- NOT ALLOWED: (see FAQ at http://maven.apache.org/guides/mini/guide-central-repository-upload.html ) -->
+    <repositories>
+        <repository>
+            <id>forgerock-staging-repository</id>
+            <name>ForgeRock Release Repository</name>
+            <url>http://maven.forgerock.org/repo/releases</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>forgerock-snapshots-repository</id>
+            <name>ForgeRock Snapshot Repository</name>
+            <url>http://maven.forgerock.org/repo/snapshots</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+        </repository>
+        <repository>
+            <id>maven2-repository.dev.java.net</id>
+            <name>Java.net Repository for Maven</name>
+            <url>http://download.java.net/maven/2/</url>
+        </repository>
+        <repository>
+            <id>ops4j</id>
+            <name>OPS4J Maven Repository</name>
+            <url>http://repository.ops4j.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+        <!-- OrientDB -->
+        <repository>
+            <id>orientechnologies-repository</id>
+            <name>Orient Technologies Maven2 Repository</name>
+            <url>http://www.orientechnologies.com/listing/m2</url>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>maven-restlet</id>
+            <name>Public online Restlet repository</name>
+            <url>http://maven.restlet.org</url>
+        </repository>
+        <repository>
+            <id>com.springsource.repository.bundles.release</id>
+            <name>SpringSource Enterprise Bundle Repository - SpringSource Bundle Releases</name>
+            <url>http://repository.springsource.com/maven/bundles/release</url>
+            </repository> <repository>
+            <id>com.springsource.repository.bundles.external</id> 
+            <name>SpringSource Enterprise Bundle Repository - External Bundle Releases</name>
+            <url>http://repository.springsource.com/maven/bundles/external</url>
+        </repository>
+
+    </repositories>
+
+
+    <mailingLists>
+        <mailingList>
+            <name>OpenIDM: Technical communications</name>
+            <post>openidm@forgerock.org</post>
+            <subscribe>http://lists.forgerock.org/mailman/listinfo/openidm</subscribe>
+            <unsubscribe>http://lists.forgerock.org/mailman/listinfo/openidm</unsubscribe>
+            <archive>http://lists.forgerock.org/pipermail/openidm/</archive>
+        </mailingList>
+        <mailingList>
+            <name>OpenIDM: Commit Notificatons</name>
+            <post>commitopenidm@forgerock.org</post>
+            <subscribe>http://lists.forgerock.org/mailman/listinfo/commitopenidm</subscribe>
+            <unsubscribe>http://lists.forgerock.org/mailman/listinfo/commitopenidm</unsubscribe>
+            <archive>http://lists.forgerock.org/pipermail/commitopenidm/</archive>
+        </mailingList>
+        <mailingList>
+            <name>OpenIDM: Developers</name>
+            <post>openidm-dev@forgerock.org</post>
+            <subscribe>http://lists.forgerock.org/mailman/listinfo/openidm-dev</subscribe>
+            <unsubscribe>http://lists.forgerock.org/mailman/listinfo/openidm-dev</unsubscribe>
+            <archive>http://lists.forgerock.org/pipermail/openidm-dev/</archive>
+        </mailingList>
+        <mailingList>
+            <name>OpenIDM: Issue Notifications</name>
+            <post>openidm-issues@forgerock.org</post>
+            <subscribe>http://lists.forgerock.org/mailman/listinfo/openidm-issues</subscribe>
+            <unsubscribe>http://lists.forgerock.org/mailman/listinfo/openidm-issues</unsubscribe>
+            <archive>http://lists.forgerock.org/pipermail/openidm-issues/</archive>
+        </mailingList>
+    </mailingLists>
+
+    <issueManagement>
+        <system>jira</system>
+        <url>https://bugster.forgerock.org/jira/browse/OPENIDM</url>
+    </issueManagement>
+
+    <ciManagement>
+        <system>Jenkins</system>
+        <url>http://builds.forgerock.org/job/OpenIDM/</url>
+        <notifiers>
+            <notifier>
+                <type>mail</type>
+                <sendOnError>true</sendOnError>
+                <sendOnFailure>true</sendOnFailure>
+                <sendOnSuccess>false</sendOnSuccess>
+                <sendOnWarning>false</sendOnWarning>
+                <address>openidm-dev@forgerock.org</address>
+            </notifier>
+        </notifiers>
+    </ciManagement>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.target>1.6</maven.compiler.target>
+        <maven.compiler.source>1.6</maven.compiler.source>
+
+        <!-- Site Properties -->
+        <docbkx-src>${basedir}/src/main/docbkx</docbkx-src>
+        <dbstyle-dir>${basedir}/src/main/docbkx-stylesheets</dbstyle-dir>
+        <docbkx-out>${basedir}/target/docbkx</docbkx-out>
+        <site-out>${basedir}/target/site</site-out>
+        <siteDistributionURL>scp://forgerock.org/var/www/vhosts/openidm.forgerock.org/httpdocs</siteDistributionURL>
+
+        <!-- version management -->
+        <openidm.version>2.0.0-EA</openidm.version>
+        <slf4j.version>1.6.2</slf4j.version>
+        <log4j.version>1.2.16</log4j.version>
+        <!--<orientdb.version>1.0rc7-SNAPSHOT</orientdb.version>-->
+        <orientdb.version>1.0rc6</orientdb.version>
+    </properties>
+
+    <modules>
+        <module>openidm-audit</module>
+        <module>openidm-config</module>
+        <module>openidm-core</module>
+        <module>openidm-crypto</module>
+        <module>openidm-enhanced-config</module>
+        <module>openidm-external-rest</module>
+        <module>openidm-external-email</module>
+        <module>openidm-jetty-fragment</module>
+        <module>openidm-provisioner</module>
+        <module>openidm-provisioner-openicf</module>
+        <module>openidm-repo</module>
+        <module>openidm-repo-orientdb</module>
+        <module>openidm-repo-jdbc</module>
+        <module>openidm-restlet</module>
+        <module>openidm-scheduler</module>
+        <module>openidm-shell</module>
+        <module>openidm-system</module>
+        <module>openidm-util</module>
+	<module>openidm-ui</module>
+        <module>openidm-zip</module>
+  </modules>
+
+    <profiles>
+        <profile>
+            <id>functional-test</id>
+            <activation>
+                <property>
+                    <name>enableCiProfile</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <modules>
+                <module>openidm-functional-tests</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>openidm-webapp</id>
+            <modules>
+                <module>openidm-webapp</module>
+            </modules>
+        </profile>
+    </profiles>
+
+    <dependencyManagement>
+        <dependencies>
+        <!--    mvn versions:display-plugin-updates
+                mvn versions:display-dependency-updates
+                mvn versions:use-latest-versions
+        -->
+            <dependency>
+                <groupId>org.forgerock.commons</groupId>
+                <artifactId>json-fluent</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.forgerock.commons</groupId>
+                <artifactId>json-crypto-core</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.forgerock.commons</groupId>
+                <artifactId>json-schema</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            
+            <!-- Core OSGi -->
+            <dependency>
+                <groupId>org.osgi</groupId>
+                <artifactId>org.osgi.core</artifactId>
+                <version>4.2.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.framework</artifactId>
+                <version>3.2.2</version>
+                <!--<version>4.0.1</version>-->
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.main</artifactId>
+                <version>3.2.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.shell</artifactId>
+                <version>1.4.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.shell.tui</artifactId>
+                <version>1.4.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.webconsole</artifactId>
+                <version>3.1.8</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.configadmin</artifactId>
+                <version>1.2.8</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.log</artifactId>
+                <version>1.0.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.fileinstall</artifactId>
+                <version>3.1.10</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.osgi.compendium</artifactId>
+                <version>1.4.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.osgi</groupId>
+                <artifactId>org.osgi.compendium</artifactId>
+                <version>4.2.0</version>
+            </dependency>
+            <!-- Declarative Services support -->
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.scr</artifactId>
+                <version>1.6.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.scr.annotations</artifactId>
+                <version>1.6.0</version>
+            </dependency>
+
+            <!-- Quartz based scheduler OSGi bundle.
+             This version wraps the original jar which is not a bundle
+             2.0.* is not compatible yet -->
+            <dependency>
+                <groupId>org.apache.servicemix.bundles</groupId>
+                <artifactId>org.apache.servicemix.bundles.quartz</artifactId>
+                <version>1.8.4_2</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.codehaus.jackson</groupId>
+                <artifactId>jackson-core-asl</artifactId>
+                <version>1.8.5</version>
+            </dependency>
+            <dependency>
+                <groupId>org.codehaus.jackson</groupId>
+                <artifactId>jackson-mapper-asl</artifactId>
+                <version>1.8.5</version>
+            </dependency>
+            <!-- Test Dependencies -->
+            <dependency>
+                <groupId>org.easytesting</groupId>
+                <artifactId>fest-assert</artifactId>
+                <version>1.4</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.testng</groupId>
+                <artifactId>testng</artifactId>
+                <version>6.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-all</artifactId>
+                <version>1.8.5</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.felix</groupId>
+                    <artifactId>maven-scr-plugin</artifactId>
+                    <version>1.7.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.felix</groupId>
+                    <artifactId>maven-bundle-plugin</artifactId>
+                    <version>2.3.4</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <configuration>
+                        <author>false</author>
+                        <links>
+                            <link>http://java.sun.com/javase/6/docs/api/</link>
+                        </links>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <inherited>true</inherited>
+                <configuration>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                    <compilerArgument>-Xlint:all</compilerArgument>
+                    <showWarnings>true</showWarnings>
+                    <showDeprecation>true</showDeprecation>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.agilejava.docbkx</groupId>
+                <artifactId>docbkx-maven-plugin</artifactId>
+                <version>2.0.13</version>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>build-doc</id>
+                        <phase>pre-site</phase>
+                        <goals>
+                            <goal>generate-epub</goal>
+                            <goal>generate-html</goal>
+                            <goal>generate-pdf</goal>
+                            <goal>generate-rtf</goal>
+                            <goal>generate-manpages</goal>
+                        </goals>
+                        <configuration>
+                            <sourceDirectory>${docbkx-src}</sourceDirectory>
+        
+                            <!-- TODO: Profile for snapshot vs. final-->
+                            <draftMode>yes</draftMode>
+                            <draftWatermarkImage>http://docbook.sourceforge.net/release/images/draft.png</draftWatermarkImage>
+        
+                            <includes>*/OpenIDM-*.xml</includes>
+                            <xincludeSupported>true</xincludeSupported>
+        
+                            <!-- EPUB, HTML -->
+                            <chunkedOutput>false</chunkedOutput>
+                            <htmlCustomization>${dbstyle-dir}/html/coredoc.xsl</htmlCustomization>
+                            <htmlStylesheet>css/coredoc.css</htmlStylesheet>
+        
+                            <!-- PDF, RTF -->
+                            <foCustomization>${dbstyle-dir}/fo/coredoc.xsl</foCustomization>
+        
+                            <!-- Copy images, CSS for HTML -->
+                            <preProcess>
+                                <copy todir="${docbkx-out}/html/admin-guide/images">
+                                    <fileset dir="${docbkx-src}/admin-guide/images"/>
+                                </copy>
+                                <copy todir="${docbkx-out}/html/admin-guide">
+                                    <fileset dir="src/main/resources"/>
+                                </copy>
+                                <copy todir="${docbkx-out}/html/dev-guide/images">
+                                    <fileset dir="${docbkx-src}/dev-guide/images"/>
+                                </copy>
+                                <copy todir="${docbkx-out}/html/dev-guide">
+                                    <fileset dir="src/main/resources"/>
+                                </copy>
+                                <copy todir="${docbkx-out}/html/install-guide/images">
+                                    <fileset dir="${docbkx-src}/install-guide/images"/>
+                                </copy>
+                                <copy todir="${docbkx-out}/html/install-guide">
+                                    <fileset dir="src/main/resources"/>
+                                </copy>
+                                <copy todir="${docbkx-out}/html/release-notes/images">
+                                    <fileset dir="${docbkx-src}/release-notes/images"/>
+                                </copy>
+                                <copy todir="${docbkx-out}/html/release-notes">
+                                    <fileset dir="src/main/resources"/>
+                                </copy>
+                            </preProcess>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>net.sf.docbook</groupId>
+                        <artifactId>docbook-xml</artifactId>
+                        <version>5.0-all</version>
+                        <classifier>resources</classifier>
+                        <type>zip</type>
+                        <scope>runtime</scope>
+                    </dependency>
+                    <dependency>
+                        <groupId>net.sf.offo</groupId>
+                        <artifactId>fop-hyph</artifactId>
+                        <version>1.2</version>
+                        <scope>runtime</scope>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>fix-legalnotice</id>
+                        <phase>site</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <detail>true</detail>
+                            <tasks>
+                                <copy file="${basedir}/legalnotice.html" todir="${basedir}/target/docbkx/html/admin-guide"/>
+                                <copy file="${basedir}/legalnotice.html" todir="${basedir}/target/docbkx/html/dev-guide"/>
+                                <copy file="${basedir}/legalnotice.html" todir="${basedir}/target/docbkx/html/install-guide"/>
+                                <move file="${basedir}/legalnotice.html" todir="${basedir}/target/docbkx/html/release-notes"/>
+                            </tasks>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <phase>site</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <encoding>UTF-8</encoding>
+                            <outputDirectory>${site-out}/doc</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${docbkx-out}/epub/admin-guide</directory>
+                                    <directory>${docbkx-out}/epub/dev-guide</directory>
+                                    <directory>${docbkx-out}/epub/install-guide</directory>
+                                    <directory>${docbkx-out}/epub/release-notes</directory>
+                                    <includes>
+                                        <include>**/*.epub</include>
+                                    </includes>
+                                </resource>
+                                <resource>
+                                    <directory>${docbkx-out}/html/</directory>
+                                </resource>
+                                <resource>
+                                    <directory>${docbkx-out}/pdf</directory>
+                                    <includes>
+                                        <include>**/*.pdf</include>
+                                    </includes>
+                                </resource>
+                                <resource>
+                                    <directory>${docbkx-out}/rtf</directory>
+                                    <includes>
+                                        <include>**/*.rtf</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    <reporting>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-project-info-reports-plugin</artifactId>
+                <version>2.3.1</version>
+                <reportSets>
+                    <reportSet>
+                        <reports>
+                            <report>cim</report>
+                            <report>dependencies</report>
+                            <report>dependency-convergence</report>
+                            <report>dependency-management</report>
+                            <report>distribution-management</report>
+                            <report>index</report>
+                            <report>issue-tracking</report>
+                            <report>license</report>
+                            <report>mailing-list</report>
+                            <report>modules</report>
+                            <report>plugin-management</report>
+                            <report>plugins</report>
+                            <!--report>project-team</report-->
+                            <report>scm</report>
+                            <report>summary</report>
+                        </reports>
+                    </reportSet>
+                </reportSets>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jxr-plugin</artifactId>
+                <version>2.2</version>
+                <configuration>
+                    <aggregate>${openidm.parent.reports.aggregate}</aggregate>
+                    <windowTitle>OpenIDM ${project.version} Reference</windowTitle>
+                    <linkJavadoc>true</linkJavadoc>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>taglist-maven-plugin</artifactId>
+                <version>2.4</version>
+                <configuration>
+                    <aggregate>${openidm.parent.reports.aggregate}</aggregate>
+                    <tags>
+                        <tag>@FIXME</tag>
+                        <tag>@fixme</tag>
+                        <tag>FIXME</tag>
+                        <tag>fixme</tag>
+                        <tag>@TODO</tag>
+                        <tag>@todo</tag>
+                        <tag>TODO</tag>
+                        <tag>todo</tag>
+                        <tag>HACK</tag>
+                        <tag>hack</tag>
+                    </tags>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.8</version>
+                <configuration>
+                    <author>false</author>
+                    <links>
+                        <link>http://java.sun.com/javase/6/docs/api/</link>
+                    </links>
+                </configuration>
+                <reportSets>
+                    <reportSet>
+                        <id>default</id>
+                        <reports>
+                            <report>javadoc</report>
+                        </reports>
+                    </reportSet>
+                    <reportSet>
+                        <id>aggregate</id>
+                        <reports>
+                            <report>aggregate</report>
+                        </reports>
+                    </reportSet>
+                </reportSets>
+            </plugin>
+        </plugins>
+    </reporting>
+</project>
