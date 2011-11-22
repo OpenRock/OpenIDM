@@ -21,14 +21,31 @@
  * your own identifying information:
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
-package org.forgerock.openidm.repo.jdbc;
+package org.forgerock.openidm.repo.jdbc.impl;
+
+import java.sql.Connection;
+import java.sql.SQLException;
 
 /**
- * Portable error type identifiers
+ * DB2 handling of SQLExceptions
+ *
  * @author aegloff
  */
-public enum ErrorType  {
-    CONNECTION_FAILURE,
-    DUPLICATE_KEY,
-    DEADLOCK_OR_TIMEOUT
+public class DB2SQLExceptionHandler extends DefaultSQLExceptionHandler {
+    
+    /**
+     * @InheritDoc
+     */
+    @Override
+    public boolean isRetryable(SQLException ex, Connection connection) {
+        // Re-tryable DB2 error codes
+        // -911 indicates DB2 rolled back already and expects a retry 
+        // -912 indicates deadlock or timeout.
+        // -904 indicates resource limit was exceeded.
+        if (-911 == ex.getErrorCode() || -912 == ex.getErrorCode() || -904 == ex.getErrorCode()) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 }
