@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ! CCPL HEADER START
+  !
+  ! This work is licensed under the Creative Commons
+  ! Attribution-NonCommercial-NoDerivs 3.0 Unported License.
+  ! To view a copy of this license, visit
+  ! http://creativecommons.org/licenses/by-nc-nd/3.0/
+  ! or send a letter to Creative Commons, 444 Castro Street,
+  ! Suite 900, Mountain View, California, 94041, USA.
+  !
+  ! You can also obtain a copy of the license at
+  ! legal/CC-BY-NC-ND.txt.
+  ! See the License for the specific language governing permissions
+  ! and limitations under the License.
+  !
+  ! If applicable, add the following below this CCPL HEADER, with the fields
+  ! enclosed by brackets "[]" replaced with your own identifying information:
+  !      Portions Copyright [yyyy] [name of copyright owner]
+  !
+  ! CCPL HEADER END
+  !
+  !      Copyright 2011 ForgeRock AS
+  !    
+-->
+<project name="${project.name}"
+ xmlns="http://maven.apache.org/DECORATION/1.0.1"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://maven.apache.org/DECORATION/1.0.1 http://maven.apache.org/xsd/decoration-1.0.1.xsd">
+
+ <skin>
+  <groupId>org.forgerock.commons</groupId>
+  <artifactId>forgerock-community-skin</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+ </skin>
+ <publishDate position="right" format="yyyy.MM.dd" />
+ <version position="right" />
+
+ <body>
+ 
+  <breadcrumbs>
+   <item name="Developer Community" href="http://www.forgerock.org" />
+   <item name="OpenIDM" href="http://openidm.forgerock.org" />
+  </breadcrumbs>
+ 
+  <menu name="OpenIDM">
+   <item name="Welcome" href="index.html" />
+   <item name="News" href="news.html" />
+   <item name="Join" href="https://idp.forgerock.org/openam/UI/Login?service=register" />
+   <item name="Downloads" href="http://www.forgerock.org/openidm.html" />
+   <item name="FAQ" href="faq.html" />
+   <item name="Mailing List" href="mail-lists.html" />
+   <item name="Support" href="http://forgerock.com/subscriptions.html" />
+   <item name="Partners" href="http://forgerock.com/partners.html" />
+   <item name="Wiki" href="http://wikis.forgerock.org/openidm/" />
+  </menu>
+  
+  <menu name="Core Documentation">
+  <item name="All Formats" href="docs.html" />
+  <item name="Release Notes" href="./doc/release-notes/OpenIDM-Release-Notes.html" />
+  <item name="Installation Guide" href="./doc/install-guide/OpenIDM-Install-Guide.html" />
+  <item name="Administration Guide" href="./doc/admin-guide/OpenIDM-Admin-Guide.html" />
+  <item name="Developer Guide" href="./doc/dev-guide/OpenIDM-Dev-Guide.html" />
+  <item name="Reference" href="./doc/reference/OpenIDM-Reference.html" />
+  <item name="Javadoc" href="./apidocs/index.html" />
+  </menu>
+
+  <!-- TODO: Add QA pages -->
+  
+  <menu ref="reports" />
+  
+ </body>
+ 
+ <custom>
+  <googleAnalytics>UA-23412190-5</googleAnalytics>
+  <openproject>
+   <href>http://openidm.forgerock.org/</href>
+   <src>./images/openidm-tagline-200x65.png</src>
+   <alt>OpenIDM</alt>
+  </openproject>
+  <siteSearchFQDN>openidm.forgerock.org</siteSearchFQDN>
+ </custom>
+
+</project>
