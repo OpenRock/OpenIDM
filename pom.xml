@@ -196,6 +196,7 @@
         <adPasswordPluginVersion>2.0.1</adPasswordPluginVersion>
         <commonsJsonCryptoVersion>1.1.0</commonsJsonCryptoVersion>
         <openicfBundleVersion>1.1.0.0</openicfBundleVersion>
+        <orientdbVersion>${orientdb.version}</orientdbVersion>
         <gaId>UA-23412190-9</gaId>
 
         <!-- version management -->
