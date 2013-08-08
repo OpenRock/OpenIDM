@@ -1,0 +1,34 @@
+{
+    "objects" : [
+        {
+            "name" : "user",
+            "onCreateFIXME" : {
+                "type" : "text/javascript",
+                "name" : "ui/onCreate-user-set-default-fields.js"
+            },
+            "onDelete" : {
+                "type" : "text/javascript",
+                "name" : "ui/onDelete-user-cleanup.js"
+            },
+            "properties" : [
+                {
+                    "name" : "securityAnswer",
+                    "encryption" : {
+                        "key" : "openidm-sym-default"
+                    },
+                    "scope" : "private"
+                },
+                {
+                    "name" : "password",
+                    "encryption" : {
+                        "key" : "openidm-sym-default"
+                    },
+                    "scope" : "private"
+                }
+            ]
+        },
+        {
+            "name" : "group"
+        }
+    ]
+}

@@ -1,0 +1,3 @@
+{
+    "metaDataProvider" : "org.forgerock.openidm.repo.orientdb.internal.metadata.ConfigMeta"
+}
