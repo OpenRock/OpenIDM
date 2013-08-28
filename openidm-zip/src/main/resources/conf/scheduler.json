@@ -1,0 +1,7 @@
+{
+    "threadPool" : 
+    {
+        "threadCount" : "10"
+    },
+    "scheduler" : {}
+}
