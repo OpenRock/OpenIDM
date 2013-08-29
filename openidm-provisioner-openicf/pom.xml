@@ -27,7 +27,7 @@
     <parent>
         <artifactId>openidm-project</artifactId>
         <groupId>org.forgerock.openidm</groupId>
-        <version>2.1.0-SNAPSHOT</version>
+        <version>2.1.0-r2444</version>
     </parent>
     <groupId>org.forgerock.openidm</groupId>
     <artifactId>openidm-provisioner-openicf</artifactId>
@@ -61,7 +61,7 @@
         <dependency>
             <groupId>org.forgerock.openicf.framework</groupId>
             <artifactId>connector-framework-osgi</artifactId>
-            <version>1.1.2.0-SNAPSHOT</version>
+            <version>1.1.2.0-r6433</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.forgerock.openicf.framework</groupId>
@@ -100,7 +100,7 @@
         <dependency>
             <groupId>org.forgerock.openicf.framework</groupId>
             <artifactId>connector-test-common</artifactId>
-            <version>1.1.2.0-SNAPSHOT</version>
+            <version>1.1.2.0-r6433</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -215,12 +215,12 @@
                                 <artifactItem>
                                     <groupId>org.forgerock.openicf.framework</groupId>
                                     <artifactId>connector-framework</artifactId>
-                                    <version>1.1.2.0-SNAPSHOT</version>
+                                    <version>1.1.2.0-r6433</version>
                                 </artifactItem>
                                 <artifactItem>
                                     <groupId>org.forgerock.openicf.framework</groupId>
                                     <artifactId>connector-framework-internal</artifactId>
-                                    <version>1.1.2.0-SNAPSHOT</version>
+                                    <version>1.1.2.0-r6433</version>
                                 </artifactItem>
                                 <artifactItem>
                                     <groupId>org.codehaus.groovy</groupId>
