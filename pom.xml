@@ -411,7 +411,7 @@
             <dependency>
                 <groupId>org.forgerock.commons</groupId>
                 <artifactId>org.forgerock.restlet</artifactId>
-                <version>1.1.1-r1044</version>
+                <version>1.1.x-r1044</version>
             </dependency>
             <dependency>
                 <groupId>org.forgerock.commons</groupId>
