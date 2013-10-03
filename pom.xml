@@ -244,7 +244,7 @@
         <openidm.version>2.1.0-r2507</openidm.version>
         <slf4j.version>1.7.2</slf4j.version>
         <log4j.version>1.2.16</log4j.version>
-        <orientdb.version>1.5.1</orientdb.version>
+        <orientdb.version>1.5.1-FR</orientdb.version>
         <jackson.version>1.9.10</jackson.version>
         <restlet.version>2.0.15</restlet.version>
         <javascript.maven.plugin.version>2.0.0-alpha-1</javascript.maven.plugin.version>
