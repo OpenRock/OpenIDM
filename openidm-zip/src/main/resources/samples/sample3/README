@@ -1,0 +1,110 @@
+Sample 3 - Scripted SQL
+-----------------------
+Copyright (c) 2012-2014 ForgeRock AS
+This work is licensed under a Creative Commons Attribution-
+NonCommercial-NoDerivs 3.0 Unported License. See
+http://creativecommons.org/licenses/by-nc-nd/3.0/
+
+This sample demonstrates an example configuration for a scripted SQL
+connector, a connector that communicates with a database through configurable
+SQL scripts. This example requires a fresh installation of OpenIDM.
+
+For documentation pertaining to this example see:
+http://openidm.forgerock.org/doc/install-guide/index.html#more-sample3
+
+To try the example, follow these steps.
+
+    1. Copy the MySQL Connector/J .jar to the OpenIDM bundle/ directory.
+
+    $ cp mysql-connector-java-5.1.18-bin.jar /path/to/openidm/bundle/
+
+    3. Set up MySQL to listen on localhost:3306, connecting as root:password.
+
+    4. Import the sample data definition language file into MySQL.
+
+    $ ./bin/mysql -u root -p < /path/to/openidm/samples/sample3/data/sample_HR_DB.mysql
+    Enter password:
+    $ ./bin/mysql -u root -p
+    Enter password:
+    mysql> use HRDB;
+    mysql> select * from Users;
+    +----+--------+------------------------------------------+-----------+----------+---------------+---------------------------+--------------+---------------------+
+    | id | uid    | password                                 | firstname | lastname | fullname      | email                     | organization | timestamp           |
+    +----+--------+------------------------------------------+-----------+----------+---------------+---------------------------+--------------+---------------------+
+    |  1 | bob    | e38ad214943daad1d64c102faec29de4afe9da3d | Bob       | Fleming  | Bob Fleming   | Bob.Fleming@example.com   | HR           | 2014-04-04 07:03:12 |
+    |  2 | rowley | 2aa60a8ff7fcd473d321e0146afd9e26df395147 | Rowley    | Birkin   | Rowley Birkin | Rowley.Birkin@example.com | SALES        | 2014-04-04 07:03:12 |
+    |  3 | louis  | 1119cfd37ee247357e034a08d844eea25f6fd20f | Louis     | Balfour  | Louis Balfour | Louis.Balfour@example.com | SALES        | 2014-04-04 07:03:12 |
+    |  4 | john   | a1d7584daaca4738d499ad7082886b01117275d8 | John      | Smith    | John Smith    | John.Smith@example.com    | SUPPORT      | 2014-04-04 07:03:12 |
+    |  5 | jdoe   | edba955d0ea15fdef4f61726ef97e5af507430c0 | John      | Doe      | John Doe      | John.Does@example.com     | ENG          | 2014-04-04 07:03:12 |
+    +----+--------+------------------------------------------+-----------+----------+---------------+---------------------------+--------------+---------------------+
+    5 rows in set (0.01 sec)
+    
+    mysql> quit
+    Bye
+
+    * Note that these passwords are hashed, and not available to be read into OpenIDM as cleartext. 
+    * sha1 is used to hash these passwords for compatiblity reasons; in production uses, more secure algorithms should be used.
+
+    5. Start OpenIDM with the configuration for sample 3.
+
+    $ /path/to/openidm/startup.sh -p samples/sample3
+
+    6. Run reconciliation:
+
+    $ curl -k -H "Content-type: application/json" -u "openidm-admin:openidm-admin" -X POST "https://localhost:8443/openidm/recon?_action=recon&mapping=systemHrdb_managedUser"
+
+    7. Retrieve the list of users from OpenIDM's internal repository:
+
+    $ curl -k -u "openidm-admin:openidm-admin" --request GET "https://localhost:8443/openidm/managed/user/?_queryId=query-all-ids&_prettyPrint=true"
+    {
+      "result" : [ {
+        "_id" : "1c5dbec3-8f51-44c0-ae5a-30c06ed6aa6d",
+        "_rev" : "0"
+      }, {
+        "_id" : "3afdc6a9-c296-44db-864c-32d3a5bdd713",
+        "_rev" : "0"
+      }, {
+        "_id" : "6e435110-3d08-48f2-b955-15308310ec32",
+        "_rev" : "0"
+      }, {
+        "_id" : "a114aa7d-6edf-4394-8ebb-197eaeb57598",
+        "_rev" : "0"
+      }, {
+        "_id" : "d32b9667-9ee4-41cc-9374-ac70e5554aeb",
+        "_rev" : "0"
+      } ],
+      "resultCount" : 5,
+      "pagedResultsCookie" : null,
+      "remainingPagedResults" : -1
+    }
+
+    8. Retrieve an individual user, using an ID value from the previous GET:
+
+    $ curl -k -u "openidm-admin:openidm-admin" --request GET "https://localhost:8443/openidm/managed/user/1c5dbec3-8f51-44c0-ae5a-30c06ed6aa6d?_prettyPrint=true"
+    {
+      "_id" : "1c5dbec3-8f51-44c0-ae5a-30c06ed6aa6d",
+      "_rev" : "1",
+      "mail" : "Rowley.Birkin@example.com",
+      "sn" : "Birkin",
+      "passwordAttempts" : "0",
+      "address2" : "",
+      "lastPasswordAttempt" : "Sun Mar 16 2014 12:15:59 GMT-0700 (PDT)",
+      "givenName" : "Rowley",
+      "city" : "",
+      "country" : "",
+      "lastPasswordSet" : "",
+      "postalCode" : "",
+      "accountStatus" : "active",
+      "telephoneNumber" : "",
+      "roles" : [ "openidm-authorized" ],
+      "userName" : "rowley",
+      "stateProvince" : "",
+      "postalAddress" : "",
+      "effectiveRoles" : [ "openidm-authorized" ],
+      "effectiveAssignments" : { }
+    }
+
+You can login to the OpenIDM UI (https://localhost:8443/openidmui) with any of
+the users that were created. Consult the values from "sample_HR_DB.mysql" to 
+retrieve their cleartext passwords. Users can update their profile or their password;
+the changes will be synced back to LDAP.
