@@ -1,0 +1,42 @@
+{
+    "objects" : [
+        {
+            "name" : "user",
+            "onCreate" : {
+                "type" : "text/javascript",
+                "file" : "ui/onCreate-user-set-default-fields.js"
+            },
+            "onDelete" : {
+                "type" : "text/javascript",
+                "file" : "ui/onDelete-user-cleanup.js"
+            },
+            "onRetrieve" : {
+                "type" : "text/javascript",
+                "file" : "script/onRetrieveManagedUser.js"
+            },
+            "onStore" : {
+                "type" : "text/javascript",
+                "file" : "script/onStoreManagedUser.js"
+            },
+            "properties" : [
+                {
+                    "name" : "securityAnswer",
+                    "encryption" : {
+                        "key" : "openidm-sym-default"
+                    },
+                    "scope" : "private"
+                },
+                {
+                    "name" : "password",
+                    "encryption" : {
+                        "key" : "openidm-sym-default"
+                    },
+                    "scope" : "private"
+                }
+            ]
+        },
+        {
+            "name" : "group"
+        }
+    ]
+}
