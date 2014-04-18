@@ -63,21 +63,19 @@ public final class ConnectorReference {
     private final ConnectorLocation connectorLocation;
 
     /**
-     *
      * @param connectorKey
      * @throws AssertionError
-     *             when the {@code connectorKey} is null.
+     *         when the {@code connectorKey} is null.
      */
     public ConnectorReference(ConnectorKey connectorKey) {
         this(connectorKey, null);
     }
 
     /**
-     *
      * @param connectorKey
      * @param connectorHost
      * @throws AssertionError
-     *             when the {@code connectorKey} is null.
+     *         when the {@code connectorKey} is null.
      */
     public ConnectorReference(ConnectorKey connectorKey, String connectorHost) {
         assert null != connectorKey;
@@ -97,7 +95,6 @@ public final class ConnectorReference {
     }
 
     /**
-     *
      * @return
      */
     public ConnectorKey getConnectorKey() {
@@ -117,8 +114,16 @@ public final class ConnectorReference {
 
     @Override
     public String toString() {
-        return (new StringBuilder(connectorKey.toString())).append(" on host: ").append(
-                connectorLocationName).toString();
+        StringBuilder builder = new StringBuilder();
+        builder.append("ConnectorReference(");
+        if (StringUtil.isNotBlank(connectorLocationName)) {
+            builder.append(" connectorHostRef=").append(connectorLocationName);
+        }
+        builder.append(" bundleName=").append(connectorKey.getBundleName());
+        builder.append(" bundleVersion=").append(connectorKey.getBundleVersion());
+        builder.append(" connectorName=").append(connectorKey.getConnectorName());
+        builder.append(" )");
+        return builder.toString();
     }
 
     public ConnectorLocation getConnectorLocation() {

@@ -38,7 +38,7 @@
         "scriptOnResourceScriptFileName": "ScriptOnResourceScript.groovy",
         "searchScriptFileName": "SearchScript.groovy",
         "syncScriptFileName": "SyncScript.groovy",
-        "testScriptFileName": "TestScript.groovy",
+        "testScriptFileName": null,
         "updateScriptFileName": "UpdateScript.groovy"
     },
     "objectTypes": {

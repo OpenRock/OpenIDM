@@ -229,6 +229,10 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
     @Reference(policy = ReferencePolicy.STATIC, target = "(service.pid=org.forgerock.openidm.internal)")
     protected ConnectionFactory connectionFactory;
 
+    void bindConnectionFactory(final ConnectionFactory service) {
+        connectionFactory = service;
+    }
+
     @Reference(target = "(" + ServerConstants.ROUTER_PREFIX + "=/*)")
     RouteService routeService;
     ServerContext routerContext = null;
@@ -386,13 +390,19 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
     }
 
     private void init(JsonValue configuration) {
-        try {
-            operationHelperBuilder = new OperationHelperBuilder(systemIdentifier.getName(), configuration,
-                    connectorInfoProvider.findConnectorInfo(connectorReference).createDefaultAPIConfiguration());
-        } catch (Exception e) {
-            logger.error("OpenICF connector jsonConfiguration of {} has errors.", systemIdentifier, e);
+        ConnectorInfo ci = connectorInfoProvider.findConnectorInfo(connectorReference);
+        if (null != ci) {
+            try {
+                operationHelperBuilder = new OperationHelperBuilder(systemIdentifier.getName(), configuration,
+                        ci.createDefaultAPIConfiguration());
+            } catch (Exception e) {
+                logger.error("OpenICF connector jsonConfiguration of {} has errors.", systemIdentifier, e);
+                throw new ComponentException(
+                        "OpenICF connector jsonConfiguration has errors and the service can not be initiated.", e);
+            }
+        } else {
             throw new ComponentException(
-                    "OpenICF connector jsonConfiguration has errors and the service can not be initiated.", e);
+                    "Can not find the OpenICF Connector: " + connectorReference);
         }
 
         try {
@@ -475,7 +485,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new ConflictException(exception));
             } else if (exception instanceof ConfigurationException) {
                 logger.error("Operation {} failed with ConfigurationException on system object: {}",
@@ -483,7 +494,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new InternalServerErrorException(exception));
             } else if (exception instanceof ConnectionBrokenException) {
                 logger.error("Operation {} failed with ConnectionBrokenException on system object: {}",
@@ -491,7 +503,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new ServiceUnavailableException(exception));
             } else if (exception instanceof ConnectionFailedException) {
                 logger.error("Connection failed during operation {} on system object: {}",
@@ -499,7 +512,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new ServiceUnavailableException(exception));
             } else if (exception instanceof ConnectorIOException) {
                 logger.error("Operation {} failed with ConnectorIOException on system object: {}",
@@ -507,7 +521,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new ServiceUnavailableException(exception));
             } else if (exception instanceof OperationTimeoutException) {
                 logger.error("Operation {} Timeout on system object: {}",
@@ -515,7 +530,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new ServiceUnavailableException(exception));
             } else if (exception instanceof PasswordExpiredException) {
                 logger.error("Operation {} failed with PasswordExpiredException on system object: {}",
@@ -523,7 +539,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new ForbiddenException(exception));
             } else if (exception instanceof InvalidPasswordException) {
                 logger.error("Invalid password has been provided to operation {} for system object: {}",
@@ -531,7 +548,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(ResourceException.getException(UNAUTHORIZED_ERROR_CODE, exception.getMessage(),
                         exception));
             } else if (exception instanceof UnknownUidException) {
@@ -540,7 +558,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new NotFoundException("Not found " + request.getResourceName(),
                         exception).setDetail(new JsonValue(new HashMap<String, Object>())));
             } else if (exception instanceof InvalidCredentialException) {
@@ -549,7 +568,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(ResourceException.getException(UNAUTHORIZED_ERROR_CODE, exception.getMessage(),
                         exception));
             } else if (exception instanceof PermissionDeniedException) {
@@ -558,7 +578,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new ForbiddenException(exception));
             } else if (exception instanceof ConnectorSecurityException) {
                 logger.error("Operation {} failed with ConnectorSecurityException on system object: {}",
@@ -566,7 +587,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new InternalServerErrorException(exception));
             } else if (exception instanceof RemoteWrappedException) {
                 // TODO do something smart here
@@ -576,14 +598,16 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new InternalServerErrorException(exception));
             } else if (exception instanceof ResourceException) {
                 // rethrow the the expected JsonResourceException
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError((ResourceException) exception);
             } else if (exception instanceof JsonValueException) {
                 logger.error("Operation {} failed with Exception on system object: {}",
@@ -597,7 +621,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ActivityLog.log(connectionFactory, router, request.getRequestType(),
                         "Operation " + request.getRequestType().toString() +
                                 " failed with " + exception.getClass().getSimpleName(), id, before, after,
-                        Status.FAILURE);
+                        Status.FAILURE
+                );
                 handler.handleError(new InternalServerErrorException(exception));
             }
         } catch (ResourceException e) {
@@ -1323,7 +1348,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                     operationOptionsBuilder.setPagedResultsOffset(request.getPagedResultsOffset());
                     if (null != request.getSortKeys()) {
                         List<SortKey> sortKeys = new ArrayList<SortKey>(request.getSortKeys().size());
-                        for (org.forgerock.json.resource.SortKey s: request.getSortKeys()){
+                        for (org.forgerock.json.resource.SortKey s : request.getSortKeys()) {
                             sortKeys.add(new SortKey(s.getField().leaf(), s.isAscendingOrder()));
                         }
                         operationOptionsBuilder.setSortKeys(sortKeys);
@@ -1882,16 +1907,35 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                                      * @throws RuntimeException If the application encounters an exception. This will
                                      * stop iteration and the exception will propagate to the application.
                                      */
+                                    @SuppressWarnings("fallthrough")
                                     public boolean handle(SyncDelta syncDelta) {
                                         try {
                                             // Q: are we going to encode ids?
                                             final String resourceId = syncDelta.getUid().getUidValue();
                                             String resourceContainer = getSource(objectType);
                                             switch (syncDelta.getDeltaType()) {
+                                                case CREATE: {
+                                                    JsonValue deltaObject = helper.build(syncDelta.getObject());
+                                                    ActionRequest onCreateRequest = Requests
+                                                            .newActionRequest("sync", "ONCREATE")
+                                                            .setAdditionalParameter("resourceContainer",
+                                                                    resourceContainer)
+                                                            .setAdditionalParameter("resourceId", resourceId)
+                                                            .setContent(new JsonValue(deltaObject));
+                                                    connectionFactory.getConnection()
+                                                            .action(routerContext, onCreateRequest);
+
+                                                    ActivityLog
+                                                            .log(connectionFactory, routerContext, RequestType.ACTION,
+                                                                    "sync-create", onCreateRequest.getResourceName(),
+                                                                    deltaObject, deltaObject, Status.SUCCESS);
+                                                    break;
+                                                }
+                                                case UPDATE:
                                                 case CREATE_OR_UPDATE:
                                                     JsonValue deltaObject = helper.build(syncDelta.getObject());
                                                     if (null != syncDelta.getPreviousUid()) {
-                                                        deltaObject.put("_previous-id", syncDelta.getPreviousUid());
+                                                        deltaObject.put("_previous-id", syncDelta.getPreviousUid().getUidValue());
                                                     }
                                                     ActionRequest onUpdateRequest = Requests
                                                             .newActionRequest("sync", "ONUPDATE")
@@ -1942,6 +1986,10 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                                     }
                                 }, operationOptionsBuilder.build()
                         );
+                        //If this is the empty sync set IDME-179
+                        if (null != syncToken /*&& lastToken[0] == token*/){
+                            lastToken[0] = syncToken;
+                        }
                     } catch (Throwable t) {
                         Map<String, Object> lastException = new LinkedHashMap<String, Object>(2);
                         lastException.put("throwable", t.getMessage());

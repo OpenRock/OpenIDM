@@ -125,6 +125,10 @@ public class SystemObjectSetService implements ScheduledService, SingletonResour
     @Reference(policy = ReferencePolicy.STATIC, target="(service.pid=org.forgerock.openidm.internal)")
     protected ConnectionFactory connectionFactory;
 
+    public void bindConnectionFactory(final ConnectionFactory service) {
+        connectionFactory = service;
+    }
+
     public ConnectionFactory getConnectionFactory() {
         return connectionFactory;
     }
@@ -132,14 +136,14 @@ public class SystemObjectSetService implements ScheduledService, SingletonResour
     @Reference(cardinality = ReferenceCardinality.OPTIONAL_UNARY, policy = ReferencePolicy.DYNAMIC)
     private ConfigurationService configurationService;
 
-    protected void bindProvisionerServices(ProvisionerService service, Map properties) {
+    public void bindProvisionerServices(ProvisionerService service, Map properties) {
         provisionerServices.put(service.getSystemIdentifier(), service);
 //        logger.info("ProvisionerService {} is bound with system identifier {}.",
 //                properties.get(ComponentConstants.COMPONENT_ID),
 //                service.getSystemIdentifier());
     }
 
-    protected void unbindProvisionerServices(ProvisionerService service, Map properties) {
+    public void unbindProvisionerServices(ProvisionerService service, Map properties) {
         for (Map.Entry<SystemIdentifier, ProvisionerService> entry : provisionerServices.entrySet()) {
             if (service.equals(entry.getValue())) {
                 provisionerServices.remove(entry.getKey());
@@ -159,7 +163,7 @@ public class SystemObjectSetService implements ScheduledService, SingletonResour
                     handler.handleError(e);
                 } catch (Exception e) {
                     handler.handleError(new InternalServerErrorException(e));
-                } 
+                }
             } else {
                 handler.handleError(new ServiceUnavailableException("The required service is not available"));
             }
@@ -309,7 +313,7 @@ public class SystemObjectSetService implements ScheduledService, SingletonResour
             throw new ExecutionException(e);
         }
     }
-    
+
     /**
      * @param action the requested action
      * @return true if the action string is to live sync
@@ -321,7 +325,7 @@ public class SystemObjectSetService implements ScheduledService, SingletonResour
     /**
      * Live sync the specified provisioner resource
      * @param source the URI of the provisioner instance to live sync
-     * @param detailedFailure whether in the case of failures additional details such as the 
+     * @param detailedFailure whether in the case of failures additional details such as the
      * record content of where it failed should be included in the response
      */
     private JsonValue liveSync(String source, boolean detailedFailure) throws ResourceException {

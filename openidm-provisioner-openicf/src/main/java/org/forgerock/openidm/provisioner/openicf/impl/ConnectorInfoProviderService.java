@@ -339,8 +339,14 @@ public class ConnectorInfoProviderService implements ConnectorInfoProvider, Meta
                          * .get("heartbeatThreshold").defaultTo
                          * (1).expect(Number.class);
                          */
-                        timer.schedule(
-                                (TimerTask) connectorInfoManager, heartbeatInterval.asLong());
+                        TimerTask task = (TimerTask) connectorInfoManager;
+                        try {
+                            task.run();
+                            timer.schedule(task, heartbeatInterval.asLong());
+                        } catch (IllegalStateException e) {
+                            //The task has been scheduled or the scheduler is cancelled. This is safe to ignore this
+                            logger.debug(e.getMessage(), e);
+                        }
                     }
                 } else {
                     logger.error("RemoteFrameworkConnectionInfo has no name");

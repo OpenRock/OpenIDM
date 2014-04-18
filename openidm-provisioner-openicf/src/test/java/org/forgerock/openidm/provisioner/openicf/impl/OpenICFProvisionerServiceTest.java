@@ -24,22 +24,31 @@ import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.Connection;
 import org.forgerock.json.resource.Context;
 import org.forgerock.json.resource.CreateRequest;
+import org.forgerock.json.resource.MemoryBackend;
+import org.forgerock.json.resource.NotSupportedException;
+import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryFilter;
 import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResult;
 import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.Resources;
+import org.forgerock.json.resource.ResultHandler;
 import org.forgerock.json.resource.RootContext;
 import org.forgerock.json.resource.Route;
 import org.forgerock.json.resource.Router;
 import org.forgerock.json.resource.ServerContext;
+import org.forgerock.json.resource.SingletonResourceProvider;
 import org.forgerock.json.resource.SortKey;
+import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.PropertyAccessor;
+import org.forgerock.openidm.provisioner.impl.SystemObjectSetService;
+import org.forgerock.openidm.provisioner.openicf.commons.ConnectorUtil;
 import org.forgerock.openidm.provisioner.openicf.connector.TestConfiguration;
 import org.forgerock.openidm.provisioner.openicf.connector.TestConnector;
 import org.forgerock.openidm.provisioner.openicf.internal.SystemAction;
@@ -61,6 +70,7 @@ import org.identityconnectors.framework.api.ConnectorKey;
 import org.identityconnectors.framework.common.FrameworkUtil;
 import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.objects.Name;
+import org.identityconnectors.framework.common.objects.SyncToken;
 import org.identityconnectors.framework.impl.api.APIConfigurationImpl;
 import org.identityconnectors.framework.impl.api.AbstractConnectorInfo;
 import org.identityconnectors.framework.impl.api.ConfigurationPropertiesImpl;
@@ -161,6 +171,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
                     return null;
                 }
             });
+            router.addRoute("repo/synchronisation/pooledSyncStage", new MemoryBackend());
         } catch (IllegalStateException e) {
             /* ignore */
         }
@@ -276,91 +287,90 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
 
     @BeforeClass
     public void setUp() throws Exception {
-        try {
-            // Start OpenICF Connector Server
-            String openicfServerPort =
-                    IdentityServer.getInstance().getProperty("openicfServerPort", "8759");
-            int port = 8759;// Integer.getInteger(openicfServerPort);
-            System.setProperty(Log.LOGSPI_PROP, NoOpLogger.class.getName());
+        // Start OpenICF Connector Server
+        String openicfServerPort =
+                IdentityServer.getInstance().getProperty("openicfServerPort", "8759");
+        int port = 8759;// Integer.getInteger(openicfServerPort);
+        System.setProperty(Log.LOGSPI_PROP, NoOpLogger.class.getName());
 
-            connectorServer = new ConnectorServerImpl();
-            connectorServer.setPort(port);
+        connectorServer = new ConnectorServerImpl();
+        connectorServer.setPort(port);
 
-            File root = new File(OpenICFProvisionerService.class.getResource("/").toURI());
+        File root = new File(OpenICFProvisionerService.class.getResource("/").toURI());
 
-            List<URL> bundleURLs = new ArrayList<URL>();
+        List<URL> bundleURLs = new ArrayList<URL>();
 
-            File[] connectors = (new File(root, "/connectors/")).listFiles(new FilenameFilter() {
-                @Override
-                public boolean accept(File dir, String name) {
-                    return name.endsWith(".jar");
-                }
-            });
-
-            Assert.assertNotNull(connectors, "You must copy the connectors first");
-
-            for (File connector : connectors) {
-                bundleURLs.add(connector.toURI().toURL());
+        File[] connectors = (new File(root, "/connectors/")).listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.endsWith(".jar");
             }
+        });
 
-            Assert.assertFalse(bundleURLs.isEmpty(), "No Connectors were found!");
-            connectorServer.setBundleURLs(bundleURLs);
-            connectorServer.setKeyHash("xOS4IeeE6eb/AhMbhxZEC37PgtE=");
-            connectorServer.setIfAddress(InetAddress.getByName("127.0.0.1"));
-            connectorServer.start();
+        Assert.assertNotNull(connectors, "You must copy the connectors first");
 
-            // Start ConnectorInfoProvider Service
-            Dictionary<String, Object> properties = new Hashtable<String, Object>(3);
-            properties.put(JSONEnhancedConfig.JSON_CONFIG_PROPERTY, CONFIGURATION_TEMPLATE);
-            // mocking
-            ComponentContext context = mock(ComponentContext.class);
+        for (File connector : connectors) {
+            bundleURLs.add(connector.toURI().toURL());
+        }
+
+        Assert.assertFalse(bundleURLs.isEmpty(), "No Connectors were found!");
+        connectorServer.setBundleURLs(bundleURLs);
+        connectorServer.setKeyHash("xOS4IeeE6eb/AhMbhxZEC37PgtE=");
+        connectorServer.setIfAddress(InetAddress.getByName("127.0.0.1"));
+        connectorServer.start();
+
+        // Start ConnectorInfoProvider Service
+        Dictionary<String, Object> properties = new Hashtable<String, Object>(3);
+        properties.put(JSONEnhancedConfig.JSON_CONFIG_PROPERTY, CONFIGURATION_TEMPLATE);
+        // mocking
+        ComponentContext context = mock(ComponentContext.class);
+        // stubbing
+        when(context.getProperties()).thenReturn(properties);
+
+        provider = Pair.of(new ConnectorInfoProviderService(), context);
+        provider.getLeft().bindConnectorFacadeFactory(this);
+        provider.getLeft().bindConnectorInfoManager(this);
+        provider.getLeft().activate(context);
+
+        File[] configJsons = (new File(root, "/config/")).listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.startsWith("provisioner.openicf-");
+            }
+        });
+
+        SystemObjectSetService systemObjectSetService = new SystemObjectSetService();
+        systemObjectSetService.bindConnectionFactory(Resources.newInternalConnectionFactory(router));
+        router.addRoute("system", systemObjectSetService);
+
+        Assert.assertNotNull(configJsons, "You must copy the configurations first");
+
+        for (File configJson : configJsons) {
+            // Start OpenICFProvisionerService Service
+            properties = new Hashtable<String, Object>(3);
+            // properties.put(ComponentConstants.COMPONENT_ID, 42);
+            // properties.put(ComponentConstants.COMPONENT_NAME,
+            // getClass().getCanonicalName());
+            properties.put(JSONEnhancedConfig.JSON_CONFIG_PROPERTY, FileUtil.readFile(configJson));
+
+            context = mock(ComponentContext.class);
             // stubbing
             when(context.getProperties()).thenReturn(properties);
 
-            provider = Pair.of(new ConnectorInfoProviderService(), context);
-            provider.getLeft().bindConnectorFacadeFactory(this);
-            provider.getLeft().bindConnectorInfoManager(this);
-            provider.getLeft().activate(context);
+            OpenICFProvisionerService service = new OpenICFProvisionerService();
 
-            File[] configJsons = (new File(root, "/config/")).listFiles(new FilenameFilter() {
-                @Override
-                public boolean accept(File dir, String name) {
-                    return name.startsWith("provisioner.openicf-");
-                }
-            });
+            service.bindConnectorInfoProvider(provider.getLeft());
+            service.bindRouterRegistry(this);
+            service.bindSyncFailureHandlerFactory(this);
+            service.bindConnectionFactory(Resources.newInternalConnectionFactory(router));
+            service.activate(context);
+            systemObjectSetService.bindProvisionerServices(service, null);
 
-            //Need to wait to be sure the remote connector server is connected and synced.
-            Thread.sleep(10000l);
-            Assert.assertNotNull(configJsons, "You must copy the configurations first");
-
-            for (File configJson : configJsons) {
-                // Start OpenICFProvisionerService Service
-                properties = new Hashtable<String, Object>(3);
-                // properties.put(ComponentConstants.COMPONENT_ID, 42);
-                // properties.put(ComponentConstants.COMPONENT_NAME,
-                // getClass().getCanonicalName());
-                properties.put(JSONEnhancedConfig.JSON_CONFIG_PROPERTY, FileUtil.readFile(configJson));
-
-                context = mock(ComponentContext.class);
-                // stubbing
-                when(context.getProperties()).thenReturn(properties);
-
-                OpenICFProvisionerService service = new OpenICFProvisionerService();
-
-                service.bindConnectorInfoProvider(provider.getLeft());
-                service.bindRouterRegistry(this);
-                service.bindSyncFailureHandlerFactory(this);
-                service.activate(context);
-
-                systems.add(Pair.of(service, context));
-            }
-
-            connection = Resources.newInternalConnection(router);
-        } catch (Exception e) {
-            e.printStackTrace();
-            logger.error("Failed to setUp Test", e);
-            throw e;
+            systems.add(Pair.of(service, context));
         }
+
+        connection = Resources.newInternalConnection(router);
+
     }
 
     @AfterClass
@@ -400,6 +410,113 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
         createAttributes.put("email", name + "@example.com");
         return createAttributes;
     }
+
+    private static class SyncStub implements SingletonResourceProvider {
+
+        public ArrayList<ActionRequest> requests = new ArrayList<ActionRequest>();
+
+        public void actionInstance(ServerContext context, ActionRequest request, ResultHandler<JsonValue> handler) {
+            requests.add(request);
+            handler.handleResult(new JsonValue(true));
+        }
+
+        public void patchInstance(ServerContext context, PatchRequest request, ResultHandler<Resource> handler) {
+            handler.handleError(new NotSupportedException());
+        }
+
+        public void readInstance(ServerContext context, ReadRequest request, ResultHandler<Resource> handler) {
+            handler.handleError(new NotSupportedException());
+        }
+
+        public void updateInstance(ServerContext context, UpdateRequest request, ResultHandler<Resource> handler) {
+            handler.handleError(new NotSupportedException());
+        }
+    }
+
+    @Test(dataProvider = "dp", enabled = true)
+    public void testSync(String systemName) throws Exception {
+        if ("groovyremote".equals(systemName) || "groovy".equals(systemName)) {
+
+            JsonValue stage = new JsonValue(new LinkedHashMap<String, Object>());
+            stage.put("connectorData", ConnectorUtil.convertFromSyncToken(new SyncToken(0)));
+            CreateRequest createRequest = Requests
+                    .newCreateRequest("repo/synchronisation/pooledSyncStage",
+                            ("system" + systemName + "account").toUpperCase(),
+                            stage);
+            connection.create(new RootContext(), createRequest);
+
+            SyncStub sync = new SyncStub();
+            Route r = router.addRoute("sync", sync);
+
+
+            ActionRequest actionRequest = Requests.newActionRequest("system/" + systemName + "/account",
+                    SystemObjectSetService.ACTION_LIVE_SYNC);
+
+            stage = connection.action(new RootContext(), actionRequest);
+            Assert.assertEquals(ConnectorUtil.convertToSyncToken(stage.get("connectorData")).getValue(), 1);
+            Assert.assertEquals(sync.requests.size(), 1);
+            ActionRequest delta = sync.requests.remove(0);
+            Assert.assertEquals(delta.getAction(), "ONCREATE");
+
+
+            stage = connection.action(new RootContext(), actionRequest);
+            Assert.assertEquals(ConnectorUtil.convertToSyncToken(stage.get("connectorData")).getValue(), 2);
+            Assert.assertEquals(sync.requests.size(), 1);
+            delta = sync.requests.remove(0);
+            Assert.assertEquals(delta.getAction(), "ONUPDATE");
+
+
+            stage = connection.action(new RootContext(), actionRequest);
+            Assert.assertEquals(ConnectorUtil.convertToSyncToken(stage.get("connectorData")).getValue(), 3);
+            Assert.assertEquals(sync.requests.size(), 1);
+            delta = sync.requests.remove(0);
+            Assert.assertEquals(delta.getAction(), "ONUPDATE");
+
+
+            stage = connection.action(new RootContext(), actionRequest);
+            Assert.assertEquals(ConnectorUtil.convertToSyncToken(stage.get("connectorData")).getValue(), 4);
+            Assert.assertEquals(sync.requests.size(), 1);
+            delta = sync.requests.remove(0);
+            Assert.assertEquals(delta.getAction(), "ONUPDATE");
+            Assert.assertEquals(delta.getContent().get("_previous-id").asString(), "001");
+
+
+            stage = connection.action(new RootContext(), actionRequest);
+            Assert.assertEquals(ConnectorUtil.convertToSyncToken(stage.get("connectorData")).getValue(), 5);
+            Assert.assertEquals(sync.requests.size(), 1);
+            delta = sync.requests.remove(0);
+            Assert.assertEquals(delta.getAction(), "ONDELETE");
+
+
+            stage = connection.action(new RootContext(), actionRequest);
+            Assert.assertEquals(ConnectorUtil.convertToSyncToken(stage.get("connectorData")).getValue(), 10);
+            Assert.assertTrue(sync.requests.isEmpty());
+
+
+            stage = connection.action(new RootContext(), actionRequest);
+            Assert.assertEquals(ConnectorUtil.convertToSyncToken(stage.get("connectorData")).getValue(), 17);
+            Assert.assertEquals(sync.requests.size(), 4);
+            sync.requests.clear();
+
+
+            stage = new JsonValue(new LinkedHashMap<String, Object>());
+            stage.put("connectorData", ConnectorUtil.convertFromSyncToken(new SyncToken(10)));
+            createRequest = Requests
+                    .newCreateRequest("repo/synchronisation/pooledSyncStage",
+                            ("system" + systemName + "group").toUpperCase(),
+                            stage);
+            connection.create(new RootContext(), createRequest);
+            actionRequest = Requests.newActionRequest("system/" + systemName + "/group",
+                    SystemObjectSetService.ACTION_LIVE_SYNC);
+
+            stage = connection.action(new RootContext(), actionRequest);
+            Assert.assertEquals(ConnectorUtil.convertToSyncToken(stage.get("connectorData")).getValue(), 16);
+            Assert.assertEquals(sync.requests.size(), 3);
+
+            router.removeRoute(r);
+        }
+    }
+
 
     @Test(dataProvider = "dp", enabled = true)
     public void testPagedSearch(String systemName) throws Exception {
