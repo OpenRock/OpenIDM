@@ -317,7 +317,7 @@ public class ConnectorInfoProviderService implements ConnectorInfoProvider, Meta
                     ConnectorInfoManager connectorInfoManager =
                             ConnectorInfoManagerFactory.getInstance()
                                     .getUnCheckedRemoteManager(rfi);
-                    if (connectorInfoManager instanceof TimerTask
+                    if (connectorInfoManager instanceof Runnable
                             && connectorInfoManager instanceof ConnectorEventPublisher) {
                         if (null == timer) {
                             timer = new Timer("OpenIDM Remote Connector Server Timer");
@@ -339,10 +339,14 @@ public class ConnectorInfoProviderService implements ConnectorInfoProvider, Meta
                          * .get("heartbeatThreshold").defaultTo
                          * (1).expect(Number.class);
                          */
-                        TimerTask task = (TimerTask) connectorInfoManager;
+                        final Runnable task = (Runnable) connectorInfoManager;
                         try {
                             task.run();
-                            timer.schedule(task, heartbeatInterval.asLong());
+                            timer.schedule(new TimerTask() {
+                                public void run() {
+                                    task.run();
+                                }
+                            }, heartbeatInterval.asLong());
                         } catch (IllegalStateException e) {
                             //The task has been scheduled or the scheduler is cancelled. This is safe to ignore this
                             logger.debug(e.getMessage(), e);
