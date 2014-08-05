@@ -288,6 +288,14 @@
    </para>
    <listitem>
     <para>
+     The Password Synchronization plugins are not currently supported with
+     OpenIDM ${serverDocTargetVersion}. An updated version of these plugins will
+     be released shortly to align with the OpenIDM ${serverDocTargetVersion}
+     release.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
      A conditional GET request, with the <literal>If-Match</literal> request
      header, is not currently supported.
     </para>
