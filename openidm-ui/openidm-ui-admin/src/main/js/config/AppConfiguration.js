@@ -1,4 +1,4 @@
-/** 
+/**
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
  * Copyright (c) 2014 ForgeRock AS. All rights reserved.
@@ -25,9 +25,8 @@
 /*global define*/
 
 define("config/AppConfiguration", [
-    "org/forgerock/commons/ui/common/util/Constants", 
-    "org/forgerock/commons/ui/common/main/EventManager"
-], function(constants, eventManager) {
+    "org/forgerock/commons/ui/common/util/Constants"
+], function(constants) {
     var obj = {
             moduleDefinition: [
                 {
@@ -46,7 +45,8 @@ define("config/AppConfiguration", [
                 {
                     moduleClass: "org/forgerock/openidm/ui/admin/connector/ConnectorRegistry",
                     configuration: {
-                        "org.identityconnectors.ldap.LdapConnector_1.1" : "org/forgerock/openidm/ui/admin/connector/ldap/LDAPTypeView"
+                        "org.identityconnectors.ldap.LdapConnector_1.1" : "org/forgerock/openidm/ui/admin/connector/ldap/LDAPTypeView",
+                        "org.forgerock.openicf.connectors.googleapps.GoogleAppsConnector_1.4" : "org/forgerock/openidm/ui/admin/connector/oauth/GoogleTypeView"
                     }
                 },
                 {
@@ -114,20 +114,34 @@ define("config/AppConfiguration", [
                                     "connectors": {
                                         "url": "#resources/",
                                         "name": "config.AppConfiguration.Navigation.links.resources",
-                                        "icon": "glyph-icon-star",
-                                        "inactive": false
-                                    },
-                                    "authentication": {
-                                        "url": "#authentication/",
-                                        "name": "config.AppConfiguration.Navigation.links.authentication",
-                                        "icon": "glyph-icon-user",
+                                        "icon": "fa fa-cogs",
                                         "inactive": false
                                     },
                                     "mapping": {
                                         "url": "#mapping/",
                                         "name": "config.AppConfiguration.Navigation.links.mapping",
-                                        "icon": "glyph-icon-resize-horizontal",
-                                        "inactive": false
+                                        "icon": "fa fa-map-marker",
+                                        "inactive": false,
+                                        "urls": {
+                                            "properties": {
+                                                "url": "#mapping/",
+                                                "name": "templates.mapping.properties",
+                                                "icon": "fa fa-list",
+                                                "inactive": false
+                                            },
+                                            "correlation": {
+                                                "url": "#correlation/",
+                                                "name": "templates.correlation.correlation",
+                                                "icon": "fa fa-random",
+                                                "inactive": false
+                                            },
+                                            "sync": {
+                                                "url": "#sync/",
+                                                "name": "templates.sync.sync",
+                                                "icon": "fa fa-clock-o",
+                                                "inactive": false
+                                            }
+                                        }
                                     }
                                 }
                             }

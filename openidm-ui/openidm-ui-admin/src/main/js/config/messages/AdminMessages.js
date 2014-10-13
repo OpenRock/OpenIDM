@@ -80,6 +80,14 @@ define("config/messages/AdminMessages", [
             msg: "config.messages.ManagedObjectMessages.saveSuccessful",
             type: "info"
         },
+        "objectTypeLoaded" : {
+            msg: "config.messages.ObjectTypeMessages.objectSuccessfullyLoaded",
+            type: "info"
+        },
+        "objectTypeFailedToLoad" : {
+            msg: "config.messages.ObjectTypeMessages.objectFailedToLoad",
+            type: "error"
+        },
         "authSaveSuccess" : {
             msg: "config.messages.AuthenticationMessages.saveSuccessful",
             type: "info"
@@ -110,6 +118,10 @@ define("config/messages/AdminMessages", [
         },
         "scheduleDeleted" : {
             msg: "config.messages.SyncMessages.scheduleDeleted",
+            type: "info"
+        },
+        "syncLiveSyncSaveSuccess": {
+            msg: "config.messages.SyncMessages.liveSyncSaved",
             type: "info"
         }
     };

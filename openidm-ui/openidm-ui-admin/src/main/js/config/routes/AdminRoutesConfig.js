@@ -43,8 +43,9 @@ define("config/routes/AdminRoutesConfig", [
         "editConnectorView" : {
             view: "org/forgerock/openidm/ui/admin/connector/AddEditConnectorView",
             role: "ui-admin",
-            url: /^connectors\/edit\/(.+)\/$/,
-            pattern: "connectors/edit/?/",
+            defaults : ["", ""],
+            url: /^connectors\/edit\/(.+?)\/(.*)$/,
+            pattern: "connectors/edit/?/?",
             forceUpdate: true
         },
         "addConnectorView" : {
@@ -72,27 +73,27 @@ define("config/routes/AdminRoutesConfig", [
             url: "authentication/",
             forceUpdate: true
         },
+        "settingsView" : {
+            view: "org/forgerock/openidm/ui/admin/settings/SettingsView",
+            role: "ui-admin",
+            url: "settings/",
+            forceUpdate: true
+        },
         "mappingListView" : {
             view: "org/forgerock/openidm/ui/admin/mapping/MappingListView",
             role: "ui-admin",
             url: "mapping/",
             forceUpdate: true
         },
-        "editMappingView" : {
-            view: "org/forgerock/openidm/ui/admin/mapping/EditMappingView",
+        "mappingView" : {
+            view: "org/forgerock/openidm/ui/admin/mapping/PropertiesView",
             role: "ui-admin",
-            url: /^mapping\/edit\/(.+)\/$/,
-            pattern: "mapping/edit/?/",
-            forceUpdate: true
-        },
-        "addMappingView" : {
-            view: "org/forgerock/openidm/ui/admin/mapping/AddMappingView",
-            role: "ui-admin",
-            url: "mapping/add/",
+            url: /^mapping\/([^\/]+)\/$/,
+            pattern: "mapping/?/",
             forceUpdate: true
         },
         "editMappingProperty" : {
-            base: "editMappingView",
+            base: "mappingView",
             dialog: "org/forgerock/openidm/ui/admin/mapping/EditPropertyMappingDialog",
             role: "ui-admin",
             url: /mapping\/(.+?)\/property\/(.+?)$/,
@@ -100,7 +101,7 @@ define("config/routes/AdminRoutesConfig", [
             forceUpdate: true
         },
         "addMappingProperty" : {
-            base: "editMappingView",
+            base: "mappingView",
             dialog: "org/forgerock/openidm/ui/admin/mapping/AddPropertyMappingDialog",
             role: "ui-admin",
             url: /mapping\/(.+?)\/property\/_new$/,
@@ -112,6 +113,13 @@ define("config/routes/AdminRoutesConfig", [
             role: "ui-admin",
             url: /^sync\/(.+)\/$/,
             pattern: "sync/?/",
+            forceUpdate: true
+        },
+        "correlationView" : {
+            view: "org/forgerock/openidm/ui/admin/sync/CorrelationView",
+            role: "ui-admin",
+            url: /^correlation\/(.+)\/$/,
+            pattern: "correlation/?/",
             forceUpdate: true
         }
     };

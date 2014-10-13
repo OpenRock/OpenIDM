@@ -1,0 +1,35 @@
+<div class="changesPending alert-box warning-message">
+    <div class="alert-message">
+        <i class="fa alert-message-icon"></i><span class="message-type">{{t "common.form.warning" }}!</span>
+        <span class="message">{{t "templates.mapping.changesPending"}}</span>
+    </div>
+</div>
+<div id="mappingConfigHolder">
+    <div class="mapping-config-body">
+        <div class="mapping-body">
+            <span class="mapping-icon"><i class="fa fa-2x {{sourceIcon}}"></i></span>
+            <div class="mapping-source">
+                <p class="mapping-header">{{t "templates.mapping.source"}}</p>
+                <p class="mapping-title">{{mapping.source}}</p>
+                <p>{{sourceType}}</p>
+            </div>
+            <div class="mapping-arrow">
+                <div class="arrow-box">
+                    <i class="fa fa-arrow-right"></i>
+                </div>
+            </div>
+            <span class="mapping-icon left-icon"><i class="fa fa-2x {{targetIcon}}"></i></span>
+            <div class="mapping-target">
+                <p class="mapping-header">{{t "templates.mapping.target"}}</p>
+                <p class="mapping-title">{{mapping.target}}</p>
+                <p>{{targetType}}</p>
+            </div>
+        </div>
+        <div class="mapping-bottom-bar">
+            <div class="inline">{{mapping.name}}</div>
+            <button type="button" id="updateMappingButton"  name="" class="button icon-button pull-right edit-button"><span>{{t "templates.mapping.saveProperties"}}</span><i class="fa fa-lg fa-save"></i></button>
+            <button type="button" id="clearChanges"  name="" class="button icon-button pull-right edit-button"><span>{{t "templates.mapping.clearChanges"}}</span><i class="fa fa-lg fa-refresh"></i></button>
+        </div>
+    </div>
+</div>
+<div id="mappingContent"></div>

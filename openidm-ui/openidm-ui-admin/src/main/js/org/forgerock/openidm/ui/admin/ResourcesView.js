@@ -46,7 +46,8 @@ define("org/forgerock/openidm/ui/admin/ResourcesView", [
         render: function(args, callback) {
             var connectorPromise,
                 managedPromise,
-                repoCheckPromise;
+                repoCheckPromise,
+                splitConfig;
 
             if(args[0] === "open") {
                 this.openMapping  = true;
@@ -60,18 +61,16 @@ define("org/forgerock/openidm/ui/admin/ResourcesView", [
 
             $.when(connectorPromise, managedPromise, repoCheckPromise).then(_.bind(function(connectors, managedObjects, configFiles){
                 _.each(connectors[0], _.bind(function(connector){
-                    if(_.isUndefined(connector.error)) {
-                        connector.displayName = $.t("templates.connector." +connectorUtils.cleanConnectorName(connector.connectorRef.connectorName));
+                    connector.displayName = $.t("templates.connector." +connectorUtils.cleanConnectorName(connector.connectorRef.connectorName));
+
+                    if(connector.objectTypes) {
                         connector.displayObjectType = connector.objectTypes.join(",");
-                        connector.cleanUrlName = connector.config.split("/")[2];
-                        connector.editable = true;
-                    } else {
-                        //Temp code for handling a bad connector until a better method of testing valid connectors is developed
-                        connector.displayName = $.t("templates.connector.connectorNameUnknown");
-                        connector.cleanUrlName = connector.name;
-                        connector.editable = false;
-                        connector.errorMessage = $.t("templates.connector.connectorError");
                     }
+
+                    splitConfig = connector.config.split("/");
+
+                    connector.cleanUrlName = splitConfig[1] + "_" +splitConfig[2];
+                    connector.cleanEditName = splitConfig[2];
                 }, this));
 
                 this.data.currentConnectors = connectors[0];
@@ -94,6 +93,11 @@ define("org/forgerock/openidm/ui/admin/ResourcesView", [
 
         resourceRender: function(callback) {
             this.parentRender(_.bind(function(){
+                if(this.$el.find(".resource-unavailable").length !== 0) {
+                    this.$el.find(".resource-unavailable").tooltip({
+                        tooltipClass: "resource-error-tooltip"
+                    });
+                }
 
                 MapResourceView.render({
                     "removeCallback": _.bind(function(){
@@ -104,10 +108,10 @@ define("org/forgerock/openidm/ui/admin/ResourcesView", [
                             this.$el.find(".add-resource-button").prop("disabled", true);
                         }
                     }, this)}, _.bind(function(){
-                        if(this.openMapping) {
-                            this.displayMapping(true, false);
-                        }
-                    }, this));
+                    if(this.openMapping) {
+                        this.displayMapping(true, false);
+                    }
+                }, this));
 
                 if (callback) {
                     callback();

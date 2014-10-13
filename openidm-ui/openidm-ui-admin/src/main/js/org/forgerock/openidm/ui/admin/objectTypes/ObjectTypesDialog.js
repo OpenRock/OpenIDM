@@ -31,8 +31,9 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/util/UIUtils",
+    "org/forgerock/openidm/ui/admin/delegates/ConnectorDelegate",
     "AuthnDelegate"
-], function(AbstractView, validatorsManager, conf, eventManager, constants, uiUtils, authnDelegate) {
+], function(AbstractView, validatorsManager, conf, eventManager, constants, uiUtils, ConnectorDelegate) {
     var ObjectTypesDialog = AbstractView.extend({
         template: "templates/admin/objectTypes/ObjectTypesTemplate.html",
         el: "#dialogs",
@@ -41,13 +42,102 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
         events: {
             "click #newObjectType": "addNewObjectType",
             "change #objectTypesList": "switchObjectType",
+            "change #selectObjectConfig" : "changeObjectTypeConfig",
             "click #deleteMultiple": "deleteObjectType",
             "click #debug": "loadObjectTypeData",
             "click .deleteObject": "deleteObjectType",
             "click .saveObject": "saveObjectType"
         },
+        currentObjectTypeLoaded: "savedConfig",
+        objectTypeConfigs: {
+            "org.forgerock.openicf.connectors.ldap-connector" : [
+                {
+                    "displayName" : "Saved Configuration",
+                    "fileName" : "savedConfig",
+                    "type": "ldap"
+                },
+                {
+                    "displayName" : "AD LDAP Configuration",
+                    "fileName" : "provisioner.openicf-adldap",
+                    "type": "ldap"
+                },
+                {
+                    "displayName" : "ADLDS LDAP Configuration",
+                    "fileName" : "provisioner.openicf-adldsldap",
+                    "type": "ldap"
+                },
+                {
+                    "displayName" : "DJ LDAP Configuration",
+                    "fileName" : "provisioner.openicf-ldap",
+                    "type": "ldap"
+                },
+                {
+                    "displayName" : "Full LDAP Configuration",
+                    "fileName" : "fullConfig",
+                    "type": "ldap"
+                },
+                {
+                    "displayName" : "IBM LDAP Configuration",
+                    "fileName" : "provisioner.openicf-racfldap",
+                    "type": "ldap"
+                }
+            ]
+        },
+        data: {
 
-        render: function(defaultObjectType, callback) {
+        },
+
+        changeObjectTypeConfig: function(event) {
+            var value = $(event.target).val(),
+                type = $(event.target).attr("data-type");
+
+            $(event.target).val(this.currentObjectTypeLoaded);
+
+            uiUtils.jqConfirm($.t('templates.connector.objectTypes.changeConfiguration'), _.bind(function(){
+                if(this.editor) {
+                    this.editor.destroy();
+                }
+                this.editor = null;
+
+                this.$el.find("#objectTypeButtons").hide();
+                this.$el.find("#objectTypesList").empty();
+
+                if(value === "fullConfig") {
+                    this.connectorDetails.configurationProperties.readSchema = true;
+
+                    ConnectorDelegate.testConnector(this.connectorDetails).then(_.bind(function (result) {
+                            eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "objectTypeLoaded");
+
+                            this.loadObjectTypeData(result.objectTypes);
+                            this.$el.find("#objectTypeButtons").show();
+                        }, this), _.bind(function () {
+                            eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "objectTypeFailedToLoad");
+                        }, this)
+                    );
+                } else if(value === "savedConfig") {
+                    this.loadObjectTypeData(this.connectorDetails.objectTypes);
+                } else {
+                    ConnectorDelegate.connectorDefault(value, type).then(_.bind(function (result) {
+                            eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "objectTypeLoaded");
+
+                            this.loadObjectTypeData(result.objectTypes);
+                            this.$el.find("#objectTypeButtons").show();
+                        }, this), _.bind(function () {
+                            eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "objectTypeFailedToLoad");
+                        }, this)
+                    );
+                }
+
+                this.currentObjectTypeLoaded = value;
+                $(event.target).val(this.currentObjectTypeLoaded);
+
+            }, this), "330px");
+        },
+
+        render: function(defaultObjectType, connectorDetails, callback) {
+            var _this = this,
+                btns = {};
+
             JSONEditor.defaults.options.disable_edit_json = true;
             JSONEditor.defaults.options.disable_array_reorder = true;
             JSONEditor.defaults.options.disable_collapse = true;
@@ -55,21 +145,25 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
             JSONEditor.defaults.options.template = 'handlebars';
             JSONEditor.defaults.options.theme = 'jqueryui';
 
-
-            var _this = this,
-                btns = {};
-
+            this.currentObjectTypeLoaded = "savedConfig";
+            this.defaultObjectType = $.extend(true, {}, defaultObjectType);
             this.callback = callback;
             this.currentDialog = $('<div id="objectTypesForm"></div>');
             this.setElement(this.currentDialog);
+            this.connectorDetails = connectorDetails;
+            this.objectTypes = {};
+            this.editor = null;
+
             $('#dialogs').append(this.currentDialog);
+
+            this.data.defaultConfigs = this.objectTypeConfigs[connectorDetails.connectorRef.bundleName];
 
             btns[$.t('templates.connector.objectTypes.saveObjectType')] = function() {
                 if (callback) {
                     _this.saveObjectType();
-                    callback(_this.objectTypes);
                     _this.editor.destroy();
                     $("#objectTypesForm").dialog('close');
+                    callback(_this.objectTypes);
                 }
             };
 
@@ -105,8 +199,8 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
                             parseInt($("#objectTypesList").css("marginBottom"), 10) - 1
                     );
 
-                    if (_.size(defaultObjectType) > 0) {
-                        this.loadObjectTypeData(defaultObjectType);
+                    if (_.size(this.defaultObjectType) > 0) {
+                        this.loadObjectTypeData(this.defaultObjectType);
                     }
                 }, this),
                 "replace"
@@ -303,7 +397,7 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
                                     "nativeType": {
                                         "title": "Native Type",
                                         "type": "string",
-                                        "enum": ["string", "object", "array", "number", "boolean", "null", "undefined"],
+                                        "enum": ["string", "object", "array", "number", "boolean", "null", "undefined", "JAVA_TYPE_GUARDEDSTRING"],
                                         "required": true,
                                         "default": "string"
                                     },
@@ -337,10 +431,8 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
                                     "type": "string"
                                 },
                                 "values": {
-                                    "type": "array",
                                     "title": "Property Value",
-                                    "description": "Below, when adding an value type of object you must click on 'Object Properties' button to specify key names",
-                                    "items": {}
+                                    "description": "Below, when adding an value type of object you must click on 'Object Properties' button to specify key names"
                                 }
                             }
                         }
@@ -353,8 +445,7 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
          * Converts a provided object from JSON-Editor structure to an ObjectType format
          */
         get_OT_format: function(objectType) {
-            var OT_value = _.omit(objectType,["objectName", "properties"]),
-                tempProperty;
+            var OT_value = _.omit(objectType,["objectName", "properties"]);
 
             OT_value.properties = {};
 
@@ -368,11 +459,6 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
 
                 if (property.customProperties && property.customProperties.length > 0) {
                     _(property.customProperties).each(function(customProperty){
-                        // For custom properties
-                        tempProperty = {};
-                        if (customProperty.values.length === 1) {
-                            customProperty.values = customProperty.values[0];
-                        }
                         OT_value.properties[property.propertyName][customProperty.propertyName] = customProperty.values;
                     });
                 }
@@ -407,7 +493,7 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
                     tempProperty.nativeName = property.nativeName;
                     tempProperty.nativeType = property.nativeType;
                     tempProperty.required = property.required || false;
-                    tempProperty.customProperties = key;
+                    tempProperty.customProperties = [];
 
                     // Any additional properties are added to the customProperties object
                     _(_.omit(property,["type", "nativeName", "nativeType", "required"])).each(function(customProperty, key){
@@ -416,9 +502,10 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
                             "values": customProperty
                         });
                     });
-                    customProperties = [];
 
                     tempProperty.customProperties = customProperties;
+                    customProperties = [];
+
                     properties.push(tempProperty);
                 });
                 jsonEditorFormat.properties = properties;
@@ -434,4 +521,3 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
 
     return new ObjectTypesDialog();
 });
-

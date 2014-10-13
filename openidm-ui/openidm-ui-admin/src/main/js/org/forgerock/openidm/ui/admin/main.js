@@ -31,6 +31,8 @@ define("org/forgerock/openidm/ui/admin/main", [
     "./delegates/ConnectorDelegate",
     "./delegates/SyncDelegate",
     "./delegates/BrowserStorageDelegate",
+    "./delegates/ExternalAccessDelegate",
+    "./delegates/SearchDelegate",
 
     "./ResourcesView",
     "./MapResourceView",
@@ -53,12 +55,17 @@ define("org/forgerock/openidm/ui/admin/main", [
     "./authentication/AuthenticationView",
 
     "./mapping/MappingListView",
-    "./mapping/AddMappingView",
-    "./mapping/EditMappingView",
+    "./mapping/MappingBaseView",
     "./mapping/PropertiesView",
     "./mapping/AddPropertyMappingDialog",
     "./mapping/EditPropertyMappingDialog",
 
     "./sync/SyncView",
-    "./sync/SituationPolicyDialog"
+    "./sync/SituationPolicyDialog",
+    "./sync/CorrelationView",
+    "./sync/AnalysisView",
+    "./sync/CorrelationQueryView",
+    
+    "./settings/SettingsView"
+
 ]);

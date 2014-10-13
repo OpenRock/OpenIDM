@@ -22,7 +22,7 @@
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
 
-/*global define, $, _, Handlebars, form2js */
+/*global define, $, _, Handlebars, form2js, window */
 
 define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
@@ -35,27 +35,63 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
     "org/forgerock/openidm/ui/admin/util/ConnectorUtils",
     "org/forgerock/commons/ui/common/main/Router",
     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate",
-    "org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog"
-], function(AdminAbstractView, eventManager, validatorsManager, constants, ConnectorDelegate, ConnectorType, ConnectorRegistry, connectorUtils, router, ConfigDelegate, objectTypesDialog) {
+    "org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog",
+    "org/forgerock/openidm/ui/admin/delegates/SchedulerDelegate",
+    "org/forgerock/openidm/ui/admin/util/Scheduler",
+    "org/forgerock/openidm/ui/admin/util/ScriptEditor"
+
+], function(AdminAbstractView,
+            eventManager,
+            validatorsManager,
+            constants,
+            ConnectorDelegate,
+            ConnectorType,
+            ConnectorRegistry,
+            connectorUtils,
+            router,
+            ConfigDelegate,
+            objectTypesDialog,
+            SchedulerDelegate,
+            Scheduler,
+            ScriptEditor) {
 
     var AddEditConnectorView = AdminAbstractView.extend({
         template: "templates/admin/connector/AddEditConnectorTemplate.html",
         events: {
             "change #connectorType" : "loadConnectorTemplate",
-            "click #addEditConnector": "formSubmit",
             "onValidate": "onValidate",
             "click #connectorForm fieldset legend" : "sectionHideShow",
-            "click .error-box .close-button" : "closeError",
-            "click #addEditObjectType": "addEditObjectType",
+            "click .alert-message .close-button": "closeError",
+            "click #addEditObjectType": "addEditObjectTypes",
             "click #validateConnector": "validate",
-            "change input" : "disableButtons"
+            "change input" : "disableButtons",
+            "click .addLiveSync" : "addLiveSync",
+            "change .retryOptions": "retryOptionChanged",
+            "change .postRetryAction": "postRetryActionChange",
+            "blur #connectorName" : "updateLiveSyncObjects"
+        },
+        data: {
+
         },
         connectorTypeRef: null,
         connectorList: null,
+        oAuthConnector: false,
+        oAuthReturned: false,
 
         render: function(args, callback) {
+            this.data = {};
             this.data.versionDisplay = {};
             this.data.currentMainVersion = null;
+            this.oAuthConnector = false;
+            this.oAuthReturned = false;
+            this.connectorTypeRef = null;
+            this.connectorList = null;
+            this.postActionBlockScript = null;
+            this.name = null;
+            this.objectTypes = null;
+            this.addedLiveSyncSchedules = [];
+            this.connectorTypeRef = null;
+            this.userDefinedObjectTypes = null;
 
             ConnectorDelegate.availableConnectors().then(_.bind(function(connectors){
                 this.data.connectors = connectors.connectorRef;
@@ -97,27 +133,32 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
 
                         this.loadConnectorTemplate();
 
+                        this.setupLiveSync();
+
                         if(callback){
                             callback();
                         }
                     }, this));
                 } else {
+                    var splitDetails = args[0].split("_");
+
                     this.data.editState = true;
+                    this.data.systemType = splitDetails[0];
+                    this.data.connectorName = this.name = splitDetails[1];
 
                     // FIXME support multiple provisioners based on systemType
-                    ConfigDelegate.readEntity("provisioner.openicf/" +args[0]).then(_.bind(function(data){
+                    ConfigDelegate.readEntity(this.data.systemType +"/" +splitDetails[1]).then(_.bind(function(data){
                         var tempVersion;
 
                         data.connectorRef.displayName = $.t("templates.connector." +connectorUtils.cleanConnectorName(data.connectorRef.connectorName));
-                        this.data.connectorName = data.name;
                         this.data.connectorType = data.connectorRef.connectorName;
-                        this.data.systemType = data.connectorRef.systemType;
                         this.data.enabled = data.enabled;
                         this.data.addEditTitle = $.t("templates.connector.editTitle");
                         this.data.addEditSubmitTitle = $.t("templates.connector.updateButtonTitle");
                         this.data.addEditObjectTypeTitle = $.t("templates.connector.editObjectTypeTitle");
-                        this.data.objectType = data.objectTypes;
                         this.data.addEditSubmitTitle = $.t("common.form.update");
+
+                        this.objectTypes = data.objectTypes;
 
                         //Filter down to the current edited connector Type
                         this.data.versionDisplay = _.filter(this.data.versionDisplay, function(connector){
@@ -135,23 +176,74 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
                         }, this);
 
                         this.parentRender(_.bind(function() {
+                            var urlArgs = window.location.hash;
+
+                            switch (data.syncFailureHandler.maxRetries) {
+                                case 0:
+                                    this.$el.find(".retryOptions").val("0").change();
+                                    break;
+                                case -1:
+                                    this.$el.find(".retryOptions").val("-1").change();
+                                    break;
+                                default:
+                                    this.$el.find(".retryOptions").val("*").change();
+                                    this.$el.find(".maxRetries").val(data.syncFailureHandler.maxRetries);
+                                    break;
+                            }
+
+                            if (_.has(data.syncFailureHandler.postRetryAction, "script")) {
+                                this.$el.find(".postRetryAction").val("script");
+                                this.postActionBlockScript = ScriptEditor.generateScriptEditor({
+                                    "element": this.$el.find(".postActionBlock .script"),
+                                    "eventName": "",
+                                    "deleteElement": false,
+                                    "scriptData": data.syncFailureHandler.postRetryAction.script
+                                });
+                                this.$el.find(".postActionBlock .script").show();
+                            } else {
+                                this.$el.find(".postRetryAction").val(data.syncFailureHandler.postRetryAction);
+                            }
+
                             validatorsManager.bindValidators(this.$el);
 
-                            $("#connectorType").val(this.data.connectorType +"_" +data.connectorRef.bundleVersion);
+                            $("#connectorType").val(this.data.connectorType +"_" +data.connectorRef.bundleVersion +"_" +this.data.systemType);
 
                             if(this.data.rangeFound) {
-                                this.$el.find("#connectorErrorMessage .error-message").html($.t("config.messages.ConnectorMessages.connectorVersionChange", {"range" : this.data.oldVersion, "version" : data.connectorRef.bundleVersion}));
+                                this.$el.find("#connectorErrorMessage .alert-message .message").html($.t("config.messages.ConnectorMessages.connectorVersionChange", {"range" : this.data.oldVersion, "version" : data.connectorRef.bundleVersion}));
                                 this.$el.find("#connectorErrorMessage").show();
                             }
 
                             this.connectorTypeRef = ConnectorRegistry.getConnectorModule(data.connectorRef.connectorName +"_" +this.data.currentMainVersion);
 
-                            this.connectorTypeRef.render({"connectorType": data.connectorRef.connectorName +"_" +this.data.currentMainVersion, "animate": true, "connectorDefaults": data}, _.bind(function(){
-                                validatorsManager.validateAllFields(this.$el);
+                            if (urlArgs.match(/code=/)) {
+                                this.oAuthCode = urlArgs.match(/code=([^&]+)/)[1];
+                                this.oAuthReturned = true;
+                            } else {
+                                this.oAuthReturned = false;
+                            }
 
-                                //Set the current newest version incase there is a range
-                                this.connectorTypeRef.data.connectorDefaults.connectorRef.bundleVersion = data.connectorRef.bundleVersion;
-                            }, this));
+                            this.connectorTypeRef.render({"connectorType": data.connectorRef.connectorName +"_" +this.data.currentMainVersion,
+                                    "animate": true,
+                                    "connectorDefaults": data,
+                                    "oAuthReturned" : this.oAuthReturned,
+                                    "editState" : this.data.editState,
+                                    "systemType" : this.data.systemType },
+                                _.bind(function(){
+                                    validatorsManager.validateAllFields(this.$el);
+
+                                    if(this.connectorTypeRef.oAuthConnector) {
+                                        this.oAuthConnector = true;
+                                    } else {
+                                        this.oAuthConnector = false;
+                                    }
+
+                                    this.setSubmitFlow();
+
+                                    //Set the current newest version incase there is a range
+                                    this.connectorTypeRef.data.connectorDefaults.connectorRef.bundleVersion = data.connectorRef.bundleVersion;
+                                }, this));
+
+                            this.setupLiveSync();
 
                             if(callback){
                                 callback();
@@ -163,6 +255,221 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
                 }
 
             }, this));
+        },
+
+        setSubmitFlow: function() {
+            this.$el.find("#addEditConnector").unbind("click");
+
+            if(this.oAuthConnector) {
+                this.$el.find("#addEditObjectType").hide();
+
+                if(this.oAuthReturned || this.connectorTypeRef.data.connectorDefaults.configurationProperties.refreshToken !== null) {
+                    this.$el.find("#addEditConnector").bind("click", _.bind(this.formSubmit, this));
+                } else {
+                    this.$el.find("#addEditConnector").bind("click", _.bind(this.oAuthFormSubmit, this));
+                }
+            } else {
+                this.$el.find("#addEditObjectType").show();
+                this.$el.find("#addEditConnector").bind("click", _.bind(this.formSubmit, this));
+            }
+        },
+
+        addLiveSync: function(schedule) {
+            var source = this.$el.find(".sources option:selected");
+
+            if (source.length > 0) {
+                this.$el.find("#schedules").append("<div class='liveSyncScheduleContainer'></div>");
+
+                Scheduler.generateScheduler({
+                    "element": this.$el.find("#schedules .liveSyncScheduleContainer").last(),
+                    "defaults": {},
+                    "onDelete": _.bind(this.removeSchedule, this),
+                    "invokeService": "provisioner",
+                    "source": source.val(),
+                    "newSchedule": true
+                });
+
+                this.addedLiveSyncSchedules.push(source.val());
+                source.remove();
+
+                if (this.$el.find(".sources option:selected").length === 0) {
+                    this.$el.find(".addLiveSync").prop('disabled', true);
+                    this.$el.find(".sources").prop('disabled', true);
+                }
+            }
+        },
+
+        setupLiveSync: function() {
+            var tempName = "",
+                sourcePieces = [];
+
+            this.updateLiveSyncObjects();
+
+            // Get all schedule IDS
+            SchedulerDelegate.availableSchedules().then(_.bind(function (schedules) {
+                var schedulerPromises = [];
+
+                _.each(schedules.result, function (index) {
+                    // Get the schedule of each ID
+                    schedulerPromises.push(SchedulerDelegate.specificSchedule(index._id));
+                }, this);
+
+                $.when.apply($, schedulerPromises).then(_.bind(function () {
+                    _.each(schedulerPromises, function (schedule) {
+                        schedule = schedule.responseJSON;
+                        //////////////////////////////////////////////////////////////////////////////////////////////////
+                        //                                                                                              //
+                        // TODO: Use queryFilters to avoid having to pull back all schedules and sifting through them.  //
+                        //                                                                                              //
+                        //////////////////////////////////////////////////////////////////////////////////////////////////
+                        if (schedule.invokeContext.action === "liveSync") {
+
+                            sourcePieces = schedule.invokeContext.source.split("/");
+
+                            if(sourcePieces[1] === this.name) {
+                                this.$el.find(".sources option[value='" + schedule.invokeContext.source + "']").remove();
+
+                                this.$el.find("#schedules").append("<div class='liveSyncScheduleContainer'></div>");
+                                Scheduler.generateScheduler({
+                                    "element": this.$el.find("#schedules .liveSyncScheduleContainer").last(),
+                                    "defaults": {
+                                        enabled: schedule.enabled,
+                                        schedule: schedule.schedule,
+                                        persisted: schedule.persisted,
+                                        misfirePolicy: schedule.misfirePolicy,
+                                        liveSyncSeconds: schedule.schedule
+                                    },
+                                    "onDelete": _.bind(this.removeSchedule, this),
+                                    "invokeService": schedule.invokeService,
+                                    "source": schedule.invokeContext.source,
+                                    "scheduleId": schedule._id
+                                });
+                                this.addedLiveSyncSchedules.push(schedule.invokeContext.source);
+                            }
+                        }
+
+                    }, this);
+
+                    if (this.$el.find(".sources option").length === 0) {
+                        this.$el.find(".addLiveSync").prop('disabled', true);
+                        this.$el.find(".sources").prop('disabled', true);
+                    } else {
+                        this.$el.find(".addLiveSync").prop('disabled', false);
+                        this.$el.find(".sources").prop('disabled', false);
+                    }
+
+                }, this));
+            }, this));
+
+            if (!this.postActionBlockScript) {
+                this.postActionBlockScript = ScriptEditor.generateScriptEditor({
+                    "element": this.$el.find(".postActionBlock .script"),
+                    "eventName": "",
+                    "deleteElement": false
+                });
+            }
+        },
+
+        updateLiveSyncObjects: function() {
+            var objectTypes = [],
+                tempName = "",
+                curName = "",
+                sourcePieces = [];
+
+            if (!this.data.editState) {
+                curName = this.$el.find("#connectorName").val();
+
+                if (curName.length  > 0) {
+                    this.name = curName;
+                } else {
+                    this.name = "";
+                }
+            }
+
+            if (this.name) {
+                this.$el.find(".nameFieldMessage").hide();
+
+                if (this.userDefinedObjectTypes && _.size(this.userDefinedObjectTypes) > 0) {
+                    objectTypes = _.map(this.userDefinedObjectTypes, function (object, key) {
+                        return "system/" + this.name + "/" + key;
+                    }, this);
+                } else {
+                    objectTypes = _.map(this.objectTypes, function (object, key) {
+                        return "system/" + this.name + "/" + key;
+                    }, this);
+                }
+
+                this.$el.find(".sources").empty();
+
+                if (objectTypes && _.size(objectTypes) > 0) {
+
+                    // For each schedule on the page
+                    _.each(this.addedLiveSyncSchedules, function (source) {
+                        // The schedule is not included in the livesync source list
+                        if (_.indexOf(objectTypes, source) === -1) {
+                            $("#" + source.split("/").join("")).find(".deleteSchedule").click();
+                            this.addedLiveSyncSchedules.splice(_.indexOf(this.addLiveSyncScheduler, source), 1);
+                        }
+                    }, this);
+
+
+                    // For each possible liveSync
+                    _.each(objectTypes, function (objectName) {
+                        // The source is not scheduled add it to dropdown
+                        if (_.indexOf(this.addedLiveSyncSchedules, objectName) === -1) {
+                            this.$el.find(".sources").append("<option value='" + objectName + "'>" + objectName + "</option>");
+                            this.$el.find(".addLiveSync").prop('disabled', false);
+                            this.$el.find(".sources").prop('disabled', false);
+                        }
+                    }, this);
+                } else {
+                    this.$el.find(".addLiveSync").prop('disabled', true);
+                    this.$el.find(".sources").prop('disabled', true);
+                }
+            } else {
+                this.$el.find(".addLiveSync").prop('disabled', true);
+                this.$el.find(".sources").prop('disabled', true);
+                this.$el.find(".nameFieldMessage").show();
+            }
+        },
+
+        removeSchedule: function (id, name) {
+            this.addedLiveSyncSchedules.splice(_.indexOf(this.addLiveSyncScheduler, name), 1);
+
+            this.$el.find(".liveSyncScheduleContainer:not(:has(.schedulerBody))").remove();
+            this.$el.find(".sources").append("<option value='"+ name +"'>"+ name +"</option>");
+            this.$el.find(".addLiveSync").prop('disabled', false);
+            this.$el.find(".sources").prop('disabled', false);
+
+            this.updateLiveSyncObjects();
+        },
+
+        retryOptionChanged: function() {
+            switch (this.$el.find(".retryOptions").val()) {
+                case "0":
+                    this.$el.find(".retryBlock").hide();
+                    this.$el.find(".maxRetries").val("0");
+                    this.$el.find(".postActionBlock").hide();
+                    break;
+                case "-1":
+                    this.$el.find(".retryBlock").hide();
+                    this.$el.find(".maxRetries").val("-1");
+                    this.$el.find(".postActionBlock").show();
+                    break;
+                case "*":
+                    this.$el.find(".retryBlock").show();
+                    this.$el.find(".maxRetries").val("5");
+                    this.$el.find(".postActionBlock").show();
+                    break;
+            }
+        },
+
+        postRetryActionChange: function() {
+            if (this.$el.find(".postRetryAction").val() === "script") {
+                this.$el.find(".postActionBlock .script").show();
+            } else {
+                this.$el.find(".postActionBlock .script").hide();
+            }
         },
 
         //This function is to find the newest version of a connector and select it if a user provides a range
@@ -258,6 +565,7 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
                 //Checking to ensure we don't reload the page if a minor version is changed
                 if(this.data.currentMainVersion === null || (parseFloat(this.data.currentMainVersion) !== parseFloat(mainVersion)) || this.data.connectorType !==  selectedValue[0]) {
                     this.data.connectorType = selectedValue[0];
+                    this.data.systemType = selectedValue[2];
                     this.data.currentMainVersion = this.findMainVersion(connectorData.bundleVersion);
 
                     connectorTemplate = connectorData.connectorName +"_" +mainVersion;
@@ -267,17 +575,25 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
                     };
 
                     ConnectorDelegate.detailsConnector(connectorRef).then(_.bind(function(connectorDefaults){
-                        this.data.systemType = connectorDefaults.connectorRef.systemType;
                         this.connectorTypeRef = ConnectorRegistry.getConnectorModule(connectorTemplate);
 
-                        this.connectorTypeRef.render({"connectorType": connectorTemplate, "animate": true, "connectorDefaults": connectorDefaults}, _.bind(function(){
-                            this.$el.find("#connectorForm").tooltip({
-                                position: { my: "left+15 center", at: "right center" },
-                                track:true
-                            });
+                        this.connectorTypeRef.render({"connectorType": connectorTemplate,
+                                "animate": true,
+                                "connectorDefaults": connectorDefaults,
+                                "oAuthReturned" : false,
+                                "editState" : this.data.editState,
+                                "systemType" : this.data.systemType },
+                            _.bind(function(){
+                                if(this.connectorTypeRef.oAuthConnector) {
+                                    this.oAuthConnector = true;
+                                } else {
+                                    this.oAuthConnector = false;
+                                }
 
-                            validatorsManager.validateAllFields(this.$el);
-                        }, this));
+                                this.setSubmitFlow();
+
+                                validatorsManager.validateAllFields(this.$el);
+                            }, this));
                     }, this));
                 } else {
                     //Set the bundle version on a minor version change so it saves
@@ -301,31 +617,43 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
 
             delete connectorData.connectorType;
 
-            //Add a dummy object type here for now until we have the creator
+            connectorData.syncFailureHandler.maxRetries = parseInt(connectorData.syncFailureHandler.maxRetries, 10);
+
+            if (connectorData.syncFailureHandler.postRetryAction === "script") {
+                connectorData.syncFailureHandler.postRetryAction = {"script": this.postActionBlockScript.getScriptHook().script};
+            }
+
             connectorData.configurationProperties.readSchema = false;
             connectorData.objectTypes = {};
 
             $.extend(true, mergedResult, connDetails, connectorData);
 
-            mergedResult.objectTypes = this.data.userDefinedObjectType || this.data.objectType;
+            mergedResult.objectTypes = this.userDefinedObjectTypes || this.objectTypes;
 
             return mergedResult;
         },
 
         formSubmit: function(event) {
             event.preventDefault();
-            var mergedResult = this.getProvisioner();
+            var mergedResult = this.getProvisioner(),
+                urlName;
+
+            if(this.data.connectorName) {
+                urlName = this.data.connectorName;
+            } else {
+                urlName = mergedResult.name;
+            }
 
             eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "connectorSaved");
 
             if(this.data.editState) {
-                ConfigDelegate.updateEntity("provisioner." + this.data.systemType + "/" + mergedResult.name, mergedResult).then(_.bind(function () {
+                ConfigDelegate.updateEntity(this.data.systemType + "/" + urlName, mergedResult).then(_.bind(function () {
                     _.delay(function () {
                         eventManager.sendEvent(constants.EVENT_CHANGE_VIEW, {route: router.configuration.routes.resourcesView});
                     }, 1500);
                 }, this));
             } else {
-                ConfigDelegate.createEntity("provisioner." + this.data.systemType + "/" + mergedResult.name, mergedResult).then(_.bind(function () {
+                ConfigDelegate.createEntity(this.data.systemType + "/" + urlName, mergedResult).then(_.bind(function () {
                     _.delay(function() {
                         eventManager.sendEvent(constants.EVENT_CHANGE_VIEW, {route: router.configuration.routes.resourcesView});
                     }, 1500);
@@ -333,27 +661,53 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
             }
         },
 
+        oAuthFormSubmit: function(event) {
+            event.preventDefault();
+            var mergedResult = this.getProvisioner();
+
+            this.connectorTypeRef.submitOAuth(mergedResult);
+        },
 
         validate: function(event) {
             event.preventDefault();
 
             var mergedResult = this.getProvisioner();
 
-            ConnectorDelegate.testConnector(mergedResult).then(_.bind(function (result) {
+            ConnectorDelegate.testConnector(mergedResult).then(_.bind(function (testResult) {
                     eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "connectorTestPass");
 
-                    if(!this.data.editState) {
-                        this.data.objectType = result.objectTypes;
+                    if(this.oAuthReturned) {
+                        this.connectorTypeRef.getToken(mergedResult, this.oAuthCode).then(
+                            _.bind(function(tokenResult){
+                                this.$el.find("#clientRefreshToken").val(tokenResult.refresh_token);
+
+                                if(!this.data.editState) {
+                                    this.objectTypes = testResult.objectTypes;
+                                    this.updateLiveSyncObjects();
+                                }
+
+                                this.userDefinedObjectType = null;
+                                this.$el.find("#addEditObjectType").prop('disabled', false);
+                                this.$el.find("#addEditConnector").prop('disabled', false);
+
+                                this.oAuthReturned = false;
+                            }, this));
+                    } else {
+                        if(!this.data.editState) {
+                            this.objectTypes = testResult.objectTypes;
+                            this.updateLiveSyncObjects();
+                        }
+
+                        this.userDefinedObjectType = null;
+                        this.$el.find("#addEditObjectType").prop('disabled', false);
+                        this.$el.find("#addEditConnector").prop('disabled', false);
                     }
 
-                    this.data.userDefinedObjectType = null;
-                    this.$el.find("#addEditObjectType").prop('disabled', false);
-                    this.$el.find("#addEditConnector").prop('disabled', false);
                 }, this), _.bind(function(result) {
                     eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "connectorTestFailed");
 
                     if(!this.data.editState) {
-                        this.data.objectType = {};
+                        this.objectTypes = {};
                     }
 
                     this.$el.find("#addEditObjectType").prop('disabled', true);
@@ -386,7 +740,7 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
 
             eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "connectorTestFailed");
 
-            this.$el.find("#connectorErrorMessage .error-message").html(this.parseErrorMessage(error.message));
+            this.$el.find("#connectorErrorMessage .alert-message .message").html(this.parseErrorMessage(error.message));
             this.$el.find("#connectorErrorMessage").show();
         },
 
@@ -456,12 +810,13 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
             return err;
         },
 
-        addEditObjectType: function() {
-            objectTypesDialog.render(this.data.userDefinedObjectType ||this.data.objectType, _.bind(this.saveObjectType, this));
+        addEditObjectTypes: function() {
+            objectTypesDialog.render(this.userDefinedObjectTypes || this.objectTypes, this.getProvisioner(), _.bind(this.saveObjectTypes, this));
         },
 
-        saveObjectType: function(newObjectType) {
-            this.data.userDefinedObjectType = newObjectType;
+        saveObjectTypes: function(newObjectTypes) {
+            this.userDefinedObjectTypes = newObjectTypes;
+            this.updateLiveSyncObjects();
         }
     });
 

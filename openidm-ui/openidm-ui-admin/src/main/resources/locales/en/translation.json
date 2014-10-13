@@ -63,6 +63,10 @@
                 "deleteManagedFail" : "Error deleting managed object unable to remove managed object",
                 "saveSuccessful" : "Managed Object has been saved."
             },
+            "ObjectTypeMessages" : {
+                "objectSuccessfullyLoaded" : "Object type Successfully Loaded",
+                "objectFailedToLoad" : "Object type Failed To Load"
+            },
             "AuthenticationMessages" : {
                 "saveSuccessful" : "Authentication configuration has been saved."
             },
@@ -75,7 +79,8 @@
                 "policySaveSuccessful" : "The situational policy has been saved.",
                 "scheduleCreated" : "A new schedule has been created.",
                 "scheduleDeleted" : "The schedule has been deleted.",
-                "scheduleSaved" : "The schedule was successfully saved."
+                "scheduleSaved" : "The schedule was successfully saved.",
+                "liveSyncSaved": "The LiveSync state has been saved."
             }
         },
         "AppConfiguration" : {
@@ -198,12 +203,25 @@
             "groovy" : "Groovy"
         },
         "sync": {
+            "sync": "Sync",
             "syncTitle": "Sync Configuration",
             "situationalPolicy": "Situational Policy",
             "currentPolicy": "Current Policy",
             "modifySituationalPolicies": "Modify Situational Policies",
             "schedules": "Schedules",
-            "addReconciliationSchedule": "Add Reconciliation Schedule"
+            "addReconciliationSchedule": "Add Reconciliation Schedule",
+            "enableLiveSync": "Enable LiveSync for this mapping",
+            "managedObjects": "Incremental changes from the source will automatically be synced to the target system.",
+            "systemObjects1": "Incremental changes from the source system will be synced to the target system every ",
+            "systemObjects2": "seconds.",
+            "noLiveSync": "Incremental changes from the source system are not monitored, visit the resource setup page for the source system to configure this feature.",
+            "liveSyncEnabled": "LiveSync schedule is enabled.",
+            "liveSyncDisabled": "LiveSync schedule is not enabled."
+        },
+        "correlation": {
+            "correlation": "Correlation",
+            "defaultRules": "Default Association Rules",
+            "userAssociationManagment": "User Association Management"
         },
         "scheduler": {
             "scheduler": "Scheduler",
@@ -218,7 +236,10 @@
             "deleteSchedule": "Delete Schedule",
             "saveSchedule": "Save Changes",
             "reconciliation": "Reconciliation",
-            "liveSync": "LiveSync"
+            "liveSync": "LiveSync",
+            "fireEvery": "Fire every",
+            "seconds": "second(s)",
+            "addSchedule": "Add Schedule"
         },
         "situationalPolicies": {
             "currentPolicy": "Current Policy",
@@ -272,9 +293,10 @@
             "scriptedsql_ScriptedSQLConnector":"SQL Connector",
             "xml_XMLConnector":"XML Connector",
             "csvfile_CSVFileConnector":"CSV Connector",
+            "googleapps_GoogleAppsConnector" : "Google Connector",
+            "salesforce_Salesforce":"Salesforce Connector",
             "databasetable_DatabaseTableConnector":"Database Connector",
             "ldap_LdapConnector":"LDAP Connector",
-            "salesforce_Salesforce":"Salesforce Connector",
             "connectorName" : "Connector Name",
             "connectorEnabled" : "Enabled",
             "connectorType" : "Connector Type",
@@ -294,6 +316,19 @@
             "activeState" : "Active",
             "errorState" : "Error",
             "baseTitle" : "Base Connector Details",
+            "liveSync": {
+                "title": "LiveSync Options",
+                "liveSyncFailure": "LiveSync Failure Options",
+                "doNotReattempt": "Do not re-attempt",
+                "retryIndefinitely": "Retry indefinitely",
+                "specificAmount": "Retry a specific amount of times",
+                "retryAttempts": "LiveSync retry attempt",
+                "action": "Action to perform after retry attempts",
+                "schedules": "LiveSync Schedules",
+                "noName": "You must specify a name for the connector before you can add LiveSync schedules.",
+                "addLiveSync": "Add a LiveSync Scheduler for:"
+
+            },
             "objectTypes": {
                 "saveObjectType": "Save ObjectType and Close",
                 "discardEdits": "Discard Changes and Close",
@@ -301,7 +336,9 @@
                 "deleteObjectTypes": "Delete Selected ObjectTypes",
                 "addNewObjecttype": "Add a new object type",
                 "deleteObject": "Delete Object",
-                "saveObject": "Save Object"
+                "saveObject": "Save Object",
+                "objectTypeConfigs" : "Object Type Configs",
+                "changeConfiguration" : "<p>Are you sure you want to change your LDAP Object Type to a default or saved configuration?</p><p>Please note making this change will cause any unsaved or custom changes to be lost.</p>"
             },
             "errorMessages": {
                 "unknownHost" : "Unknown Host",
@@ -489,6 +526,14 @@
                 "clientId" : "Client ID",
                 "instanceUrl" : "Instance URL",
                 "version" : "API Version"
+            },
+            "oAuthGeneral" : {
+                "base" : "Base OAuth Details",
+                "clientSecret": "Client Secret",
+                "clientId" : "Client Id"
+            },
+            "google": {
+
             }
         },
         "mapping": {
@@ -497,7 +542,7 @@
             "target": "Target",
             "createMappingDialog" : "Create Mapping",
             "noObjectType" : "No Object Type",
-            "editMapping": "Edit Mapping (__name__)",
+            "editMapping": "Edit Mapping",
             "addMapping": "Add Mapping",
             "saveNewMapping": "Save New Mapping",
             "createNewMapping": "Create a New Mapping",
@@ -523,6 +568,8 @@
             "invalidConditionScript": "You cannot save a condition script containing errors.",
             "completeSourceObject": "Complete Source Object",
             "changesPending": "Changes Pending",
+            "clearChanges": "Clear Changes",
+            "saveProperties": "Save Properties",
             "noPropertiesMapped": "No Properties Mapped",
             "conditionScriptApplied": "Conditional update script applied",
             "mappingExists": "Mapping for this target property already exists",
@@ -577,6 +624,7 @@
             "continue" : "Continue",
             "back" : "Back",
             "delete" : "Delete",
+            "edit" : "Edit",
             "details" : "Details",
             "pleaseSelect" : "Please Select",
             "addUser" : "Add user",
@@ -586,6 +634,7 @@
             "createdAt" : "Created at",
             "generalDetails" : "General Details",
             "search" : "Search",
+            "settings": "Settings",
             "submit" : "Submit",
             "actions" : "Actions",
             "complete" : "Complete",
@@ -596,6 +645,7 @@
             "reloadGrid" : "Reload Grid",
             "clearFilters" : "Clear Filters",
             "showAllItems" : "Show All Items",
+            "warning" : "Warning",
             "validation" : {
                 "VALID_PHONE_FORMAT": "Must be a valid phone number",
                 "VALID_NAME_FORMAT": "Must have valid name characters",

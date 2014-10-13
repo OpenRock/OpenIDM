@@ -1,5 +1,3 @@
-<h1 id="syncTitle">{{t "templates.sync.syncTitle"}} - {{mappingName}}</h1>
-
 <div class="sync-input-body">
     <form id="syncForm" class="form clearfix" autocomplete="off">
         <fieldset id="sessionModuleForm">
@@ -24,6 +22,26 @@
                     <h3>
                         <span>{{t "templates.sync.addReconciliationSchedule"}}</span>
                     </h3>
+                </div>
+
+                <div class="liveSyncContainer">
+                    <span class="managedLiveSyncEnabled systemObjectMessage fieldHidden"><i class="fa fa-check-circle-o "></i> {{t "templates.sync.liveSyncEnabled"}}</span>
+                    <span class="managedLiveSyncDisabled noLiveSyncMessage fieldHidden"><i class="fa fa-times-circle-o "></i> {{t "templates.sync.liveSyncDisabled"}}</span>
+
+                    <div class="group-field-block-inline no-validation-block fieldHidden">
+                        <label class="light">{{t "templates.sync.enableLiveSync"}}</label>
+                        <input type="checkbox" value="false" class="liveSyncEnabled"/>
+                    </div>
+
+                    <div class="group-field-block">
+                        <p class="managedSourceMessage fieldHidden">{{t "templates.sync.managedObjects"}}</p>
+                        <p class="systemObjectMessage fieldHidden">
+                            {{t "templates.sync.systemObjects1"}} <span class="liveSyncSeconds">0</span> {{t "templates.sync.systemObjects2"}}
+                        </p>
+                        <p class="noLiveSyncMessage fieldHidden">{{t "templates.sync.noLiveSync"}}</p>
+                    </div>
+
+                    <input type="button" class="float-right button saveLiveSync" value="{{t 'common.form.save'}}" />
                 </div>
             </div>
         </fieldset>
