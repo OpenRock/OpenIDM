@@ -16,7 +16,7 @@
 
 package org.forgerock.openidm.jaspi.auth;
 
-import org.eclipse.jetty.plus.jaas.spi.UserInfo;
+import org.eclipse.jetty.jaas.spi.UserInfo;
 import org.eclipse.jetty.util.security.Password;
 import org.forgerock.json.resource.ConnectionFactory;
 import org.forgerock.json.resource.QueryRequest;
@@ -82,6 +82,7 @@ public class ResourceQueryAuthenticator implements Authenticator {
      * @param password The password.
      * @param context the ServerContext to use
      * @return True if authentication is successful, otherwise false.
+     * @throws ResourceException If error occurs.
      */
     public boolean authenticate(String username, String password, ServerContext context) throws ResourceException {
 

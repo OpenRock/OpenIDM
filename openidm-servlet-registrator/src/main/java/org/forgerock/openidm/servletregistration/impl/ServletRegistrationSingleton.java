@@ -290,11 +290,13 @@ public class ServletRegistrationSingleton implements ServletRegistration {
                         for (Map.Entry<String, Object> entry : preInvokeReqAttributes.entrySet()) {
                             logger.trace("Adding attribute to doFilter request {}", entry);
                             request.setAttribute(entry.getKey(), entry.getValue());
-                        }
+                         }
                     }
                 }
-                Object val = m.invoke(filter, args);
-                return val;
+                if (m.getName().equals("equals") && args != null && args.length == 1) {
+                    return proxy == args[0];
+                }
+                return m.invoke(filter, args);
             } catch (InvocationTargetException e) {
                 logger.debug("Filter invocation InvocationTargetException", e.getTargetException());
                 throw e.getTargetException();
