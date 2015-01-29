@@ -9,6 +9,22 @@
     <!-- One of each type!                                           -->
     <!-- =========================================================== -->
 
+    <!--<Arg name="threadpool">
+        <New class="org.eclipse.jetty.util.thread.QueuedThreadPool">
+            <Arg name="maxThreads">500</Arg>
+            <Arg name="minThreads">50</Arg>
+            <Arg name="idleTimeout">60000</Arg>
+            <Arg name="queue">
+                <New class="java.util.concurrent.ArrayBlockingQueue">
+                    <Arg type="int">6000</Arg>
+                </New>
+            </Arg>
+            <Set name="minThreads">50</Set>
+            <Set name="maxThreads">500</Set>
+            <Set name="detailedDump">false</Set>
+        </New>
+    </Arg>-->
+
     <New id="httpConfig" class="org.eclipse.jetty.server.HttpConfiguration">
         <Set name="outputBufferSize">32768</Set>
         <Set name="requestHeaderSize">8192</Set>
@@ -114,6 +130,11 @@
         <Arg>
             <New class="org.eclipse.jetty.server.ServerConnector">
                 <Arg name="server"><Ref refid="Server" /></Arg>
+                <Arg name="executor"></Arg>
+                <Arg name="scheduler"></Arg>
+                <Arg name="bufferPool"></Arg>
+                <Arg name="acceptors" type="int">2</Arg>
+                <Arg name="selectors" type="int">2</Arg>
                 <Arg name="factories">
                     <Array type="org.eclipse.jetty.server.ConnectionFactory">
                         <Item>
@@ -140,6 +161,11 @@
         <Arg>
             <New class="org.eclipse.jetty.server.ServerConnector">
                 <Arg name="server"><Ref refid="Server" /></Arg>
+                <Arg name="executor"/>
+                <Arg name="scheduler"/>
+                <Arg name="bufferPool"/>
+                <Arg name="acceptors" type="int">2</Arg>
+                <Arg name="selectors" type="int">2</Arg>
                 <Arg name="factories">
                     <Array type="org.eclipse.jetty.server.ConnectionFactory">
                         <Item>
