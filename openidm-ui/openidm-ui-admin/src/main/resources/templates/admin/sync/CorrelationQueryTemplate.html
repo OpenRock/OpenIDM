@@ -1,0 +1,30 @@
+<select class="correlationQueryType">
+    <option value="none">{{t "templates.correlation.noQuery"}}</option>
+    <option value="queries">{{t "templates.correlation.queries"}}</option>
+    <!--<option value="script">Correlation Script</option>-->
+</select>
+
+<div class="group-body correlationQueries">
+    {{#each linkQualifiers}}
+    <div class="group">
+        <h3>
+            <i class="fa fa-pencil fa-2 edit"></i>
+            <i class="fa fa-trash-o fa-2 trash"></i>
+            <span class="linkQualifierName">{{this}}</span>
+        </h3>
+    </div>
+    {{/each}}
+    <div class="group" id="addNewCorrelationQuery">
+        <h3>
+            <span>{{t "templates.correlation.addQuery"}}</span>
+        </h3>
+    </div>
+</div>
+
+<!--<div class="group-body correlationScript">-->
+<!--</div>-->
+
+<input type="submit" class="saveCorrelationQuery button" value="{{t "common.form.save"}}"/>
+
+
+
