@@ -34,18 +34,15 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
 import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.patch.JsonPatch;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ConnectionFactory;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
-import org.forgerock.json.resource.PatchOperation;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResultHandler;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.RequestHandler;
-import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResultHandler;
 import org.forgerock.json.resource.Router;
@@ -89,7 +86,7 @@ public class AuditServiceImpl implements RequestHandler {
 
     final EnhancedConfig enhancedConfig = new JSONEnhancedConfig();
 
-     final org.forgerock.audit.impl.AuditServiceImpl auditService =
+    final org.forgerock.audit.impl.AuditServiceImpl auditService =
             new org.forgerock.audit.impl.AuditServiceImpl(connectionFactory);
 
     final Router router = new Router();
@@ -98,7 +95,7 @@ public class AuditServiceImpl implements RequestHandler {
     void activate(ComponentContext compContext) throws Exception {
         logger.debug("Activating Service with configuration {}", compContext.getProperties());
         auditService.configure(enhancedConfig.getConfigurationAsJson(compContext));
-        router.addRoute(RoutingMode.STARTS_WITH, "/audit", auditService);
+        router.addRoute(RoutingMode.STARTS_WITH, "", auditService);
         logger.info("Audit service started.");
     }
 
@@ -111,10 +108,6 @@ public class AuditServiceImpl implements RequestHandler {
     void modified(ComponentContext compContext) throws Exception {
         logger.debug("Reconfiguring audit service with configuration {}", compContext.getProperties());
         auditService.configure(enhancedConfig.getConfigurationAsJson(compContext));
-    }
-
-    private boolean hasConfigChanged(JsonValue existingConfig, JsonValue newConfig) {
-        return JsonPatch.diff(existingConfig, newConfig).size() > 0;
     }
 
     @Deactivate
@@ -136,10 +129,7 @@ public class AuditServiceImpl implements RequestHandler {
      */
     @Override
     public void handleRead(final ServerContext context, final ReadRequest request, final ResultHandler<Resource> handler) {
-        router.handleRead(
-                context,
-                Requests.newReadRequest("/audit/" + request.getResourceName()),
-                handler);
+        router.handleRead(context, request, handler);
     }
 
     /**
@@ -153,10 +143,7 @@ public class AuditServiceImpl implements RequestHandler {
     @Override
     public void handleCreate(final ServerContext context, final CreateRequest request,
             final ResultHandler<Resource> handler) {
-        router.handleCreate(
-                context,
-                Requests.newCreateRequest("/audit/" + request.getResourceName(), request.getContent()),
-                handler);
+        router.handleCreate(context, request, handler);
     }
 
     /**
@@ -165,10 +152,7 @@ public class AuditServiceImpl implements RequestHandler {
     @Override
     public void handleUpdate(final ServerContext context, final UpdateRequest request,
             final ResultHandler<Resource> handler) {
-        router.handleUpdate(
-                context,
-                Requests.newUpdateRequest("/audit/" + request.getResourceName(), request.getContent()),
-                handler);
+        router.handleUpdate(context, request, handler);
     }
 
     /**
@@ -181,10 +165,7 @@ public class AuditServiceImpl implements RequestHandler {
     @Override
     public void handleDelete(ServerContext context, DeleteRequest request,
             ResultHandler<Resource> handler) {
-        router.handleDelete(
-                context,
-                Requests.newDeleteRequest("/audit/" + request.getResourceName()),
-                handler);
+        router.handleDelete(context, request, handler);
     }
 
     /**
@@ -195,10 +176,7 @@ public class AuditServiceImpl implements RequestHandler {
     @Override
     public void handlePatch(final ServerContext context, final PatchRequest request,
             final ResultHandler<Resource> handler) {
-        router.handlePatch(
-                context,
-                Requests.newPatchRequest("/audit/" + request.getResourceName(), (PatchOperation[]) request.getPatchOperations().toArray()),
-                handler);
+        router.handlePatch(context, request, handler);
     }
 
     /**
@@ -217,10 +195,7 @@ public class AuditServiceImpl implements RequestHandler {
      */
     @Override
     public void handleQuery(final ServerContext context, final QueryRequest request, final QueryResultHandler handler) {
-        router.handleQuery(
-                context,
-                Requests.newQueryRequest("/audit/" + request.getResourceName()),
-                handler);
+        router.handleQuery(context, request, handler);
     }
     /**
      * Audit service does not support actions on audit entries.
@@ -230,9 +205,6 @@ public class AuditServiceImpl implements RequestHandler {
     @Override
     public void handleAction(final ServerContext context, final ActionRequest request,
             final ResultHandler<JsonValue> handler) {
-        router.handleAction(
-                context,
-                Requests.newActionRequest("/audit/" + request.getResourceName(), request.getAction()),
-                handler);
+        router.handleAction(context, request, handler);
     }
 }
