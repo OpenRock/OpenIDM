@@ -1,0 +1,53 @@
+<form id="authenticationForm" class="form clearfix form-policy-editor form-horizontal" autocomplete="off">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="form-group form-group-header policyInformation">
+                <label class="control-label">{{t "templates.situationalPolicies.currentPolicy"}}</label>
+                <select id="policyPatterns" class="form-control"></select>
+                <span id="patternDescription"class="help-block"></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="sessionModuleForm" class="group-body row">
+        <div id="situationCopy" class="col-sm-6 situationRow group-field-block">
+
+            <label class="col-xs-5 situation">
+                <i class="fa color fa-circle"></i>
+                <span>{{t "templates.situationalPolicies.situation"}}</span>
+            </label>
+
+            <div class="col-xs-7">
+                <div class="row">
+                    <select class="col-xs-10 form-control action">
+                        <option value="CREATE">Create</option>
+                        <option value="UPDATE">Update</option>
+                        <option value="DELETE">Delete</option>
+                        <option value="LINK">Link</option>
+                        <option value="UNLINK">Unlink</option>
+                        <option value="EXCEPTION">Exception</option>
+                        <option value="IGNORE">Ignore</option>
+                        <option value="REPORT">Report</option>
+                        <option value="NOREPORT">No Report</option>
+                        <option value="ASYNC">Async</option>
+                    </select>
+                    <button type="button" class="btn btn-link btn-policy-info col-xs-2" data-original-title="" title="">
+                        <i data-title="" class="fa fa-info-circle info"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</form>
+
+<p class="text-muted">{{{star}}} {{t "templates.situationalPolicies.starDef"}}</p>
+<p class="text-muted">{{{hollowStar}}} {{t "templates.situationalPolicies.hollowStarDef"}}</p>
+
+<div class="panel-footer">
+    <input type="button" class="pull-right btn btn-primary savePolicy" value="{{t 'common.form.save'}}" />
+</div>
+
+
+

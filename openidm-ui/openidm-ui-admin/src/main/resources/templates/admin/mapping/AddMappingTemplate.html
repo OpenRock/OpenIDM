@@ -1,0 +1,106 @@
+<section>
+    <div class="container addMapping">
+
+        <div class="page-header">
+            <h1>{{t "templates.mapping.newMapping"}}</h1>
+        </div>
+
+        <a href="{{docHelpUrl}}integrators-guide/index.html#chap-synchronization" target="_blank" class="pull-right help">
+            {{t "templates.connector.help"}}
+            <i class="fa fa-question-circle"></i>
+        </a>
+
+        <div id="resourceMappingBody">
+
+        </div>
+
+        <div class="section arrow-breaker">
+            <div class="arrow-box">
+                <i class="fa fa-3x fa-arrow-up"></i>
+            </div>
+        </div>
+
+        <div class="section-header resourceConnectorHeader">
+            <div class="subtitle-bar">
+                <h2>{{t "templates.connector.connectorTitle"}}</h2>
+            </div>
+            <div class="clearfix"></div>
+        </div>
+        <div id="resourceConnectorContainer" class="resource-container none-editable-resources row">
+            {{#if currentConnectors}}
+            {{#each currentConnectors}}
+            <div class="col-sm-6 col-md-3 ">
+                <div class="card-container" style="z-index: 5;">
+                    <div  data-resource-type="connector" data-connector-title="{{cleanEditName}}" class="resource-body card">
+                        <div class="card-body">
+                            <div class="image circle">
+                                <i class="{{iconClass}}"></i>
+                            </div>
+                            <div class="content">
+                                <div class="main">
+                                    <h3 class="name">{{name}}</h3>
+                                    <p class="cardtype">{{displayName}}</p>
+                                    <p class="objectType">{{displayObjectType}}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-footer">
+                            <div class="resource-status-body">
+                                <button type="button" class="btn btn-primary add-resource-button btn-block"><i class="fa fa-plus"></i>{{t "templates.mapping.addToMapping"}}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {{/each}}
+
+            {{else}}
+            <div class="no-connectors-message">
+                <h4 class="col-sm-12">{{t "templates.mapping.noConnectors"}}</h4>
+            </div>
+            {{/if}}
+        </div>
+
+        <div class="section-header">
+            <div class="subtitle-bar">
+                <h2>{{t "templates.managed.managedTitle"}}</h2>
+            </div>
+            <div class="clearfix"></div>
+        </div>
+        <div id="resourceManagedContainer" class="resource-container none-editable-resources row">
+            {{#if currentManagedObjects}}
+            {{#each currentManagedObjects}}
+            <div class="col-sm-6 col-md-3 ">
+                <div class="card-container" style="z-index: 5;">
+                    <div data-resource-type="managed" data-managed-title="{{name}}" class="resource-body card">
+                        <div class="card-body resource-type-body managed-type">
+                            <div class="image circle">
+                                <i class="{{iconClass}}"></i>
+                            </div>
+                            <div class="content">
+                                <div class="main resource-info">
+                                    <h3 class="name resource-given-name">{{name}}</h3>
+                                    <p class="cardtype resource-type-name">{{displayName}}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-footer">
+                            <div class="resource-status-body">
+                                <button type="button" class="btn btn-primary add-resource-button btn-block"><i class="fa fa-plus"></i>{{t "templates.mapping.addToMapping"}}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {{/each}}
+
+            {{else}}
+            <div class="no-connectors-message">
+                <h4 class="col-sm-12">{{t "templates.mapping.noConnectors"}}</h4>
+            </div>
+            {{/if}}
+        </div>
+    </div>
+</section>

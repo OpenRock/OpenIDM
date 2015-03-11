@@ -1,0 +1,78 @@
+.event-hook-window {
+  .panel {
+    border: none;
+    margin-left: 6px;
+  }
+  .panel-heading {
+    padding-bottom: 5px;
+  }
+
+  .panel-body {
+    padding: 0 0 0 15px;
+  }
+
+  #scriptAccordions {
+    .inline-code {
+      #codemirror {
+        padding: 0;
+      }
+      .CodeMirror {
+        border: 1px solid #ddd;
+      }
+
+      #codeCollapse {
+        display: none;
+      }
+    }
+
+    .file-code {
+
+    }
+  }
+
+  #scriptVariables {
+    .panel-body {
+      padding: 0;
+    }
+
+    #passedVariablesHolder {
+      border-top: 1px solid #ddd;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 15px;
+
+      .passed-variable-block {
+        margin-top: 10px;
+        margin-bottom: 10px;
+
+        .textContainer {
+          padding-right: 0;
+        }
+      }
+    }
+  }
+}
+
+
+/**
+  Styles for Script Editor base
+*/
+.event-hook-body {
+  margin-bottom:10px;
+
+  .event-hook-status {
+    font-weight:normal;
+    font-size:16px;
+    padding-right:15px;
+    padding-left:15px;
+  }
+
+  .icon-button {
+    padding-right:5px;
+    cursor:pointer;
+    color:black;
+  }
+
+  .icon-button:hover {
+    color:#5e887f;
+  }
+}

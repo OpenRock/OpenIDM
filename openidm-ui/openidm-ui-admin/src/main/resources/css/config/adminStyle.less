@@ -1,0 +1,168 @@
+/**
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ *
+ * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ *
+ * The contents of this file are subject to the terms
+ * of the Common Development and Distribution License
+ * (the License). You may not use this file except in
+ * compliance with the License.
+ *
+ * You can obtain a copy of the License at
+ * http://forgerock.org/license/CDDLv1.0.html
+ * See the License for the specific language governing
+ * permission and limitations under the License.
+ *
+ * When distributing Covered Code, include this CDDL
+ * Header Notice in each file and include the License file
+ * at http://forgerock.org/license/CDDLv1.0.html
+ * If applicable, add the following below the CDDL Header,
+ * with the fields enclosed by brackets [] replaced by
+ * your own identifying information:
+ * "Portions Copyrighted [year] [name of copyright owner]"
+ */
+
+/*
+  Base Page Styles
+*/
+
+
+.alert-warning .fa,
+.alert-danger .fa {
+  margin-right: 5px;
+}
+
+.subtitle-bar h2 {
+  float: left;
+  margin-top: 0;
+}
+
+.subtitle-bar a {
+  float: right;
+  text-decoration: none;
+}
+
+.btn .fa {
+  width: 21px;
+  text-align: left;
+}
+
+.dropdown-toggle .fa {
+  text-align: right;
+}
+
+#subNavHolder {
+  display: none;
+}
+
+.back-bar {
+  padding: 15px 0;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 15px;
+}
+
+.clean-btn:hover {
+  color: #000;
+}
+
+.inline-label {
+  padding-left: 15px;
+}
+
+.panel-collapse-group .panel {
+  margin-bottom:0px;
+}
+
+.scripts-container .group-field-block .border-bottom:first-child {
+    border-bottom: 2px solid #ddd;
+}
+
+.border-bottom {
+    border-bottom: 1px solid #eee;
+}
+
+.ui-front {
+    z-index: 10000;
+}
+
+.validation-message {
+    color: @failure-color;
+}
+
+/*
+    Managed Object Admin
+*/
+
+.schema-panel {
+  border-top: 1px solid #eee;
+  padding-top: 5px;
+  h3 {
+    margin-top: 0px;
+  }
+}
+
+#managedPropertyWrapper {
+  input[type=text]{
+    width: 300px;
+  }
+  .managed-property {
+    border: 1px solid #efefef;
+    margin-top: 15px;
+    padding: 10px;
+  }
+}
+.scripts-container {
+  margin-top: 15px;
+  .table {
+    margin-top: 15px;
+    td,th {
+        border-top: none;
+        border-bottom: 1px solid #eee;
+    }
+    th {
+        border-bottom: 2px solid #ddd;
+    }
+  }
+  .lightenColor {
+    color: @navbar-toggle-color;
+  }
+}
+
+.ui-autocomplete {
+    li.ui-state-focus {
+        color: #fff;
+        background: @base-theme-color;
+    }
+
+    li.ui-menu-item {
+        padding:5px;
+    }
+}
+
+@media (max-width: 767px) {
+  .btn-toolbar {
+
+    .pull-right {
+      float: none !important;
+    }
+
+    .btn-group {
+      width: 100%;
+
+      button {
+        display: block;
+        margin-top: 10px;
+        width: 100%;
+      }
+    }
+
+    .btn-group:first-child button{
+      margin-top: 0;
+    }
+  }
+    
+  .addScriptButton {
+      margin-top: 15px;
+      width: 100%;
+  }
+}

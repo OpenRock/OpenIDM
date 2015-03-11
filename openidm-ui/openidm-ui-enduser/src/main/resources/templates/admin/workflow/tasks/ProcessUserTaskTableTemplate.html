@@ -1,0 +1,20 @@
+<table class="table">
+    <thead class="table-header">
+        <tr>
+            {{#headers}}
+                <th>{{.}}</th>
+            {{/headers}}
+        </tr>
+    </thead>
+    <tbody>
+        {{#tasks}}
+        <tr>
+            {{#.}}
+                <td>{{{.}}}</td>
+            {{/.}}
+        </tr>
+
+        {{/tasks}}
+    </tbody>
+</table>
+<div class="clear"></div>
