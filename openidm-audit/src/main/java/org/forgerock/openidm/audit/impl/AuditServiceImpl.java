@@ -52,7 +52,6 @@ import org.forgerock.json.resource.Router;
 import org.forgerock.json.resource.RoutingMode;
 import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.UpdateRequest;
-import org.forgerock.openidm.audit.AuditService;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
@@ -60,8 +59,6 @@ import org.forgerock.openidm.router.RouteService;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.List;
 
 /**
  * This audit service is the entry point for audit logging on the router.
@@ -71,7 +68,7 @@ import java.util.List;
 @Properties({
     @Property(name = "service.description", value = "Audit Service"),
     @Property(name = "service.vendor", value = "ForgeRock AS"),
-    @Property(name = "openidm.router.prefix", value = AuditService.ROUTER_PREFIX + "/*")
+    @Property(name = "openidm.router.prefix", value = "/audit/*")
 })
 public class AuditServiceImpl implements RequestHandler {
     private static final Logger logger = LoggerFactory.getLogger(AuditServiceImpl.class);
@@ -141,7 +138,10 @@ public class AuditServiceImpl implements RequestHandler {
      */
     @Override
     public void handleRead(final ServerContext context, final ReadRequest request, final ResultHandler<Resource> handler) {
-        router.handleRead(context, request, handler);
+        router.handleRead(
+                context,
+                Requests.newReadRequest("/audit/" + request.getResourceName()),
+                handler);
     }
 
     /**
@@ -155,10 +155,9 @@ public class AuditServiceImpl implements RequestHandler {
     @Override
     public void handleCreate(final ServerContext context, final CreateRequest request,
             final ResultHandler<Resource> handler) {
-        CreateRequest createRequest = Requests.newCreateRequest("/audit/" + request.getResourceName(), request.getContent());
         router.handleCreate(
                 context,
-                createRequest,
+                Requests.newCreateRequest("/audit/" + request.getResourceName(), request.getContent()),
                 handler);
     }
 
