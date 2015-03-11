@@ -85,21 +85,19 @@ public class AuditServiceImpl implements RequestHandler {
      Ensure we do not get bound on router whilst it is activating
      */
     @Reference(target = "("+ServerConstants.ROUTER_PREFIX + "=/*)")
-    RouteService routeService;
+    protected RouteService routeService;
 
-    EnhancedConfig enhancedConfig = new JSONEnhancedConfig();
+    final EnhancedConfig enhancedConfig = new JSONEnhancedConfig();
 
-    JsonValue config;
+     final org.forgerock.audit.impl.AuditServiceImpl auditService =
+            new org.forgerock.audit.impl.AuditServiceImpl(connectionFactory);
 
-    org.forgerock.audit.impl.AuditServiceImpl auditService =
-            new org.forgerock.audit.impl.AuditServiceImpl();
-
-    Router router = new Router();
+    final Router router = new Router();
 
     @Activate
     void activate(ComponentContext compContext) throws Exception {
         logger.debug("Activating Service with configuration {}", compContext.getProperties());
-        auditService.activate(enhancedConfig.getConfigurationAsJson(compContext));
+        auditService.configure(enhancedConfig.getConfigurationAsJson(compContext));
         router.addRoute(RoutingMode.STARTS_WITH, "/audit", auditService);
         logger.info("Audit service started.");
     }
@@ -112,7 +110,7 @@ public class AuditServiceImpl implements RequestHandler {
     @Modified
     void modified(ComponentContext compContext) throws Exception {
         logger.debug("Reconfiguring audit service with configuration {}", compContext.getProperties());
-        auditService.modified(enhancedConfig.getConfigurationAsJson(compContext));
+        auditService.configure(enhancedConfig.getConfigurationAsJson(compContext));
     }
 
     private boolean hasConfigChanged(JsonValue existingConfig, JsonValue newConfig) {
@@ -120,9 +118,9 @@ public class AuditServiceImpl implements RequestHandler {
     }
 
     @Deactivate
-    void deactivate(ComponentContext compContext) {
+    void deactivate(ComponentContext compContext) throws Exception {
         logger.debug("Deactivating Service {}", compContext.getProperties());
-        auditService.deactivate(enhancedConfig.getConfigurationAsJson(compContext));
+        auditService.configure(enhancedConfig.getConfigurationAsJson(compContext));
         router.removeAllRoutes();
         logger.info("Audit service stopped.");
     }
