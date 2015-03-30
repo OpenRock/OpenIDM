@@ -63,7 +63,7 @@ public class JaspiAuditApi implements AuditApi {
         String requestId = auditMessage.get("requestId").asString();
         String sessionId = auditMessage.get("sessionId").asString();
 
-        logAuthRequest(ipAddress, username, userId, roles, status, requestId, sessionId);
+        //logAuthRequest(ipAddress, username, userId, roles, status, requestId, sessionId);
     }
 
     /**

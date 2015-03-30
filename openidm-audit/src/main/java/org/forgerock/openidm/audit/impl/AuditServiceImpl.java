@@ -53,6 +53,7 @@ import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.router.RouteService;
+import org.forgerock.openidm.util.DateUtil;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,8 +87,8 @@ public class AuditServiceImpl implements RequestHandler {
 
     final EnhancedConfig enhancedConfig = new JSONEnhancedConfig();
 
-    final org.forgerock.audit.impl.AuditServiceImpl auditService =
-            new org.forgerock.audit.impl.AuditServiceImpl(connectionFactory);
+    final org.forgerock.audit.AuditService auditService =
+            new org.forgerock.audit.AuditService(connectionFactory);
 
     final Router router = new Router();
 
@@ -143,6 +144,9 @@ public class AuditServiceImpl implements RequestHandler {
     @Override
     public void handleCreate(final ServerContext context, final CreateRequest request,
             final ResultHandler<Resource> handler) {
+        if (!request.getContent().isDefined("timestamp")) {
+            request.getContent().put("timestamp", DateUtil.getDateUtil().now());
+        }
         router.handleCreate(context, request, handler);
     }
 

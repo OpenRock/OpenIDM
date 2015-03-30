@@ -24,6 +24,10 @@
 
 package org.forgerock.openidm.servlet.internal;
 
+import static org.forgerock.json.fluent.JsonValue.field;
+import static org.forgerock.json.fluent.JsonValue.json;
+import static org.forgerock.json.fluent.JsonValue.object;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.felix.scr.annotations.Activate;
@@ -60,13 +64,16 @@ import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
 import org.forgerock.json.resource.RequestType;
+import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.Resources;
 import org.forgerock.json.resource.ResultHandler;
+import org.forgerock.json.resource.SecurityContext;
 import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.UntypedCrossCutFilter;
 import org.forgerock.json.resource.UpdateRequest;
+import org.forgerock.json.resource.servlet.HttpContext;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
@@ -74,6 +81,7 @@ import org.forgerock.openidm.core.filter.ScriptedFilter;
 import org.forgerock.openidm.smartevent.EventEntry;
 import org.forgerock.openidm.smartevent.Name;
 import org.forgerock.openidm.smartevent.Publisher;
+import org.forgerock.openidm.util.DateUtil;
 import org.forgerock.script.ScriptEntry;
 import org.forgerock.script.ScriptRegistry;
 import org.osgi.framework.Constants;
@@ -85,9 +93,11 @@ import org.slf4j.LoggerFactory;
 import javax.script.ScriptException;
 import javax.servlet.ServletException;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -116,6 +126,8 @@ public class ServletConnectionFactory implements ConnectionFactory {
      * Setup logging for the {@link org.forgerock.openidm.servlet.internal.ServletConnectionFactory}.
      */
     private final static Logger logger = LoggerFactory.getLogger(ServletConnectionFactory.class);
+
+    private static final DateUtil DATE_UTIL = DateUtil.getDateUtil("UTC");
 
     // the created connection factory
     protected ConnectionFactory connectionFactory;
@@ -395,9 +407,11 @@ public class ServletConnectionFactory implements ConnectionFactory {
     RequestHandler init(JsonValue configuration, final RequestHandler handler)
             throws ScriptException {
         final JsonValue filterConfig = configuration.get("filters").expect(List.class);
-        final List<Filter> filters = new ArrayList<Filter>(filterConfig.size() + 1); // add one for the logging filter
+        // add two for the logging filter and access filter
+        final List<Filter> filters = new ArrayList<Filter>(filterConfig.size() + 2);
 
         filters.add(newLoggingFilter());
+        filters.add(Filters.conditionalFilter(Filters.matchResourceName("^(?!.*(^audit/)).*$"), newAccessLogFilter()));
 
         for (JsonValue jv : filterConfig) {
             Filter filter = newFilter(jv);
@@ -512,6 +526,176 @@ public class ServletConnectionFactory implements ConnectionFactory {
                     public void filterQueryResource(ServerContext context, Void state, Resource resource, QueryResultHandler handler) {
                         logger.trace("Response: {}", resource);
                         handler.handleResource(resource);
+                    }
+                });
+    }
+
+    private Filter newAccessLogFilter() {
+        return Filters.asFilter(
+                new UntypedCrossCutFilter<Long>() {
+                    @Override
+                    public void filterGenericError(
+                            ServerContext context,
+                            Long state,
+                            ResourceException error,
+                            ResultHandler<Object> handler
+                    ) {
+                        logAuditAccessEntry(context, null, String.valueOf(error.getCode()), false, state);
+                        handler.handleError(error);
+                    }
+
+                    @Override
+                    public void filterGenericRequest(
+                            ServerContext context,
+                            Request request,
+                            RequestHandler next,
+                            CrossCutFilterResultHandler<Long, Object> handler
+                    ) {
+                        logAuditAccessEntry(
+                                context, request.getRequestType().name(), null, true, System.currentTimeMillis());
+                        handler.handleContinue(context, System.currentTimeMillis());
+                    }
+
+                    @Override
+                    public <R> void filterGenericResult(
+                            ServerContext context,
+                            Long state,
+                            R result,
+                            ResultHandler<R> handler) {
+                        logAuditAccessEntry(context, null, "200" , false, state);
+                        handler.handleResult(result);
+                    }
+
+                    @Override
+                    public void filterQueryResource(
+                            ServerContext context,
+                            Long state,
+                            Resource resource,
+                            QueryResultHandler handler) {
+                        logAuditAccessEntry(context, null, "200", false, state);
+                        handler.handleResource(resource);
+                    }
+
+                    private void logAuditAccessEntry(
+                            final ServerContext context,
+                            final String requestMethod,
+                            final String statusCode,
+                            final boolean isRequest,
+                            final long requestStartTime
+                    ) {
+                        final HttpContext httpContext;
+
+                        if (!context.containsContext(HttpContext.class)
+                                || context.containsContext(InternalServerContext.class)) {
+                            // dont log internal requests
+                            return;
+                        }
+
+                        try {
+                            httpContext = (HttpContext) context.getContext("http");
+                        } catch (Exception e) {
+                            // shouldnt happen
+                            return;
+                        }
+
+                        final SecurityContext securityContext = (SecurityContext) context.getContext("security");
+                        final String serverHost = httpContext.getHeader("Host").get(0).split(":")[0];
+                        final String serverPort = httpContext.getHeader("Host").get(0).split(":")[1];
+
+                        String urlPath = null;
+                        try {
+                            urlPath = (new URL(httpContext.getPath())).getPath();
+                        } catch (Exception e) {
+                            logger.error("Unable to get the path of the url : {}", httpContext.getPath());
+                            //ignore
+                        }
+                        final String transactionID = context.getContext("root").getId();
+
+
+                        final JsonValue accessLog = json(object(
+                                field("timestamp", DATE_UTIL.now()),
+                                field("transactionId", transactionID),
+                                field("server", object(
+                                        field("ip", serverHost),
+                                        field("port", serverPort)
+                                )),
+                                field("client", object(
+                                        field("host", ""),
+                                        field("ip", securityContext.getAuthorizationId().get("ipAddress"))
+                                )),
+                                field("authenticationId", securityContext.getAuthenticationId()),
+                                field("authorizationId", object(
+                                        field("component", securityContext.getAuthorizationId().get("component")),
+                                        field("id", securityContext.getAuthorizationId().get("id")),
+                                        field("roles", securityContext.getAuthorizationId().get("roles"))
+                                ))
+                        ));
+
+                        if (isRequest) {
+                            accessLog.add("messageId", "IDM-" + urlPath + "-" + requestMethod);
+                            accessLog.add("http", object(
+                                    field("method", httpContext.getMethod()),
+                                    field("path", urlPath),
+                                    field("queryString", buildQueryString(httpContext)),
+                                    field("headers", headersToList(httpContext.getHeaders()))
+                            ));
+                            accessLog.add("resourceOperation", object(
+                                    field("method", requestMethod),
+                                    field("action", httpContext.getParameter("_action"))
+                            ));
+                        } else {
+                            accessLog.add("messageId", "IDM-" + urlPath + "-RESPONSE");
+                            accessLog.add("response", object(
+                                    field("status", statusCode),
+                                    field("elapsedTime", String.valueOf(System.currentTimeMillis() - requestStartTime))
+                            ));
+                        }
+                        final CreateRequest createRequest = Requests.newCreateRequest("audit/access", accessLog);
+                        try {
+                            getConnection().create(context, createRequest);
+                        } catch (ResourceException e) {
+                            logger.error("Failed to log audit access entry", e);
+                        }
+
+                    }
+
+                    private List<String> headersToList(Map<String, List<String>> headers) {
+                        final List<String> headerList = new ArrayList<String>();
+
+                        for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                            final StringBuilder stringBuilder = new StringBuilder();
+                            if (entry.getKey().equals("Authorization")) {
+                                continue;
+                            }
+                            stringBuilder.append(entry.getKey());
+                            stringBuilder.append(" : ");
+                            final Iterator<String> iter = entry.getValue().iterator();
+                            while (iter.hasNext()) {
+                                stringBuilder.append(iter.next());
+                                if (iter.hasNext()) {
+                                    stringBuilder.append(", ");
+                                }
+                            }
+                            headerList.add(stringBuilder.toString());
+                        }
+                        return headerList;
+                    }
+
+                    private String buildQueryString(final HttpContext httpContext) {
+                        final StringBuilder queryString = new StringBuilder();
+                        final Map<String, List<String>> parameters = httpContext.getParameters();
+                        if (parameters == null || parameters.isEmpty()) {
+                            return null;
+                        }
+                        Iterator<String> parameterKeys = httpContext.getParameters().keySet().iterator();
+                        while (parameterKeys.hasNext()) {
+                            final String key = parameterKeys.next();
+                            queryString.append(key).append("=").append(httpContext.getParameterAsString(key));
+                            if (parameterKeys.hasNext()) {
+                                queryString.append("&");
+                            }
+                        }
+                        return queryString.toString();
                     }
                 });
     }
