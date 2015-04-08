@@ -221,6 +221,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
     private static final String REAUTH_HEADER = "X-OpenIDM-Reauth-Password";
     private static final String RUN_AS_USER = "runAsUser";
     private static final String ACCOUNT_USERNAME_ATTRIBUTES = "accountUserNameAttributes";
+    private static final String OPENDJ_TRANSACTION_ID = "OPENDJ_TRANSACTION_ID";
 
     private static final Logger logger = LoggerFactory.getLogger(OpenICFProvisionerService.class);
 
@@ -1275,6 +1276,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
 
                 OperationOptions operationOptions = operations.get(AuthenticationApiOp.class)
                         .build(jsonConfiguration, objectClassInfoHelper)
+                        .setOption(OPENDJ_TRANSACTION_ID, context.getContext("root").getId())
                         .build();
 
                 // Throw ConnectorException
@@ -1328,12 +1330,13 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
 
                 OperationOptions operationOptions = operations.get(CreateApiOp.class)
                         .build(jsonConfiguration, objectClassInfoHelper)
+                        .setOption(OPENDJ_TRANSACTION_ID, context.getContext("root").getId())
                         .build();
 
                 Uid uid = facade.create(objectClassInfoHelper.getObjectClass(),
                         AttributeUtil.filterUid(createAttributes), operationOptions);
 
-                Resource resource = getCurrentResource(facade, uid, null);
+                Resource resource = getCurrentResource(facade, uid, null, context.getContext("root").getId());
                 activityLogger.log(context, RequestType.CREATE, "message", getSource(objectClass, uid.getUidValue()), null, resource.getContent(), Status.SUCCESS);
                 handler.handleResult(resource);
             } catch (ResourceException e) {
@@ -1362,10 +1365,11 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                         : new Uid(resourceId);
 
                 // do a read first (largely for logging)
-                Resource before = getCurrentResource(facade, uid, null);
+                Resource before = getCurrentResource(facade, uid, null, context.getContext("root").getId());
 
                 OperationOptions operationOptions = operations.get(DeleteApiOp.class)
                         .build(jsonConfiguration, objectClassInfoHelper)
+                        .setOption(OPENDJ_TRANSACTION_ID, context.getContext("root").getId())
                         .build();
 
                 facade.delete(objectClassInfoHelper.getObjectClass(), uid, operationOptions);
@@ -1406,7 +1410,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 }
 
                 OperationOptionsBuilder operationOptionsBuilder = operations.get(SearchApiOp.class)
-                            .build(jsonConfiguration, objectClassInfoHelper);
+                            .build(jsonConfiguration, objectClassInfoHelper)
+                            .setOption(OPENDJ_TRANSACTION_ID, context.getContext("root").getId());
 
                 Filter filter = null;
 
@@ -1501,7 +1506,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 }
 
                 Uid uid = new Uid(resourceId);
-                ConnectorObject connectorObject = getConnectorObject(facade, uid, request.getFields());
+                ConnectorObject connectorObject = getConnectorObject(
+                        facade, uid, request.getFields(), context.getContext("root").getId());
 
                 if (null != connectorObject) {
                     Resource resource = objectClassInfoHelper.build(connectorObject, cryptoService);
@@ -1539,7 +1545,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                         : new Uid(resourceId);
 
                 // read resource before update for logging
-                Resource before = getCurrentResource(facade, _uid, null);
+                Resource before = getCurrentResource(facade, _uid, null, context.getContext("root").getId());
 
                 // TODO Fix for http://bugster.forgerock.org/jira/browse/CREST-29
                 final Name newName = null;
@@ -1549,7 +1555,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
 
                 OperationOptions operationOptions;
                 OperationOptionsBuilder operationOptionsBuilder = operations.get(UpdateApiOp.class)
-                        .build(jsonConfiguration, objectClassInfoHelper);
+                        .build(jsonConfiguration, objectClassInfoHelper)
+                        .setOption(OPENDJ_TRANSACTION_ID, context.getContext("root").getId());
 
                 final String reauthPassword = getReauthPassword(context);
 
@@ -1573,7 +1580,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 Uid uid = facade.update(objectClassInfoHelper.getObjectClass(), _uid,
                         AttributeUtil.filterUid(replaceAttributes), operationOptions);
 
-                Resource resource = getCurrentResource(facade, uid, null);
+                Resource resource = getCurrentResource(facade, uid, null, context.getContext("root").getId());
                 activityLogger.log(context, RequestType.UPDATE, "message", getSource(objectClass, uid.getUidValue()), before.getContent(), resource.getContent(), Status.SUCCESS);
                 handler.handleResult(resource);
             } catch (ResourceException e) {
@@ -1614,10 +1621,14 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                     && filter(request.getContent().asMap().keySet(), attributesToRunAsUser).iterator().hasNext();
         }
 
-        private Resource getCurrentResource(final ConnectorFacade facade, final Uid uid, final List<JsonPointer> fields)
+        private Resource getCurrentResource(
+                final ConnectorFacade facade,
+                final Uid uid,
+                final List<JsonPointer> fields,
+                final String transactionId)
             throws IOException, JsonCryptoException, ResourceException {
 
-            final ConnectorObject co = getConnectorObject(facade, uid, fields);
+            final ConnectorObject co = getConnectorObject(facade, uid, fields, transactionId);
             if (null != co) {
                 return objectClassInfoHelper.build(co, cryptoService);
             } else {
@@ -1630,13 +1641,18 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
             }
         }
 
-        private ConnectorObject getConnectorObject(final ConnectorFacade facade, final Uid uid, final List<JsonPointer> fields)
+        private ConnectorObject getConnectorObject(
+                final ConnectorFacade facade,
+                final Uid uid,
+                final List<JsonPointer> fields,
+                final String transactionId)
             throws IOException, JsonCryptoException, ResourceException {
 
             final OperationOptions operationOptions;
             if (fields == null || fields.isEmpty()) {
                 operationOptions = operations.get(GetApiOp.class)
                         .build(jsonConfiguration, objectClassInfoHelper)
+                        .setOption(OPENDJ_TRANSACTION_ID, transactionId)
                         .build();
             } else {
                 OperationOptionsBuilder operationOptionsBuilder = new OperationOptionsBuilder();
