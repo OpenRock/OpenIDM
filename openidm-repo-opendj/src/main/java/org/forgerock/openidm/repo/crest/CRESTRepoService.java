@@ -42,15 +42,21 @@ import java.util.List;
  * Generic repository wrapping a {@link CollectionResourceProvider}
  */
 public abstract class CRESTRepoService implements RequestHandler, RepositoryService, RepoBootService {
-    CollectionResourceProvider resourceProvider;
+    private CollectionResourceProvider resourceProvider;
 
     public CRESTRepoService(CollectionResourceProvider resourceProvider) {
         this.resourceProvider = resourceProvider;
     }
 
-    abstract String getResourceId(Request request);
+    public CRESTRepoService() {}
 
-    class BlockingResultHandler<T> implements ResultHandler<T> {
+    protected abstract String getResourceId(Request request);
+
+    protected void setResourceProvider(CollectionResourceProvider provider) {
+        this.resourceProvider = provider;
+    }
+
+    protected class BlockingResultHandler<T> implements ResultHandler<T> {
         private T result = null;
         private ResourceException exception = null;
 
