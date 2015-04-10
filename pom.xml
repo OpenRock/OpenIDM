@@ -349,6 +349,7 @@
         <!--module>openidm-workflow-remote</module-->
         <module>openidm-zip</module>
         <module>custom-scripted-connector-bundler</module>
+        <module>openidm-repo-opendj</module>
     </modules>
 
     <profiles>
