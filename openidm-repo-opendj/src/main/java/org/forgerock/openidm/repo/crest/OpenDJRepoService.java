@@ -1,4 +1,4 @@
-package org.forgerock.openidm.repo.opendj;
+package org.forgerock.openidm.repo.crest;
 
 import org.forgerock.json.fluent.JsonValue;
 import org.forgerock.json.resource.CollectionResourceProvider;
