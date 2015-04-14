@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2014 ForgeRock AS. All Rights Reserved
+ * Copyright (c) 2014-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -24,11 +24,8 @@
 
 package org.forgerock.openidm.servlet.internal;
 
-import static org.forgerock.json.fluent.JsonValue.field;
-import static org.forgerock.json.fluent.JsonValue.json;
-import static org.forgerock.json.fluent.JsonValue.object;
-
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
@@ -39,6 +36,7 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
+import org.forgerock.audit.event.AccessAuditEventBuilder;
 import org.forgerock.json.fluent.JsonPointer;
 import org.forgerock.json.fluent.JsonValue;
 import org.forgerock.json.fluent.JsonValueException;
@@ -93,11 +91,9 @@ import org.slf4j.LoggerFactory;
 import javax.script.ScriptException;
 import javax.servlet.ServletException;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -106,7 +102,6 @@ import java.util.regex.Pattern;
  * The ConnectionFactory responsible for providing Connections to routing requests initiated
  * from an external request on the api servlet.
  *
- * @author brmiller
  */
 @Component(name = ServletConnectionFactory.PID, policy = ConfigurationPolicy.OPTIONAL,
         configurationFactory = false, immediate = true)
@@ -532,15 +527,15 @@ public class ServletConnectionFactory implements ConnectionFactory {
 
     private Filter newAccessLogFilter() {
         return Filters.asFilter(
-                new UntypedCrossCutFilter<Long>() {
+                new UntypedCrossCutFilter<Pair<Long, Request>>() {
                     @Override
                     public void filterGenericError(
                             ServerContext context,
-                            Long state,
+                            Pair<Long, Request> request,
                             ResourceException error,
                             ResultHandler<Object> handler
                     ) {
-                        logAuditAccessEntry(context, null, String.valueOf(error.getCode()), false, state);
+                        logAuditAccessEntry(context, request, error);
                         handler.handleError(error);
                     }
 
@@ -549,40 +544,38 @@ public class ServletConnectionFactory implements ConnectionFactory {
                             ServerContext context,
                             Request request,
                             RequestHandler next,
-                            CrossCutFilterResultHandler<Long, Object> handler
+                            CrossCutFilterResultHandler<Pair<Long, Request>, Object> handler
                     ) {
-                        logAuditAccessEntry(
-                                context, request.getRequestType().name(), null, true, System.currentTimeMillis());
-                        handler.handleContinue(context, System.currentTimeMillis());
+                        handler.handleContinue(
+                                context, new ImmutablePair<Long, Request>(System.currentTimeMillis(), request));
                     }
 
                     @Override
                     public <R> void filterGenericResult(
                             ServerContext context,
-                            Long state,
+                            Pair<Long, Request> request,
                             R result,
                             ResultHandler<R> handler) {
-                        logAuditAccessEntry(context, null, "200" , false, state);
+                        logAuditAccessEntry(context, request, null);
                         handler.handleResult(result);
                     }
 
                     @Override
                     public void filterQueryResource(
                             ServerContext context,
-                            Long state,
+                            Pair<Long, Request> request,
                             Resource resource,
                             QueryResultHandler handler) {
-                        logAuditAccessEntry(context, null, "200", false, state);
+                        logAuditAccessEntry(context, request, null);
                         handler.handleResource(resource);
                     }
 
                     private void logAuditAccessEntry(
                             final ServerContext context,
-                            final String requestMethod,
-                            final String statusCode,
-                            final boolean isRequest,
-                            final long requestStartTime
+                            final Pair<Long, Request> request,
+                            final ResourceException resourceException
                     ) {
+
                         final HttpContext httpContext;
 
                         if (!context.containsContext(HttpContext.class)
@@ -594,7 +587,7 @@ public class ServletConnectionFactory implements ConnectionFactory {
                         try {
                             httpContext = (HttpContext) context.getContext("http");
                         } catch (Exception e) {
-                            // shouldnt happen
+                            // shouldn't happen
                             return;
                         }
 
@@ -602,100 +595,53 @@ public class ServletConnectionFactory implements ConnectionFactory {
                         final String serverHost = httpContext.getHeader("Host").get(0).split(":")[0];
                         final String serverPort = httpContext.getHeader("Host").get(0).split(":")[1];
 
-                        String urlPath = null;
-                        try {
-                            urlPath = (new URL(httpContext.getPath())).getPath();
-                        } catch (Exception e) {
-                            logger.error("Unable to get the path of the url : {}", httpContext.getPath());
-                            //ignore
-                        }
-                        final String transactionID = context.getContext("root").getId();
+                        final long elapsedTime = System.currentTimeMillis() - request.getLeft();
 
+                        final AccessAuditEventBuilder auditEventBuilder = new AccessAuditEventBuilder();
+                        auditEventBuilder.forHttpCrestRequest(context, request.getRight())
+                                .authorizationId(
+                                        securityContext.getAuthorizationId().get(SecurityContext.AUTHZID_COMPONENT).toString(),
+                                        securityContext.getAuthorizationId().get(SecurityContext.AUTHZID_ID).toString(),
+                                        getRoles(securityContext))
+                                .server(serverHost, Integer.parseInt(serverPort))
+                                .messageId(generateMessageID(request.getRight()))
+                                .timestamp(System.currentTimeMillis());
 
-                        final JsonValue accessLog = json(object(
-                                field("timestamp", DATE_UTIL.now()),
-                                field("transactionId", transactionID),
-                                field("server", object(
-                                        field("ip", serverHost),
-                                        field("port", serverPort)
-                                )),
-                                field("client", object(
-                                        field("host", ""),
-                                        field("ip", securityContext.getAuthorizationId().get("ipAddress"))
-                                )),
-                                field("authenticationId", securityContext.getAuthenticationId()),
-                                field("authorizationId", object(
-                                        field("component", securityContext.getAuthorizationId().get("component")),
-                                        field("id", securityContext.getAuthorizationId().get("id")),
-                                        field("roles", securityContext.getAuthorizationId().get("roles"))
-                                ))
-                        ));
-
-                        if (isRequest) {
-                            accessLog.add("messageId", "IDM-" + urlPath + "-" + requestMethod);
-                            accessLog.add("http", object(
-                                    field("method", httpContext.getMethod()),
-                                    field("path", urlPath),
-                                    field("queryString", buildQueryString(httpContext)),
-                                    field("headers", headersToList(httpContext.getHeaders()))
-                            ));
-                            accessLog.add("resourceOperation", object(
-                                    field("method", requestMethod),
-                                    field("action", httpContext.getParameter("_action"))
-                            ));
+                        if (resourceException != null) {
+                            auditEventBuilder.responseWithMessage(
+                                    "FAILURE - " + String.valueOf(resourceException.getCode()),
+                                    elapsedTime,
+                                    resourceException.getReason());
                         } else {
-                            accessLog.add("messageId", "IDM-" + urlPath + "-RESPONSE");
-                            accessLog.add("response", object(
-                                    field("status", statusCode),
-                                    field("elapsedTime", String.valueOf(System.currentTimeMillis() - requestStartTime))
-                            ));
+                            auditEventBuilder.response("SUCCESS", elapsedTime);
                         }
-                        final CreateRequest createRequest = Requests.newCreateRequest("audit/access", accessLog);
+
+                        //log the log entry
+                        final CreateRequest createRequest =
+                                Requests.newCreateRequest("audit/access", auditEventBuilder.toEvent().getValue());
                         try {
                             getConnection().create(context, createRequest);
                         } catch (ResourceException e) {
                             logger.error("Failed to log audit access entry", e);
                         }
-
                     }
 
-                    private List<String> headersToList(Map<String, List<String>> headers) {
-                        final List<String> headerList = new ArrayList<String>();
-
-                        for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
-                            final StringBuilder stringBuilder = new StringBuilder();
-                            if (entry.getKey().equals("Authorization")) {
-                                continue;
-                            }
-                            stringBuilder.append(entry.getKey());
-                            stringBuilder.append(" : ");
-                            final Iterator<String> iter = entry.getValue().iterator();
-                            while (iter.hasNext()) {
-                                stringBuilder.append(iter.next());
-                                if (iter.hasNext()) {
-                                    stringBuilder.append(", ");
-                                }
-                            }
-                            headerList.add(stringBuilder.toString());
+                    private String[] getRoles(SecurityContext securityContext) {
+                        Object listOfRoles = securityContext.getAuthorizationId().get(SecurityContext.AUTHZID_ROLES);
+                        if (listOfRoles instanceof List) {
+                            final List<String> roles = (List)listOfRoles;
+                            return roles.toArray(new String[roles.size()]);
                         }
-                        return headerList;
+                        return null;
                     }
 
-                    private String buildQueryString(final HttpContext httpContext) {
-                        final StringBuilder queryString = new StringBuilder();
-                        final Map<String, List<String>> parameters = httpContext.getParameters();
-                        if (parameters == null || parameters.isEmpty()) {
-                            return null;
-                        }
-                        Iterator<String> parameterKeys = httpContext.getParameters().keySet().iterator();
-                        while (parameterKeys.hasNext()) {
-                            final String key = parameterKeys.next();
-                            queryString.append(key).append("=").append(httpContext.getParameterAsString(key));
-                            if (parameterKeys.hasNext()) {
-                                queryString.append("&");
-                            }
-                        }
-                        return queryString.toString();
+                    private String generateMessageID(Request request) {
+                        StringBuilder messageID = new StringBuilder();
+                        messageID.append("IDM-")
+                                .append(request.getRequestType().toString())
+                                .append("-")
+                                .append(request.getResourceName());
+                        return messageID.toString();
                     }
                 });
     }
