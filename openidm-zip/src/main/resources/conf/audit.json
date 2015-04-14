@@ -149,6 +149,10 @@
             "id": "_id",
             "type": "string"
           },
+          "transactionId": {
+            "id": "transactionId",
+            "type": "string"
+          },
           "mapping": {
             "id": "mapping",
             "type": "string"
@@ -450,6 +454,10 @@
             "id": "_id",
             "type": "string"
           },
+          "transactionId": {
+            "id": "transactionId",
+            "type": "string"
+          },
           "activityId": {
             "id": "activityId",
             "type": "string"
@@ -522,6 +530,10 @@
         "properties": {
           "_id": {
             "id": "_id",
+            "type": "string"
+          },
+          "transactionId": {
+            "id": "transactionId",
             "type": "string"
           },
           "timestamp": {

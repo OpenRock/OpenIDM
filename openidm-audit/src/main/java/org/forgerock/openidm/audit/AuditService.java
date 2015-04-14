@@ -21,7 +21,7 @@
  * your own identifying information:
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
-package org.forgerock.openidm.audit.impl;
+package org.forgerock.openidm.audit;
 
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
@@ -45,8 +45,6 @@ import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.RequestHandler;
 import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.Router;
-import org.forgerock.json.resource.RoutingMode;
 import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
@@ -68,8 +66,8 @@ import org.slf4j.LoggerFactory;
     @Property(name = "service.vendor", value = "ForgeRock AS"),
     @Property(name = "openidm.router.prefix", value = "/audit/*")
 })
-public class AuditServiceImpl implements RequestHandler {
-    private static final Logger logger = LoggerFactory.getLogger(AuditServiceImpl.class);
+public class AuditService implements RequestHandler {
+    private static final Logger logger = LoggerFactory.getLogger(AuditService.class);
 
     // ----- Declarative Service Implementation
 
@@ -90,13 +88,10 @@ public class AuditServiceImpl implements RequestHandler {
     final org.forgerock.audit.AuditService auditService =
             new org.forgerock.audit.AuditService(connectionFactory);
 
-    final Router router = new Router();
-
     @Activate
     void activate(ComponentContext compContext) throws Exception {
         logger.debug("Activating Service with configuration {}", compContext.getProperties());
         auditService.configure(enhancedConfig.getConfigurationAsJson(compContext));
-        router.addRoute(RoutingMode.STARTS_WITH, "", auditService);
         logger.info("Audit service started.");
     }
 
@@ -115,7 +110,6 @@ public class AuditServiceImpl implements RequestHandler {
     void deactivate(ComponentContext compContext) throws Exception {
         logger.debug("Deactivating Service {}", compContext.getProperties());
         auditService.configure(enhancedConfig.getConfigurationAsJson(compContext));
-        router.removeAllRoutes();
         logger.info("Audit service stopped.");
     }
 
@@ -130,7 +124,7 @@ public class AuditServiceImpl implements RequestHandler {
      */
     @Override
     public void handleRead(final ServerContext context, final ReadRequest request, final ResultHandler<Resource> handler) {
-        router.handleRead(context, request, handler);
+        auditService.handleRead(context, request, handler);
     }
 
     /**
@@ -147,7 +141,7 @@ public class AuditServiceImpl implements RequestHandler {
         if (!request.getContent().isDefined("timestamp")) {
             request.getContent().put("timestamp", DateUtil.getDateUtil().now());
         }
-        router.handleCreate(context, request, handler);
+        auditService.handleCreate(context, request, handler);
     }
 
     /**
@@ -156,7 +150,7 @@ public class AuditServiceImpl implements RequestHandler {
     @Override
     public void handleUpdate(final ServerContext context, final UpdateRequest request,
             final ResultHandler<Resource> handler) {
-        router.handleUpdate(context, request, handler);
+        auditService.handleUpdate(context, request, handler);
     }
 
     /**
@@ -169,7 +163,7 @@ public class AuditServiceImpl implements RequestHandler {
     @Override
     public void handleDelete(ServerContext context, DeleteRequest request,
             ResultHandler<Resource> handler) {
-        router.handleDelete(context, request, handler);
+        auditService.handleDelete(context, request, handler);
     }
 
     /**
@@ -180,7 +174,7 @@ public class AuditServiceImpl implements RequestHandler {
     @Override
     public void handlePatch(final ServerContext context, final PatchRequest request,
             final ResultHandler<Resource> handler) {
-        router.handlePatch(context, request, handler);
+        auditService.handlePatch(context, request, handler);
     }
 
     /**
@@ -199,7 +193,7 @@ public class AuditServiceImpl implements RequestHandler {
      */
     @Override
     public void handleQuery(final ServerContext context, final QueryRequest request, final QueryResultHandler handler) {
-        router.handleQuery(context, request, handler);
+        auditService.handleQuery(context, request, handler);
     }
     /**
      * Audit service does not support actions on audit entries.
@@ -209,6 +203,6 @@ public class AuditServiceImpl implements RequestHandler {
     @Override
     public void handleAction(final ServerContext context, final ActionRequest request,
             final ResultHandler<JsonValue> handler) {
-        router.handleAction(context, request, handler);
+        auditService.handleAction(context, request, handler);
     }
 }

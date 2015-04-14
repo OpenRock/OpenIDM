@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2014 ForgeRock AS. All Rights Reserved
+ * Copyright (c) 2014-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -31,8 +31,6 @@ import org.forgerock.json.resource.ServerContext;
 
 /**
  * Create an audit activity log for a request result.
- *
- * @author brmiller
  */
 public interface ActivityLogger {
 
@@ -64,6 +62,8 @@ public interface ActivityLogger {
     public static final String CHANGED_FIELDS = "changedFields";
     /** the activity log password changed field */
     public static final String PASSWORD_CHANGED = "passwordChanged";
+    /** the transactionId of the operation */
+    public static final String TRANSACTION_ID = "transactionId";
 
     /**
      * Write an activity audit log.

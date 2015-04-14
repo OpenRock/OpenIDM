@@ -148,6 +148,7 @@ public class RouterActivityLogger implements ActivityLogger {
         activity.put(BEFORE, before == null ? null : before.getObject());
         activity.put(AFTER, after == null ? null : after.getObject());
         activity.put(STATUS, status == null ? null : status.toString());
+        activity.put(TRANSACTION_ID, context.getContext("root").getId());
 
         return activity;
     }

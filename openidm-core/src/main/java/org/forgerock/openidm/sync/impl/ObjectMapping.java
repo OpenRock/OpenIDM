@@ -443,6 +443,7 @@ class ObjectMapping {
             op.setLinkQualifier(linkQualifier);
         
             SyncEntry entry = new SyncEntry(op, name, context, dateUtil);
+            entry.transactionId = context.getContext("root").getId();
             if (sourceDeleted) {
                 op.sourceObjectAccessor = new LazyObjectAccessor(service, sourceObjectSet, resourceId, null);
             } else if (value != null) {
@@ -1076,6 +1077,7 @@ class ObjectMapping {
                 op.setLinkQualifier(linkQualifier);
                 
                 ReconEntry entry = new ReconEntry(op, name, rootContext, dateUtil);
+                entry.transactionId = rootContext.getContext("root").getId();
                 entry.linkQualifier = op.getLinkQualifier();
                 if (objectEntry == null) {
                     // Load source detail on demand
@@ -1314,6 +1316,7 @@ class ObjectMapping {
         ReconEntry reconStartEntry = new ReconEntry(null, name, rootContext,
                 AuditConstants.RECON_LOG_ENTRY_TYPE_RECON_START, dateUtil, reconContext.getReconAction(),
                 reconContext.getReconId());
+        reconStartEntry.transactionId = rootContext.getContext("root").getId();
         reconStartEntry.timestamp = new Date();
         reconStartEntry.message = "Reconciliation initiated by "
                 + context.asContext(SecurityContext.class).getAuthenticationId();
@@ -1360,6 +1363,7 @@ class ObjectMapping {
         ReconEntry reconEntry = new ReconEntry(null, name, rootContext, AuditConstants.RECON_LOG_ENTRY_TYPE_RECON_END,
                 dateUtil, reconContext.getReconAction(), reconContext.getReconId());
         reconEntry.setStatus(status);
+        reconEntry.transactionId = rootContext.getContext("root").getId();
         reconEntry.timestamp = new Date();
         String simpleSummary = reconContext.getStatistics().simpleSummary();
         reconEntry.message = simpleSummary;

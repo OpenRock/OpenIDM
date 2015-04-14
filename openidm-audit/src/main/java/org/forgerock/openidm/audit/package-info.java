@@ -19,4 +19,4 @@
  * <p>
  * This package defines the implementation of the OpenIDM Audit module
  */
-package org.forgerock.openidm.audit.impl;
+package org.forgerock.openidm.audit;

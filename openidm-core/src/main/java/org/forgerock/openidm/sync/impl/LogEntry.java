@@ -33,9 +33,7 @@ import org.forgerock.openidm.sync.impl.ObjectMapping.SyncOperation;
 import org.forgerock.openidm.util.DateUtil;
 
 /**
-  An audit log entry representation
- * 
- * @author ckienle
+  An audit log entry representation.
  */
 class LogEntry {
 
@@ -105,6 +103,11 @@ class LogEntry {
     protected String linkQualifier;
 
     /**
+     * The transactionId of the request.
+     */
+    protected String transactionId;
+
+    /**
      * Construct a log entry for the provided {@link SyncOperation} and mapping name.
      *
      * @param op the sync operation
@@ -139,6 +142,7 @@ class LogEntry {
         jv.put("messageDetail", messageDetail);
         jv.put("actionId", actionId);
         jv.put("exception", exception);
+        jv.put("transactionId", transactionId);
         return jv;
     }
 }
