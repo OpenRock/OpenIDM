@@ -25,7 +25,6 @@
 package org.forgerock.openidm.servlet.internal;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
@@ -498,9 +497,11 @@ public class ServletConnectionFactory implements ConnectionFactory {
                     public void filterGenericError(ServerContext context, Void state, ResourceException error, ResultHandler<Object> handler) {
                         int code = error.getCode();
                         if (logger.isTraceEnabled()) {
-                            logger.trace("Resource exception: {} {}: \"{}\"", new Object[] { error.getCode(), error.getReason(), error.getMessage(), error });
+                            logger.trace("Resource exception: {} {}: \"{}\"",
+                                    error.getCode(), error.getReason(), error.getMessage(), error);
                         } else if (code >= 500 && code <= 599) { // log server-side errors
-                            logger.warn("Resource exception: {} {}: \"{}\"", new Object[] { error.getCode(), error.getReason(), error.getMessage(), error });
+                            logger.warn("Resource exception: {} {}: \"{}\"",
+                                    error.getCode(), error.getReason(), error.getMessage(), error);
                         }
                         handler.handleError(error);
                     }
@@ -525,17 +526,32 @@ public class ServletConnectionFactory implements ConnectionFactory {
                 });
     }
 
+    /**
+     * The request state passed to filter methods.
+     */
+    private class State {
+        /** the request start time */
+        private final long startTime;
+        /** the request */
+        private final Request request;
+
+        State(long startTime, Request request) {
+            this.startTime = startTime;
+            this.request = request;
+        }
+    }
+
     private Filter newAccessLogFilter() {
         return Filters.asFilter(
-                new UntypedCrossCutFilter<Pair<Long, Request>>() {
+                new UntypedCrossCutFilter<State>() {
                     @Override
                     public void filterGenericError(
                             ServerContext context,
-                            Pair<Long, Request> request,
+                            State state,
                             ResourceException error,
                             ResultHandler<Object> handler
                     ) {
-                        logAuditAccessEntry(context, request, error);
+                        logAuditAccessEntry(context, state, error);
                         handler.handleError(error);
                     }
 
@@ -544,35 +560,34 @@ public class ServletConnectionFactory implements ConnectionFactory {
                             ServerContext context,
                             Request request,
                             RequestHandler next,
-                            CrossCutFilterResultHandler<Pair<Long, Request>, Object> handler
+                            CrossCutFilterResultHandler<State, Object> handler
                     ) {
-                        handler.handleContinue(
-                                context, new ImmutablePair<Long, Request>(System.currentTimeMillis(), request));
+                        handler.handleContinue(context, new State(System.currentTimeMillis(), request));
                     }
 
                     @Override
                     public <R> void filterGenericResult(
                             ServerContext context,
-                            Pair<Long, Request> request,
+                            State state,
                             R result,
                             ResultHandler<R> handler) {
-                        logAuditAccessEntry(context, request, null);
+                        logAuditAccessEntry(context, state, null);
                         handler.handleResult(result);
                     }
 
                     @Override
                     public void filterQueryResource(
                             ServerContext context,
-                            Pair<Long, Request> request,
+                            State state,
                             Resource resource,
                             QueryResultHandler handler) {
-                        logAuditAccessEntry(context, request, null);
+                        logAuditAccessEntry(context, state, null);
                         handler.handleResource(resource);
                     }
 
                     private void logAuditAccessEntry(
                             final ServerContext context,
-                            final Pair<Long, Request> request,
+                            final State state,
                             final ResourceException resourceException
                     ) {
 
@@ -580,7 +595,7 @@ public class ServletConnectionFactory implements ConnectionFactory {
 
                         if (!context.containsContext(HttpContext.class)
                                 || context.containsContext(InternalServerContext.class)) {
-                            // dont log internal requests
+                            // don't log internal requests
                             return;
                         }
 
@@ -595,16 +610,16 @@ public class ServletConnectionFactory implements ConnectionFactory {
                         final String serverHost = httpContext.getHeader("Host").get(0).split(":")[0];
                         final String serverPort = httpContext.getHeader("Host").get(0).split(":")[1];
 
-                        final long elapsedTime = System.currentTimeMillis() - request.getLeft();
+                        final long elapsedTime = System.currentTimeMillis() - state.startTime;
 
                         final AccessAuditEventBuilder auditEventBuilder = new AccessAuditEventBuilder();
-                        auditEventBuilder.forHttpCrestRequest(context, request.getRight())
+                        auditEventBuilder.forHttpCrestRequest(context, state.request)
                                 .authorizationId(
                                         securityContext.getAuthorizationId().get(SecurityContext.AUTHZID_COMPONENT).toString(),
                                         securityContext.getAuthorizationId().get(SecurityContext.AUTHZID_ID).toString(),
                                         getRoles(securityContext))
                                 .server(serverHost, Integer.parseInt(serverPort))
-                                .messageId(generateMessageID(request.getRight()))
+                                .messageId(generateMessageID(state.request))
                                 .timestamp(System.currentTimeMillis());
 
                         if (resourceException != null) {
