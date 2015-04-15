@@ -23,6 +23,7 @@
         <dependency>
             <groupId>org.forgerock.commons</groupId>
             <artifactId>json-resource</artifactId>
+            <version>${commons.forgerock-rest.version}</version>
         </dependency>
         <dependency>
             <groupId>org.forgerock.openidm</groupId>
@@ -57,45 +58,12 @@
             <artifactId>forgerock-guava-collect</artifactId>
         </dependency>
 
-        <!-- OrientDB -->
         <dependency>
-            <groupId>com.orientechnologies</groupId>
-            <artifactId>orientdb-core</artifactId>
-            <version>${orientdb.version}</version>
+            <groupId>org.forgerock.commons</groupId>
+            <artifactId>forgerock-util</artifactId>
+            <version>${commons.forgerock-util.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.orientechnologies</groupId>
-            <artifactId>orient-commons</artifactId>
-            <version>${orientdb.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.orientechnologies</groupId>
-            <artifactId>orientdb-server</artifactId>
-            <version>${orientdb.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>javax.activation</groupId>
-                    <artifactId>activation</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.orientechnologies</groupId>
-            <artifactId>orientdb-enterprise</artifactId>
-            <version>${orientdb.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.xerial.snappy</groupId>
-            <artifactId>snappy-java</artifactId>
-            <version>1.1.1.6</version>
-        </dependency>
-        <!--        <dependency>
-                    <groupId>javax.persistence</groupId>
-                    <artifactId>persistence-api</artifactId>
-                    <version>1.0</version>
-                    <scope>provided</scope>
-                </dependency>
-        -->
+
         <!-- Provided OSGi Dependencies -->
         <dependency>
             <groupId>org.osgi</groupId>
@@ -118,6 +86,11 @@
             <groupId>org.apache.felix</groupId>
             <artifactId>org.apache.felix.scr.annotations</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.forgerock.commons</groupId>
+            <artifactId>forgerock-util</artifactId>
+            <version>1.4.0-SNAPSHOT</version>
         </dependency>
 
     </dependencies>
@@ -142,7 +115,7 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
-                        <Embed-Dependency>persistence-api;scope=provided</Embed-Dependency>
+                        <!--<Import-Package>org.forgerock.util.time</Import-Package>-->
                         <Export-Package>org.forgerock.openidm.repo.opendj.metadata;version=${project.version}</Export-Package>
                         <Private-Package>org.forgerock.openidm.repo.opendj.impl.*</Private-Package>
                         <Bundle-Activator>org.forgerock.openidm.repo.opendj.impl.Activator</Bundle-Activator>
