@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2013 ForgeRock AS. All rights reserved.
+ * Copyright (c) 2013 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -23,14 +23,15 @@
  */
 package org.forgerock.openidm.repo.opendj.metadata;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.forgerock.json.fluent.JsonPointer;
 import org.forgerock.json.fluent.JsonValue;
 import org.forgerock.openidm.metadata.MetaDataProvider;
 import org.forgerock.openidm.metadata.MetaDataProviderCallback;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import org.forgerock.openidm.repo.opendj.impl.OpenDJRepoService;
 
 /**
  * Meta data provider to describe configuration
@@ -43,8 +44,6 @@ public class ConfigMeta implements MetaDataProvider {
 
     public ConfigMeta() {
         List<JsonPointer> props = new ArrayList<JsonPointer>();
-//        props.add(new JsonPointer(OrientDBRepoService.CONFIG_PASSWORD));
-//        props.add(new JsonPointer("/embeddedServer/users/*/password"));
         propertiesToEncrypt = Collections.unmodifiableList(props);
     }
 
@@ -53,9 +52,9 @@ public class ConfigMeta implements MetaDataProvider {
      */
     public List<JsonPointer> getPropertiesToEncrypt(String pidOrFactory, String instanceAlias,
             JsonValue config) {
-//        if (OrientDBRepoService.PID.equals(pidOrFactory)) {
-//            return propertiesToEncrypt;
-//        }
+        if (OpenDJRepoService.PID.equals(pidOrFactory)) {
+            return propertiesToEncrypt;
+        }
         return null;
     }
 
@@ -66,3 +65,4 @@ public class ConfigMeta implements MetaDataProvider {
     public void setCallback(MetaDataProviderCallback callback) {
     }
 }
+

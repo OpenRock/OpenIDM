@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright © 2011 ForgeRock AS. All rights reserved.
+ * Copyright © 2015 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -23,62 +23,35 @@
  */
 package org.forgerock.openidm.repo.opendj.impl;
 
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.openidm.config.persistence.ConfigBootstrapHelper;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * OSGi bundle activator
  */
 public class Activator implements BundleActivator {
     final static Logger logger = LoggerFactory.getLogger(Activator.class);
-
-    // Bootstrap repository
-    OpenDJRepoService bootSvc;
     
     public void start(BundleContext context) {
-        logger.trace("OrientDB bundle starting");
-
+        logger.info("OpenDJ bundle starting");
+        
+        // TODO: Setup RepoBootService
+        
+        /*
         JsonValue repoConfig = ConfigBootstrapHelper.getRepoBootConfig("opendj", context);
-
+         
         if (repoConfig != null) {
-            logger.info("Bootstrapping OpenDJ repository");
-            // Only take the configuration strictly needed for bootstrapping the repository
-            // Also, bootstrap property keys are lower case, Repo expects camel case
-            Map<String,Object> bootConfig = new HashMap<String,Object>();
-//            bootConfig.put(OrientDBRepoService.CONFIG_DB_URL, repoConfig.get(OrientDBRepoService.CONFIG_DB_URL.toLowerCase()).getObject());
-//            bootConfig.put(OrientDBRepoService.CONFIG_USER, repoConfig.get(OrientDBRepoService.CONFIG_USER.toLowerCase()).getObject());
-//            bootConfig.put(OrientDBRepoService.CONFIG_PASSWORD, repoConfig.get(OrientDBRepoService.CONFIG_PASSWORD.toLowerCase()).getObject());
-//            bootConfig.put(OrientDBRepoService.CONFIG_POOL_MIN_SIZE, repoConfig.get(OrientDBRepoService.CONFIG_POOL_MIN_SIZE.toLowerCase()).getObject());
-//            bootConfig.put(OrientDBRepoService.CONFIG_POOL_MAX_SIZE, repoConfig.get(OrientDBRepoService.CONFIG_POOL_MAX_SIZE.toLowerCase()).getObject());
 
-            // Init the bootstrap repo
-//            bootSvc = OpenDJRepoService.getRepoBootService(bootConfig);
-             
-            // Register bootstrap repo
-//            Hashtable<String, String> prop = new Hashtable<String, String>();
-//            prop.put("service.pid", "org.forgerock.openidm.bootrepo.opendj");
-//            prop.put("openidm.router.prefix", "bootrepo");
-//            prop.put("db.type", "OpenDJ");
-//            context.registerService(RepoBootService.class.getName(), bootSvc, prop);
-//            logger.info("Registered bootstrap repo service");
         } else {
             logger.debug("No OpenDJ configuration detected");
         }
-        logger.trace("OpenDJ Repo bundle started");
+        */
+        logger.info("OpenDJ bundle started");
     }
 
     public void stop(BundleContext context) {
-        if (bootSvc != null) {
-            logger.debug("Cleaning up OpenDJ bootstrap repository");
-            bootSvc.cleanup();
-        }
-        logger.trace("OpenDJ bundle stopped");
+        logger.info("OpenDJ bundle stopped");
     }
 }
