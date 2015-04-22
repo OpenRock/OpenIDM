@@ -253,7 +253,7 @@
         <commons.forgerock-util.version>1.4.0-SNAPSHOT</commons.forgerock-util.version>
         <commons.forgerock-rest.version>2.4.3-SNAPSHOT</commons.forgerock-rest.version>
         <commons.forgerock-script.version>1.4.0</commons.forgerock-script.version>
-        <commons.forgerock-i18n.version>1.4.1</commons.forgerock-i18n.version>
+        <commons.forgerock-i18n.version>1.4.2-SNAPSHOT</commons.forgerock-i18n.version>
         <commons.forgerock-guava.version>18.0.1</commons.forgerock-guava.version>
 
         <!-- OSGi bundles properties -->
