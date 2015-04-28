@@ -1,0 +1,36 @@
+dn: dc=forgerock,dc=com
+changetype: add
+objectClass: domain
+objectClass: top
+dc: forgerock
+dn: dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: domain
+objectClass: top
+dc: openidm
+aci: (targetattr="*")(version 3.0; acl "IDM Access"; allow (all)
+  userdn="ldap:///uid=idm,ou=user,dc=managed,dc=openidm,dc=forgerock,dc=com";)
+dn: dc=managed,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: domain
+objectClass: top
+dc: managed
+dn: ou=user,dc=managed,dc=openidm,dc=forgerock,dc=com
+changetype: add
+ou: user
+objectClass: top
+objectClass: organizationalUnit
+objectClass: openidmSchema
+dn: uid=idm,ou=user,dc=managed,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: top
+objectClass: inetOrgPerson
+objectClass: openidmSchema
+uid: idm
+cn: IDM Administrator
+sn: IDM Administrator
+description: Special LDAP acccount used by openIDM
+ou: Administrators
+userPassword: password
+ds-privilege-name: bypass-acl
+ds-privilege-name: changelog-read

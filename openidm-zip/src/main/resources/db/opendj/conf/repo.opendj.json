@@ -1,0 +1,209 @@
+{
+  "ldapConnectionFactories": {
+    "default": {
+      "connectionSecurity": "none",
+      "trustManager": "trustAll",
+      "fileBasedTrustManagerType": "JKS",
+      "fileBasedTrustManagerFile": "/path/to/truststore",
+      "fileBasedTrustManagerPassword": "password",
+      "connectionPoolSize": 24,
+      "heartBeatIntervalSeconds": 30,
+      "heartBeatTimeoutMilliSeconds": 500,
+      "primaryLDAPServers": [
+        {
+          "hostname": "localhost",
+          "port": 1389
+        }
+      ],
+      "secondaryLDAPServers": [
+      ]
+    },
+    "root": {
+      "inheritFrom": "default",
+      "authentication": {
+        "simple": {
+          "bindDN": "cn=directory manager",
+          "bindPassword": "password"
+        }
+      }
+    }
+  },
+  "mapping": {
+    "managed/user": {
+      "usePermissiveModify": true,
+      "baseDN": "ou=user,dc=managed,dc=openidm,dc=forgerock,dc=com",
+      "additionalLDAPAttributes": [
+        {
+          "values": [
+            "top",
+            "inetOrgPerson",
+            "openidmSchema"
+          ],
+          "type": "objectClass"
+        }
+      ],
+      "readOnUpdatePolicy": "controls",
+      "etagAttribute": "etag",
+      "useSubtreeDelete": false,
+      "attributes": {
+        "_id": {
+          "simple": {
+            "isRequired": true,
+            "writability": "createOnly",
+            "ldapAttribute": "uid",
+            "isSingleValued": true
+          }
+        },
+        "_rev": {
+          "simple": {
+            "writability": "readOnly",
+            "ldapAttribute": "etag",
+            "isSingleValued": true
+          }
+        },
+        "userName": {
+          "simple": {
+            "ldapAttribute": "cn",
+            "isSingleValued": true
+          }
+        },
+        "password": {
+          "simple": {
+            "ldapAttribute": "userPassword",
+            "isSingleValued": true
+          }
+        },
+        "accountStatus": {
+          "simple": {
+            "ldapAttribute": "accountStatus",
+            "isSingleValued": true
+          }
+        },
+        "roles": {
+          "simple": {
+            "ldapAttribute": "roles",
+            "isSingleValued": false
+          }
+        },
+        "lastPasswordSet": {
+          "simple": {
+            "ldapAttribute": "lastPasswordSet",
+            "isSingleValued": true
+          }
+        },
+        "postalCode": {
+          "simple": {
+            "ldapAttribute": "postalCode",
+            "isSingleValued": true
+          }
+        },
+        "stateProvince": {
+          "simple": {
+            "ldapAttribute": "st",
+            "isSingleValued": true
+          }
+        },
+        "passwordAttempts": {
+          "simple": {
+            "ldapAttribute": "passwordAttempts",
+            "isSingleValued": true
+          }
+        },
+        "lastPasswordAttempt": {
+          "simple": {
+            "ldapAttribute": "lastPasswordAttempt",
+            "isSingleValued": true
+          }
+        },
+        "postalAddress": {
+          "simple": {
+            "ldapAttribute": "postalAddress",
+            "isSingleValued": false
+          }
+        },
+        "country": {
+          "simple": {
+            "ldapAttribute": "country",
+            "isSingleValued": true
+          }
+        },
+        "city": {
+          "simple": {
+            "ldapAttribute": "l",
+            "isSingleValued": true
+          }
+        },
+        "givenName": {
+          "simple": {
+            "ldapAttribute": "givenName",
+            "isSingleValued": true
+          }
+        },
+        "sn": {
+          "simple": {
+            "ldapAttribute": "sn",
+            "isSingleValued": true
+          }
+        },
+        "telephoneNumber": {
+          "simple": {
+            "ldapAttribute": "telephoneNumber",
+            "isSingleValued": true
+          }
+        },
+        "mail": {
+          "simple": {
+            "ldapAttribute": "mail",
+            "isSingleValued": true
+          }
+        },
+        "siteImage": {
+          "simple": {
+            "ldapAttribute": "jpegPhoto",
+            "isSingleValued": true
+          }
+        },
+        "passPhrase": {
+          "simple": {
+            "ldapAttribute": "passPhrase",
+            "isSingleValued": true
+          }
+        },
+        "securityAnswer": {
+          "simple": {
+            "ldapAttribute": "securityAnswer",
+            "isSingleValued": true
+          }
+        },
+        "securityQuestion": {
+          "simple": {
+            "ldapAttribute": "securityQuestion",
+            "isSingleValued": true
+          }
+        },
+        "securityAnswerAttempts": {
+          "simple": {
+            "ldapAttribute": "securityAnswerAttempts",
+            "isSingleValued": true
+          }
+        },
+        "lastSecurityAnswerAttempt": {
+          "simple": {
+            "ldapAttribute": "lastSecurityAnswerAttempt",
+            "isSingleValued": true
+          }
+        },
+        "total": {
+          "simple": {
+            "ldapAttribute": "total",
+            "isSingleValued": true
+          }
+        }
+      },
+      "namingStrategy": {
+        "dnAttribute": "uid",
+        "strategy": "clientDNNaming"
+      }
+    }
+  }
+}
