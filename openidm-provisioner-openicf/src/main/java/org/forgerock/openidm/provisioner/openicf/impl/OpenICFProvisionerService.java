@@ -278,7 +278,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
         this.activityLogger = new RouterActivityLogger(connectionFactory);
     }
 
-    void unbindConnectionFactory(final RouteService service) {
+    void unbindConnectionFactory(final ConnectionFactory connectionFactory) {
         this.connectionFactory = null;
         // ConnectionFactory has gone away, use null activity logger
         this.activityLogger = NullActivityLogger.INSTANCE;
@@ -1445,6 +1445,11 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                         sortKeys.add(new SortKey(s.getField().leaf(), s.isAscendingOrder()));
                     }
                     operationOptionsBuilder.setSortKeys(sortKeys);
+                }
+
+                // Override ATTRS_TO_GET if fields are specified within the Request
+                if (!request.getFields().isEmpty()) {
+                    objectClassInfoHelper.setAttributesToGet(operationOptionsBuilder, request.getFields());
                 }
 
                 final JsonValue logValue = json(array());

@@ -24,6 +24,8 @@
 
 package org.forgerock.openidm.tools.scriptedbundler;
 
+import org.codehaus.jackson.annotate.JsonIgnore;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,7 +40,9 @@ public class CustomConfiguration extends CustomBaseObject {
     private String description;
     private String version;
     private String author;
+    private BaseConnectorType baseType = BaseConnectorType.GROOVY;
 
+    private List<ProvidedProperty> providedProperties = new ArrayList<ProvidedProperty>();
     private List<CustomProperty> properties = new ArrayList<CustomProperty>();
     private List<CustomObjectType> objectTypes = new ArrayList<CustomObjectType>();
 
@@ -128,8 +132,66 @@ public class CustomConfiguration extends CustomBaseObject {
      *
      * @param author
      */
+
     public void setAuthor(String author) {
         this.author = author;
+    }
+
+    /**
+     * Return the connector base connector type.
+     *
+     * @return
+     */
+    public BaseConnectorType getBaseConnectorType() {
+        return baseType;
+    }
+
+    /**
+     * Set the connector base connector type.
+     *
+     * @param baseType
+     */
+    public void setBaseConnectorType(String baseType) {
+        this.baseType = BaseConnectorType.valueOf(baseType);
+    }
+
+    /**
+     * Helper method for handlebars template, not a configuration parameter.
+     *
+     * @return
+     */
+    @JsonIgnore
+    public Object getConfigBaseClass() {
+        return baseType.getConfigBaseClass();
+    }
+
+    /**
+     * Return the properties for this object.
+     *
+     * @return
+     */
+    public List<ProvidedProperty> getProvidedProperties() {
+        return flagLast(providedProperties);
+    }
+
+    /**
+     * Set the properties for this object.
+     *
+     * @param providedProperties
+     */
+    public void setProvidedProperties(List<ProvidedProperty> providedProperties) {
+        this.providedProperties.clear();
+        this.providedProperties.addAll(flagLast(providedProperties));
+    }
+
+    /**
+     * Return whether this object has properties.  This is a template function.
+     *
+     * @return
+     */
+    @JsonIgnore
+    public boolean getHasProvidedProperties() {
+        return !providedProperties.isEmpty();
     }
 
     /**
@@ -152,10 +214,11 @@ public class CustomConfiguration extends CustomBaseObject {
     }
 
     /**
-     * Return whether this object has properties.
+     * Return whether this object has properties.  This is a template function.
      *
      * @return
      */
+    @JsonIgnore
     public boolean getHasProperties() {
         return !properties.isEmpty();
     }
@@ -180,10 +243,11 @@ public class CustomConfiguration extends CustomBaseObject {
     }
 
     /**
-     * Return whether this object has object types.
+     * Return whether this object has object types. This is a template function.
      *
      * @return
      */
+    @JsonIgnore
     public boolean getHasObjectTypes() {
         return !objectTypes.isEmpty();
     }

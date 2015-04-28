@@ -57,14 +57,65 @@ Now it's time to build your custom connector:
 
     $ mvn install
 
+
+#### Groovy Script Location
+
 This will produce an OSGi-compatible jar in the ./target directory.  Copy this jar to your OpenICF-compatible
 project or distribute it for others to use.
 
-This jar contains all of the Groovy scripts as well as an OpenIDM provisioner file.  These files need 
-to be extracted to the filesystem as they presently cannot be accessed directly from within the jar:
+This jar contains all of the Groovy scripts which are executed directly from the jar.  These may optionally
+be extracted to the filesystem and run from there with a change to the provisioner JSON file. Change:
 
-    jar -xvf <filename>.jar scripts
-    jar -xvf <filename>.jar conf/provisioner.openicf-*.json
+        "scriptRoots" : [
+            "jar:file:&{launcher.install.location}/connectors/awesome-connector-1.0.jar!/script/awesome/"
+        ],
+        "classpath" : [
+            "jar:file:&{launcher.install.location}/connectors/awesome-connector-1.0.jar!/script/awesome/"
+        ],
+
+to:
+
+        "scriptRoots" : [
+            "file:&{launcher.project.location}/<your_extracted_script_location>/"
+        ],
+        "classpath" : [
+            "file:&{launcher.project.location}/<your_extracted_script_location>/"
+        ],
+
+
+#### OpenIDM Provisioner Configuration
+
+The OpenIDM provisioner file must be extracted to the filesystem as it presently cannot be detected and used
+directly from within the jar.  To identify the filename grep the jar's catalog:
+
+    jar -tvf <filename>.jar | grep "provisioner*json"
+
+The file should appear in a conf/ directory.  Next extract the file to the conf directory on your local filesystem:
+
+    jar -xvf <filename>.jar <provisioner filename>
+    
+
+#### OpenIDM UI Connector Template
+
+The Admin UI provides a default template for configuration of connectors that lack a specialized template. If
+you prefer to have a specialized template to use with your new connector there is one in the connector bundle
+for this purpose. Because the UI template is named after this connector you must first identify the file:
+
+    jar -tvf <filename>.jar | grep "1.4.html"
+    
+Using the sample configuration this will be named:
+
+    ui/org.forgerock.openicf.connectors.awesome.AwesomeConnector_1.4.html
+    
+Next extract the file from the connector jar (using the example above):
+
+    jar -xvf ui/org.forgerock.openicf.connectors.awesome.AwesomeConnector_1.4.html
+    
+Then move it to the correct directory for the UI to find it:
+
+    mv ui/org.forgerock.openicf.connectors.awesome.AwesomeConnector_1.4.html \
+    ui/default/admin/public/templates/admin/connector/
+
 
 ### Sample configuration file
 
@@ -72,122 +123,151 @@ to be extracted to the filesystem as they presently cannot be accessed directly 
         "packageName" : "Awesome",
         "displayName" : "Awesome Connector",
         "description" : "This is my super awesome connector",
+        "baseConnectorType" : "GROOVY",
         "version" : "1.0",
         "author" : "Coder McLightningfingers",
-        "properties" : [
-            {
-                "order" : 0,
-                "type" : "String",
-                "name" : "FirstProperty",
-                "value" : "firstValue",
+        "providedProperties" : [ {
+            "name" : "provided1",
+            "value" : "default",
+            "type" : "String"
+        }, {
+            "name" : "provided2",
+            "value" : 2,
+            "type" : "Integer"
+        } ],
+        "properties" : [ {
+            "order" : 0,
+            "type" : "String",
+            "name" : "FirstProperty",
+            "value" : "firstValue",
+            "required" : true,
+            "confidential" : false,
+            "displayMessage" : "This is my first property",
+            "helpMessage" : "This should be a String value",
+            "group" : "default"
+        }, {
+            "order" : 1,
+            "type" : "Double",
+            "name" : "SecondProperty",
+            "value" : 1.234,
+            "required" : false,
+            "confidential" : false,
+            "displayMessage" : "This is my second property",
+            "helpMessage" : "This should be a Double value",
+            "group" : "default"
+        } ],
+        "objectTypes" : [ {
+            "name" : "group",
+            "id" : "__GROUP__",
+            "type" : "object",
+            "nativeType" : "__GROUP__",
+            "objectClass" : "ObjectClass.GROUP",
+            "properties" : [ {
+                "name" : "name",
+                "type" : "string",
                 "required" : true,
-                "confidential" : false,
-                "displayMessage" : "This is my first property",
-                "helpMessage" : "This should be a String value",
-                "group" : "default"
-            }, {
-                "order" : 1,
-                "type" : "Double",
-                "name" : "SecondProperty",
-                "value" : 1.234,
+                "nativeName" : "__NAME__",
+                "nativeType" : "string"
+            },{
+                "name" : "gid",
+                "type" : "string",
+                "required" : true,
+                "nativeName" : "gid",
+                "nativeType" : "string"
+            },{
+                "name" : "description",
+                "type" : "string",
                 "required" : false,
-                "confidential" : false,
-                "displayMessage" : "This is my second property",
-                "helpMessage" : "This should be a Double value",
-                "group" : "default"
-            }
-        ],
-        "objectTypes" : [
-            {
-                "name" : "group",
-                "id" : "__GROUP__",
-                "type" : "object",
-                "nativeType" : "__GROUP__",
-                "objectClass" : "ObjectClass.GROUP_NAME",
-                "properties" : [
+                "nativeName" : "description",
+                "nativeType" : "string"
+            },{
+                "name" : "users",
+                "type" : "array",
+                "nativeName" : "users",
+                "nativeType" : "object",
+                "items" : [
                     {
-                        "name" : "name",
-                        "type" : "string",
-                        "required" : true,
-                        "nativeName" : "__NAME__",
-                        "nativeType" : "string"
-                    },{
-                        "name" : "gid",
-                        "type" : "string",
-                        "required" : true,
-                        "nativeName" : "gid",
-                        "nativeType" : "string"
-                    },{
-                        "name" : "description",
-                        "type" : "string",
-                        "required" : false,
-                        "nativeName" : "description",
-                        "nativeType" : "string"
-                    },{
-                        "name" : "users",
-                        "type" : "array",
-                        "nativeName" : "users",
-                        "nativeType" : "object",
-                        "items" : [
-                            {
-                                "type" : "object",
-                                "properties" : [{
-                                    "name" : "uid",
-                                    "type" : "string"
-                                }]
-                            }
-                        ]
+                        "type" : "object",
+                        "properties" : [{
+                            "name" : "uid",
+                            "type" : "string"
+                        }]
                     }
+                ]
+            } ]
+        },{
+            "name" : "account",
+            "id" : "__ACCOUNT__",
+            "type" : "object",
+            "nativeType" : "__ACCOUNT__",
+            "objectClass" : "ObjectClass.ACCOUNT",
+            "properties" : [ {
+                "name" : "firstName",
+                "type" : "string",
+                "nativeName" : "firstname",
+                "nativeType" : "string",
+                "required" : true
+            },{
+                "name" : "email",
+                "type" : "string",
+                "nativeName" : "email",
+                "nativeType" : "string"
+            },{
+                "name" : "password",
+                "type" : "string",
+                "nativeName" : "password",
+                "nativeType" : "string",
+                "flags" : [
+                    "NOT_READABLE",
+                    "NOT_RETURNED_BY_DEFAULT"
                 ]
             },{
-                "name" : "account",
-                "id" : "__ACCOUNT__",
-                "type" : "object",
-                "nativeType" : "__ACCOUNT__",
-                "objectClass" : "ObjectClass.ACCOUNT_NAME",
-                "properties" : [
-                    {
-                        "name" : "firstName",
-                        "type" : "string",
-                        "nativeName" : "firstname",
-                        "nativeType" : "string",
-                        "required" : true
-                    },{
-                        "name" : "email",
-                        "type" : "string",
-                        "nativeName" : "email",
-                        "nativeType" : "string"
-                    },{
-                        "name" : "password",
-                        "type" : "string",
-                        "nativeName" : "password",
-                        "nativeType" : "string",
-                        "flags" : [
-                            "NOT_READABLE",
-                            "NOT_RETURNED_BY_DEFAULT"
-                        ]
-                    },{
-                        "name" : "uid",
-                        "type" : "string",
-                        "nativeName" : "__NAME__",
-                        "required" : true,
-                        "nativeType" : "string"
-                    },{
-                        "name" : "fullName",
-                        "type" : "string",
-                        "nativeName" : "fullname",
-                        "nativeType" : "string"
-                    },{
-                        "name" : "lastName",
-                        "type" : "string",
-                        "required" : true,
-                        "nativeName" : "lastname",
-                        "nativeType" : "string"
-                    }
-                ]
-            }
-        ]
+                "name" : "uid",
+                "type" : "string",
+                "nativeName" : "__NAME__",
+                "required" : true,
+                "nativeType" : "string"
+            },{
+                "name" : "fullName",
+                "type" : "string",
+                "nativeName" : "fullname",
+                "nativeType" : "string"
+            },{
+                "name" : "lastName",
+                "type" : "string",
+                "required" : true,
+                "nativeName" : "lastname",
+                "nativeType" : "string"
+            } ]
+        } ]
     }
+    
+#### Base connector types 
+    The possible values for the param baseConnectorType are:
+         1. GROOVY              Non-pooled Groovy connector
+         2. POOLABLEGROOVY      Poolable Groovy connector
+         2. CREST               CREST-based connector
+         3. REST                REST-based connector
+         4. SQL                 Connector with SQL support
+
+#### ProvidedProperties vs. Properties
+    ProvidedProperties are those already provided by the base configuration class for your connector.  For example,
+    if you choose SQL as your connector type then ScriptedSQLConfiguration will be your base configuration class. This
+    base class already provides properties for "username", "password", etc.  There is no need for you to define them 
+    yourself but you will need to provide a default value if you want them to show up in the provisioner file.  To do
+    so simply add them as ProvidedProperties.
+    
+    The other type, Properties, defines new and unique properties you want your connector to support. This is where you
+    define the attributes of each new custom property your connector will have that the base configuration class did
+    not provide.
+
+#### ObjectType -> ObjectClass
+    The possible values for the objectClass in each objectType are:
+        1. ObjectClass.ACCOUNT
+        2. ObjectClass.GROUP
+        3. ObjectClass.ALL
+        4. The bundler will accept any arbitrary string but you may need to edit the resulting provisioner and
+            Groovy scripts to work with this arbitrary string.
 
 ### Other resources
 

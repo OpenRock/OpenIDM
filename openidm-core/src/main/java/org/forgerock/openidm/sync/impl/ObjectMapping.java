@@ -1798,9 +1798,10 @@ class ObjectMapping {
                                         // Try to read again to see if that is the issue
                                         linkObject.getLinkForSource(getSourceObjectId());
                                         if (linkObject._id == null) {
-                                            LOGGER.warn("Failed to create link between {}-{}",
-                                                    new Object[] {LazyObjectAccessor.qualifiedId(sourceObjectSet, getSourceObjectId()),
-                                                    LazyObjectAccessor.qualifiedId(targetObjectSet, targetId), ex});
+                                            LOGGER.warn("Failed to create link between {} and {}",
+                                                    LazyObjectAccessor.qualifiedId(sourceObjectSet, getSourceObjectId()),
+                                                    LazyObjectAccessor.qualifiedId(targetObjectSet, targetId),
+                                                    ex);
                                             throw ex; // it was a different issue
                                         }
                                     }

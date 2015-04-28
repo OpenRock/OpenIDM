@@ -1,5 +1,5 @@
-<div {{#if inlineEditor}} class="row event-hook-inline event-hook-window" {{else}} class="row event-hook-window" {{/if}}>
-<div class="col-sm-6">
+<div class="row event-hook-inline event-hook-window">
+    <div {{#if disablePassedVariable}} class="col-sm-12" {{else}} class="col-sm-6" {{/if}}>
     <div class="form-group event-hook-piece event-type">
         <label class="control-label">{{t "templates.scriptEditor.type"}}</label>
         <select class="event-select form-control">
@@ -19,8 +19,8 @@
             <div id="fileCollapse" style="">
                 <div class="panel-body">
                     <div class="form-group">
-                        <input class="scriptFilePath form-control" autocomplete="off" type="text" name="fileName" {{#if scriptData.source}} value="" disabled="true" {{else}} value="{{scriptData.file}}" {{#unless disablePassedVariable}} data-validator-event="keyup blur focus" data-validator="required" {{/unless}} {{/if}}/>
-                        {{#unless disablePassedVariable}}
+                        <input class="scriptFilePath form-control" autocomplete="off" type="text" name="fileName" {{#if scriptData.source}} value="" disabled="true" {{else}} value="{{scriptData.file}}" {{#unless disableValidation}} {{#unless scriptData.source}} data-validator-event="keyup blur focus" data-validator="required" {{/unless}} {{/unless}} {{/if}}/>
+                        {{#unless disableValidation}}
                         <span></span>
                         <div class="validation-message"></div>
                         {{/unless}}
@@ -39,12 +39,12 @@
             <div id="codeCollapse" class="panel-body">
                 <div id="codemirror" class="col-sm-12">
                     {{#if scriptData.source}}
-                    <textarea class="scriptSourceCode" placeholder="{{placeHolder}}" {{#unless disablePassedVariable}} data-validator-event="keyup blur" data-validator="required" {{/unless}} name="sourceCode">{{scriptData.source}}</textarea>
+                    <textarea class="scriptSourceCode" placeholder="{{placeHolder}}" {{#unless disableValidation}} data-validator-event="keyup blur" data-validator="required" {{/unless}} name="sourceCode">{{scriptData.source}}</textarea>
                     {{else}}
-                    <textarea class="scriptSourceCode" placeholder="{{placeHolder}}" name="sourceCode" disabled="true"></textarea>
+                    <textarea class="scriptSourceCode" placeholder="{{placeHolder}}"  name="sourceCode" disabled="true"></textarea>
                     {{/if}}
 
-                    {{#unless disablePassedVariable}}
+                    {{#unless disableValidation}}
                     <span></span>
                     <div class="validation-message"></div>
                     {{/unless}}
@@ -52,6 +52,17 @@
                 </div>
             </div>
         </div>
+        {{#if showPreview}}
+        <div class="well preview-pane">
+            <i class="preview-button fa fa-search"></i>
+            <div class="preview-results">
+            </div>
+            <div role="alert" class="alert alert-danger script-eval-message" style="display:none;">
+                <i class="fa fa-exclamation-circle"></i><strong>{{t "common.form.error"}}!</strong>
+                <span class="message"></span>
+            </div>
+        </div>
+        {{/if}}
     </div>
 </div>
 
@@ -87,10 +98,10 @@
                     <div class="separate-message outside-element">
                         <div class="s-form-holder">
                             <div class="col-sm-5 textContainer">
-                                <input class="form-size-s form-control" data-validator-event="keyup blur" data-validator="bothRequired" autocomplete="off" type="text" placeholder="{{t "templates.scriptEditor.variableName"}}" value="{{this.[0]}}" required/>
+                                <input class="form-size-s form-control" data-validator-event="keyup blur" data-validator="bothRequired" autocomplete="off" type="text" placeholder="{{t "templates.scriptEditor.variableName"}}" value="{{@key}}" required/>
                             </div>
                             <div class="col-sm-5 textContainer">
-                                <input class="form-size-s form-control" data-validator-event="keyup blur" data-validator="bothRequired" autocomplete="off" type="text" placeholder="{{t "templates.scriptEditor.variableValue"}}" value="{{this.[1]}}" required />
+                                <input class="form-size-s form-control" data-validator-event="keyup blur" data-validator="bothRequired" autocomplete="off" type="text" placeholder="{{t "templates.scriptEditor.variableValue"}}" value="{{this}}" required />
                             </div>
                             <div class="col-sm-1 col-sm-offset-1">
                                 <div class="btn-group pull-right">

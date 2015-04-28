@@ -52,6 +52,12 @@ define("config/AppConfiguration", [
                     }
                 },
                 {
+                    moduleClass: "org/forgerock/openidm/ui/common/resource/ResourceEditViewRegistry",
+                    configuration: {
+                        "resource-role" : "org/forgerock/openidm/ui/admin/role/EditRoleView"
+                    }
+                },
+                {
                     moduleClass: "org/forgerock/commons/ui/common/components/Messages",
                     configuration: {
                         messages: {
@@ -74,7 +80,8 @@ define("config/AppConfiguration", [
                     configuration: {
                         processConfigurationFiles: [
                             "config/process/CommonConfig",
-                            "config/process/CommonIDMConfig"
+                            "config/process/CommonIDMConfig",
+                            "config/process/AdminIDMConfig"
                         ]
                     } 
                 },

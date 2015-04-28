@@ -240,7 +240,7 @@
     </para>
     <para>
      The connector configuration is defined in the file
-     <filename>conf/provisioner-*.json</filename>). One provisioner file exists
+     <filename>conf/provisioner-*.json</filename>. One provisioner file exists
      for each external resource to which you are connecting.
     </para>
    </listitem>
@@ -347,13 +347,12 @@
      represents the core configuration for OpenIDM synchronization.
     </para>
     <para>
-     The <filename>sync.json</filename> file describes a set of mappings. Each
-     mapping specifies how attributes from source objects correspond to
-     attributes on target objects. The source and target indicate the direction
-     of the data flow, so you must define a separate mapping for each data flow.
-     For example, if you want data to flow from an LDAP server to the repository
-     and also from the repository to the LDAP server, you must define two
-     separate mappings.
+     The <filename>sync.json</filename> file defines attribute mappings from a
+     source to a target. You can assign a data store as a source and a target.
+     So if you want to configure two-way synchronization, you must define a
+     separate mapping for each data flow. For example, if you want data to flow
+     from an LDAP server to the repository and also from the repository to the
+     LDAP server, you would define two separate mappings.
     </para>
     <para>
      You can update mappings in the <filename>sync.json</filename> file while
@@ -364,12 +363,12 @@
     <section xml:id="mapping-resources">
      <title>Identifying Resources in a Mapping</title>
      <para>
-      External resources are specified in a mapping as
+      External resources are shown in a mapping as
       <literal>system/<replaceable>name</replaceable>/<replaceable>object-type</replaceable></literal>,
       where <replaceable>name</replaceable> is the name used in the connector
       configuration file, and <replaceable>object-type</replaceable> is the
       object defined in the connector configuration file list of object types.
-      Objects in OpenIDM's internal repository are specified in the mapping as
+      In contrast, objects in OpenIDM's internal repository are specified in the mapping as
       <literal>managed/<replaceable>object-type</replaceable></literal>, where
       <replaceable>object-type</replaceable> is defined in the managed objects
       configuration file (<filename>conf/managed.json</filename>).
@@ -421,8 +420,7 @@
                {
                     "source" : "uid",
                     "target" : "userName",
-                    "condition" : {
-                        "linkQualifier" : "user"
+                    "condition" : "/linkQualifier eq \"user\""
                     }
                },
             ]
@@ -433,36 +431,17 @@
       In this example, the source is the external resource
       (<literal>ldap</literal>), and the target is OpenIDM's repository,
       specifically the managed user objects. The <literal>properties</literal>
-      defined in the mapping reflect attribute names defined in the OpenIDM
-      configuration. For example, the target attribute
-      <literal>displayName</literal> is defined in the <literal>ldap</literal>
+      defined in the mapping reflect attribute names that are defined in the
+      OpenIDM configuration. For example, the source attribute
+      <literal>uid</literal> is defined in the <literal>ldap</literal>
       connector configuration file, rather than on the external resource itself.
      </para>
      <para>
       To add a flow from the repository to the <literal>ldap</literal> resource,
-      you would define a mapping with source <literal>managed/user</literal>
-      and target <literal>system/ldap/account</literal>. The mapping would be
-      named, for example, <literal>managedUser_systemLdapAccounts</literal>.
+      you would define a mapping with source <literal>managed/user</literal> and
+      target <literal>system/ldap/account</literal>. In this case, the name for
+      the mapping would be <literal>managedUser_systemLdapAccounts</literal>.
      </para>
-     <para>
-      The following image shows the paths to objects in the OpenIDM namespace.
-     </para>
-
-     <mediaobject xml:id="figure-service-tree"><?dbfo pgwide="1"?>
-      <alt>OpenIDM namespace and object paths</alt>
-      <imageobject>
-       <imagedata fileref="images/ServiceTree.png" format="PNG" />
-      </imageobject>
-      <textobject>
-       <para>The image shows paths to objects in the OpenIDM namespace.</para>
-      </textobject>
-      <caption>
-       <para>OpenIDM stores managed objects in the repository, and exposes
-       them under <literal>/openidm/managed</literal>. System objects on
-       external resources are exposed under
-       <literal>/openidm/system</literal>.</para>
-      </caption>
-     </mediaobject>
     </section>
 
     <section xml:id="mapping-creating-attributes">
@@ -478,10 +457,10 @@
      </para>
      <para>
       You can also use the <literal>"default"</literal> property to specify a
-      value that should be assigned to the target property. When determining
-      the value of the target property, any associated conditions are evaluated
-      first, followed by the transform script, if present. The default value is
-      applied (for update and create actions) if the <literal>"source"</literal>
+      value to assign to the target property. When OpenIDM determines the value
+      of the target property, any associated conditions are evaluated first,
+      followed by the transform script, if present. The default value is applied
+      (for update and create actions) if the <literal>"source"</literal>
       property and the <literal>"transform"</literal> script yield a null value.
       The default value overrides the target value, if one exists.
      </para>
@@ -496,8 +475,8 @@
      <para>
       You can use a mapping configuration to define attribute transformations
       that occur during synchronization. In the following excerpt of the sample
-      mapping, the value of the <literal>displayName</literal> attribute is set
-      using a combination of the <literal>lastName</literal> and
+      mapping, the value of the <literal>displayName</literal> attribute (on the
+      target) is set using a combination of the <literal>lastName</literal> and
       <literal>firstName</literal> attribute values from the source.
      </para>
      <programlisting language="javascript">
@@ -523,33 +502,72 @@
     <section xml:id="mapping-link-qualifiers">
      <title>Using Link Qualifiers in a Mapping</title>
      <para>
-      In certain situations, you might need to identify the
-      <emphasis>type</emphasis> of relationship, or link, that is created when
-      a source object is mapped to a target object. The ability to qualify
-      relationships between objects is useful only in a situation where you have
-      multiple target objects that map to a single source object. For example,
-      you might have one managed user, <literal>scarter</literal> who has two
-      distinct accounts in an LDAP directory, a regular user account
+      When you have multiple target objects that map to a single source object,
+      you should identify the <emphasis>type</emphasis> of relationship, or link,
+      with a <emphasis>link qualifier</emphasis>. For
+      example, assume that you have one managed user, <literal>scarter</literal>,
+      with two distinct accounts in an LDAP directory: a regular user account
       (<literal>scarter</literal>) and a test account
-      (<literal>scarter-test</literal>). Both of these LDAP accounts should be
-      linked to the single managed user object, <literal>scarter</literal>.
+      (<literal>scarter-test</literal>). In that case, you can use a
+      link qualifier to link both of these LDAP accounts to the single managed
+      user object, <literal>scarter</literal>.
+     </para>
+     <!-- TODO: address multiple source object situation -->
+     <para>
+      OpenIDM uses link qualifiers in the <filename>sync.json</filename> file
+      to differentiate multiple target objects -- that all relate to the same
+      source object.
      </para>
      <para>
-      OpenIDM uses <emphasis>link qualifiers</emphasis> to indicate how the two
-      target objects are distinguished. A link qualifier relates to a specific
-      property in the target object. In this example, a link qualifier might
-      be defined on the <literal>dn</literal> property of the target object, to
-      indicate that it is the value of the target <literal>dn</literal> that
-      will determine the type of link that is created.
+      A link qualifier can be static or scripted (dynamic). That link qualifier
+      can be used in the evaluation of different parts of the mapping, including:
      </para>
+     <itemizedlist>
+      <listitem>
+       <para>
+        A transformation script for one or more properties.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        The condition logic for one or more properties.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        A correlation query between source and target.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        A situational analysis.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Policies that are executed.
+       </para>
+      </listitem>
+     </itemizedlist>
      <para>
-      Link qualifiers are declared at the top of the mapping to which they
-      apply. They can then be referenced in the property mapping, in
-      transformation scripts, and in correlation queries. Each
-      <literal>linkQualifier</literal> within a specific mapping must be
-      unique. If no link qualifier is specified (in the case where there is
-      only one possible correlating target object) a default link qualifier,
-      with the value <literal>"default"</literal>, is used.
+      The sum total of these configurations are used to define how records
+      associated with one link qualifier differ from another.
+     </para>
+
+     <note>
+      <para>
+       Where possible, do use dynamic <emphasis>link qualifiers</emphasis>. When
+       OpenIDM uses a static list of <emphasis>link qualifiers</emphasis>, it
+       has to search through each item in the list before synchronizing each
+       entry, which can affect the performance of your system.
+      </para>
+     </note>
+
+     <para>
+      Each <literal>linkQualifier</literal> within a specific mapping must be
+      unique. If no link qualifier is specified (such as when only one possible
+      correlating target object exists) OpenIDM uses a default link qualifier,
+      with the value <literal>"default"</literal>.
      </para>
     </section>
 
@@ -632,7 +650,7 @@
       <para>
        In the following excerpt of a sample mapping, two link qualifiers
        (<literal>user</literal> and <literal>test</literal>) are declared for
-       the managed user to LDAP mapping.  This example assumes two accounts in
+       the managed user to LDAP mapping. This example assumes two accounts in
        the LDAP directory, a real <literal>user</literal> account and a second,
        <literal>test</literal> account. Both LDAP accounts should be mapped to
        the same managed object.
@@ -647,6 +665,73 @@
             "linkQualifiers" : [ "user", "test" ],
 ...   </programlisting>
       <para>
+       If you have alternative sets of link qualifiers for different source
+       records, you could set up a <filename>linkQualifiers.js</filename>
+       script. That script should return an array of strings. If you need a
+       link qualifiers script, the noted <filename>sync.json</filename> excerpt
+       might look like the following:
+      </para>
+      <programlisting language="javascript">
+{
+    "mappings": [
+        {
+            "name": "managedUser_systemLdapAccounts",
+            "source": "managed/user",
+            "target": "system/MyLDAP/account",
+            "linkQualifiers" : {
+                "type" : "text/javascript",
+                "file" : "script/linkQualifiers.js"
+            }
+... </programlisting>
+      <para>
+       The <literal>linkQualifiers</literal> script can use the following
+       variables:
+      </para>
+      <variablelist>
+       <varlistentry>
+        <term><literal>mapping</literal></term>
+        <listitem>
+         <para>
+          The name of the current mapping, as defined in
+          <filename>sync.json</filename>.
+         </para>
+        </listitem>
+       </varlistentry>
+       <varlistentry>
+        <term><literal>object</literal></term>
+        <listitem>
+         <para>
+          The value of the source object. If the source object does not exist,
+          the value is null. For more information, see
+          <xref linkend="link-qualifier-object" />.
+         </para>
+        </listitem>
+       </varlistentry>
+       <varlistentry>
+        <term><literal>oldValue</literal></term>
+        <listitem>
+         <para>
+          The former value of the source object, if any. If the source object is
+          new, <literal>oldValue</literal> will be null. When there are deleted
+          objects, <literal>oldValue</literal> will be populated only if the
+          source is <emphasis>managed</emphasis>.
+         </para>
+        </listitem>
+       </varlistentry>
+       <varlistentry>
+        <term><literal>returnAll</literal></term>
+        <listitem>
+         <para>
+          A boolean option. If set to true, the script must return all known
+          link qualifiers.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
+      <para>
+       A <filename>linkQualifiers.js</filename> script
+      </para>
+      <para>
        Link qualifier conditions can be used to specify when a target attribute
        should be set. The following example sets a default value for the
        <literal>description</literal> attribute on a target object, only if
@@ -656,10 +741,8 @@
 {
     "target" : "description",
     "default": "This is a test account",
-    "condition" : {
-        "linkQualifier" : "test"
+    "condition" : "/linkQualifier" eq \"test\""
     }
-},
       </programlisting>
       <para>
        Link qualifiers can be used in conjunction with a transformation script,
@@ -686,12 +769,50 @@
     }
       </programlisting></informalexample>
       <para>
-       A link qualifier can also be used in a correlation query, to determine
-       the correct link type for existing target objects. For more information
-       about using link qualifiers in correlation queries, see
-       <xref linkend="correlating-multiple-targets" />.
+       A link qualifier can also be used in a correlation query or a correlation
+       script, to determine existing target objects to associate with the source
+       object. For more information about using link qualifiers in correlation
+       queries or scripts, see <xref linkend="correlating-multiple-targets" />.
       </para>
      </section>
+    </section>
+
+
+    <section xml:id="link-qualifier-object">
+     <title>Conditions related to the Object Variable</title>
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        You can expect that the value of the <emphasis>object</emphasis> variable
+        provided in the <literal>linkQualifiers</literal> script is null,
+        during a sync or a LiveSync delete event.
+       </para>
+       <para>
+        If your source system is an OpenIDM managed object, you can still get
+        all details about the deleted object through its
+        <literal>oldValue</literal>.
+       </para>
+       <para>
+        If your source system is external, you will not have access to the
+        <literal>oldValue</literal>. In that case, you can mimic the behavior of
+        the <literal>returnAll</literal> variable, and return all known link
+        qualifiers.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        You can create a <literal>linkQualifiers</literal> script to first
+        check for the value of <literal>returnAll</literal>.
+       </para>
+       <para>
+        If the value is <emphasis>true</emphasis>, make sure that the script does
+        not attempt to use the <literal>object</literal> variable, as it will be
+        null.
+       </para>
+      </listitem>
+     </itemizedlist>
+
     </section>
 
     <section xml:id="filtering-source-and-target">
@@ -715,15 +836,16 @@
       <varlistentry>
        <term>validSource</term>
        <listitem>
-        <para>A script that determines if a source object is valid to be
-         mapped. The script yields a boolean value: <literal>true</literal>
-         indicates that the source object is valid; <literal>false</literal>
-         can be used to defer mapping until some condition is met. In the root
-         scope, the source object is provided in the <literal>"source"</literal>
-         property. If the script is not specified, then all source objects are
-         considered valid.</para>
-
-         <programlisting language="javascript">
+        <para>
+         A script that determines if a source object is valid to be mapped. The
+         script yields a boolean value: <literal>true</literal> indicates that
+         the source object is valid; <literal>false</literal> can be used to
+         defer mapping until some condition is met. In the root scope, the
+         source object is provided in the <literal>"source"</literal> property.
+         If the script is not specified, then all source objects are considered
+         valid.
+        </para>
+        <programlisting language="javascript">
 {
     "validSource": {
         "type": "text/javascript",
@@ -736,16 +858,17 @@
       <varlistentry>
        <term>validTarget</term>
        <listitem>
-        <para>A script, used during reconciliation's second phase, that
-        determines if a target object is valid to be mapped. The script yields
-        a boolean value: <literal>true</literal> indicates that the target
-        object is valid; <literal>false</literal> indicates that the target
-        object should not be included in reconciliation. In the root scope, the
-        source object is provided in the <literal>"target"</literal> property.
-        If the script is not specified, then all target objects are considered
-        valid for mapping.</para>
-
-         <programlisting language="javascript">
+        <para>
+         A script, used during reconciliation's second phase, that determines if
+         a target object is valid to be mapped. The script yields a boolean
+         value: <literal>true</literal> indicates that the target object is
+         valid; <literal>false</literal> indicates that the target object should
+         not be included in reconciliation. In the root scope, the source object
+         is provided in the <literal>"target"</literal> property. If the script
+         is not specified, then all target objects are considered valid for
+         mapping.
+        </para>
+        <programlisting language="javascript">
 {
     "validTarget": {
         "type": "text/javascript",
@@ -763,8 +886,8 @@
       Examples already shown in this section use <literal>source.<replaceable
       >attributeName</replaceable></literal> to retrieve attributes from the
       source objects. Your scripts can also write to target attributes using
-      <literal>target.<replaceable>attributeName</replaceable></literal>
-     syntax, as shown in the following example.
+      <literal>target.<replaceable>attributeName</replaceable></literal> syntax,
+      as shown in the following example.
      </para>
      <programlisting language="javascript">
 {
@@ -823,140 +946,6 @@
   </section>
   </section>
 
-  <section xml:id="sync-encrypted-values">
-   <title>Using Encrypted Values</title>
-   <indexterm>
-    <primary>Synchronization</primary>
-    <secondary>Encryption</secondary>
-   </indexterm>
-
-   <para>OpenIDM supports reversible encryption of attribute values for
-   managed objects. Attribute values to encrypt include passwords,
-   authentication questions, credit card numbers, and social security numbers.
-   If passwords are already encrypted on the external resource, they are
-   generally excluded from the synchronization process. For more information,
-   see <link xlink:href="integrators-guide#chap-passwords"
-             xlink:role="http://docbook.org/xlink/role/olink">
-           <citetitle>Managing Passwords</citetitle></link>.</para>
-
-   <para>You configure encryption in the managed object configuration (in the
-   <filename>openidm/conf/managed.json</filename> file). The following extract
-   of that file shows a managed object configuration that encrypts and decrypts
-   <literal>securityAnswer</literal>, <literal>ssn</literal>, and
-   <literal>password</literal> attributes using the default symmetric
-   key, and additional scripts for extra passwords.</para>
-
-     <programlisting language="javascript">
-{
-    "objects": [
-        {
-            "name": "user",
-            ...
-            "properties": [
-                {
-                    "name": "securityAnswer",
-                    "encryption": {
-                        "key": "openidm-sym-default"
-                    }
-                },
-                {
-                    "name": "ssn",
-                    "encryption": {
-                        "key": "openidm-sym-default"
-                    }
-                },
-                {
-                    "name": "password",
-                    "encryption": {
-                        "key": "openidm-sym-default"
-                    }
-                }
-            ],
-            ...
-          }
-    ]
-}</programlisting>
-
-   <para>Do not use the default symmetric key,
-   <literal>openidm-sym-default</literal>, in production. See the chapter on
-   <link xlink:href="integrators-guide#chap-security"
-         xlink:role="http://docbook.org/xlink/role/olink"><citetitle>Securing
-   and Hardening OpenIDM</citetitle></link> for instructions on adding your
-   own symmetric key.</para>
-  </section>
-
-  <section xml:id="restricting-http-access">
-   <title>Restricting HTTP Access to Sensitive Data</title>
-   <para>You can protect specific sensitive data stored in the repository by
-   marking the corresponding properties as "private". Private data, whether it
-   is encrypted or not, is not accessible over the REST interface. Properties
-   that are marked as private are removed from an object when that object is
-   retrieved over REST.</para>
-
-   <para>To mark a property as private, set its <literal>"scope"</literal> to
-   <literal>"private"</literal> in the <filename>conf/managed.json</filename>
-   file.</para>
-
-   <para>The following extract of the <filename>managed.json</filename> file
-   shows how HTTP access is prevented on the <literal>password</literal> and
-   <literal>securityAnswer</literal> properties.</para>
-
-   <programlisting language="javascript">
-       "properties" : [
-           {
-               "name" : "securityAnswer",
-               "encryption" : {
-                   "key" : "openidm-sym-default"
-               },
-               "scope" : "private"
-           },
-           {
-               "name" : "password",
-               "encryption" : {
-                   "key" : "openidm-sym-default"
-               },
-               "scope" : "private"
-   </programlisting>
-
-   <para>A potential caveat with using private properties is that such
-   properties are <emphasis>removed</emphasis> if an object is updated by
-   using an HTTP <literal>PUT</literal> request. A <literal>PUT</literal>
-   request replaces the entire object in the repository. Because properties
-   that are marked as private are ignored in HTTP requests, these properties
-   are effectively removed from the object when the update is done. To work
-   around this limitation, do not use <literal>PUT</literal> requests if you
-   have configured private properties. Instead, use a <literal>PATCH</literal>
-   request to update only those properties that need to be changed.
-   </para>
-
-   <para>For example, to update the <literal>givenName</literal> of user jdoe,
-    you could run the following command:</para>
-
-   <screen>
-$ <userinput>curl \
- --cacert self-signed.crt \
- --header "X-OpenIDM-Username: openidm-admin" \
- --header "X-OpenIDM-Password: openidm-admin" \
- --header "Content-Type: application/json" \
- --request POST \
- --data '[
-    {
-    "operation":"replace",
-    "field":"/givenName",
-    "value":"Jon"
-    }
- ]' \
- "https://localhost:8443/openidm/managed/user?_action=patch&amp;_queryId=for-userName&amp;uid=jdoe"</userinput>
-   </screen>
-
-   <note>
-    <para>The filtering of private data applies only to direct HTTP read
-    and query calls on managed objects. No automatic filtering is done for
-    internal callers, and the data that these callers choose to expose.</para>
-   </note>
-
-  </section>
-
   <section xml:id="constructing-attributes">
    <title>Constructing and Manipulating Attributes</title>
    <indexterm>
@@ -992,10 +981,10 @@ $ <userinput>curl \
      the target.
     </para>
    </note>
-
-   <para>The following example derives a DN for an LDAP entry when the entry
-   is created in the internal repository.</para>
-
+   <para>
+    The following example derives a DN for an LDAP entry when the entry is
+    created in the internal repository.
+   </para>
    <programlisting language="javascript">
 {
     "onCreate": {
@@ -1019,19 +1008,19 @@ $ <userinput>curl \
     <primary>Synchronization</primary>
     <secondary>Reusing links</secondary>
    </indexterm>
-
-   <para>When two mappings exist to synchronize the same objects bidirectionally,
-   you can use the <literal>links</literal> property in one mapping to have
-   OpenIDM use the same internally managed link for both mappings. Otherwise,
-   if no <literal>links</literal> property is specified, OpenIDM maintains a
-   link for each mapping.</para>
-
-   <para>The following excerpt shows two mappings, one from MyLDAP accounts
-   to managed users, and another from managed users to MyLDAP accounts. In
-   the second mapping, the <literal>link</literal> property tells OpenIDM
-   to reuse the links created in the first mapping, rather than create new
-   links.</para>
-
+   <para>
+    When two mappings exist to synchronize the same objects bidirectionally, you
+    can use the <literal>links</literal> property in one mapping to have OpenIDM
+    use the same internally managed link for both mappings. Otherwise, if no
+    <literal>links</literal> property is specified, OpenIDM maintains a link for
+    each mapping.
+   </para>
+   <para>
+    The following excerpt shows two mappings, one from MyLDAP accounts to
+    managed users, and another from managed users to MyLDAP accounts. In the
+    second mapping, the <literal>link</literal> property tells OpenIDM to reuse
+    the links created in the first mapping, rather than create new links.
+   </para>
    <programlisting language="javascript">
 {
     "mappings": [
@@ -1048,7 +1037,6 @@ $ <userinput>curl \
         }
     ]
 }</programlisting>
-
    </section>
  </section>
 
@@ -2804,6 +2792,7 @@ $ <userinput>curl \
 ...
 "connectorName" : "org.identityconnectors.ldap.LdapConnector"
     },<emphasis role="heavy">
+
     "syncFailureHandler" : {
         "maxRetries" : 4,
         "postRetryAction" : dead-letter-queue
@@ -3038,7 +3027,8 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
   <para>
    You can define actions for particular situations in the
    <literal>policies</literal> section of a synchronization mapping, as shown in
-   the following excerpt.
+   the following excerpt from the <filename>sync.json</filename> file of
+   Sample 2b.
   </para>
 
   <programlisting language="javascript">
@@ -3062,15 +3052,18 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
         },
         {
             "situation": "MISSING",
-            "action": "EXCEPTION"
+            "action": "CREATE"
         },
         {
-            "situation": "UNQUALIFIED",
+            "situation": "SOURCE_MISSING",
             "action": "DELETE"
+        {
+            "situation": "UNQUALIFIED",
+            "action": "IGNORE"
         },
         {
             "situation": "UNASSIGNED",
-            "action": "EXCEPTION"
+            "action": "IGNORE"
         }
     ]
 }</programlisting>
@@ -3175,7 +3168,7 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
        The source object qualifies for a target object and there is no link to
        an existing target object. There is a single target object, that
        correlates with this source object, according to the logic in the
-       correlation query. This situation is detected during change events and
+       correlation. This situation is detected during change events and
        reconciliation.
       </para>
 
@@ -3196,7 +3189,7 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
        The source object qualifies for a target object and there is no link from
        that source object to an existing target object. There is a single target
        object, that correlates with this source object, according to the logic
-       in the correlation query, but that target object is already linked to a
+       in the correlation, but that target object is already linked to a
        different source object. This situation is detected during change events
        and reconciliation.
       </para>
@@ -3356,18 +3349,18 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
       <itemizedlist>
        <listitem>
         <para>
-         No previous source value can be found
+         No previous source value can be found.
         </para>
        </listitem>
        <listitem>
         <para>
-         There is no correlation query
+         There is no correlation logic used.
         </para>
        </listitem>
        <listitem>
         <para>
-         A previous value was found, and a correlation query exists, but no
-         corresponding target was found
+         A previous value was found, and correlation logic exists, but no
+         corresponding target was found.
         </para>
        </listitem>
       </itemizedlist>
@@ -3543,7 +3536,7 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
     during source reconciliation, depending on whether a valid source exists
     (Source Qualifies), whether a link exists in the repository (Link Exists),
     and how many target objects are found, based either on links or on the
-    results of the correlation query.
+    results of the correlation.
    </para>
 
    <table pgwide="1" rules="none"><?dbfo font-size="6pt" ?>
@@ -3563,7 +3556,7 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
        <entry namest="c3" nameend="c4" align="left">Link Exists?</entry>
        <entry namest="c5" nameend="c7" align="left">Target Objects
        Found<footnote><para>If no link exists for the source object, then
-       OpenIDM executes a correlation query. If no previous object is available,
+       OpenIDM executes correlation logic. If no previous object is available,
        OpenIDM cannot correlate.</para></footnote></entry>
        <entry morerows="1" valign="top" align="left">Situation</entry>
       </row>
@@ -3841,9 +3834,8 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
        <entry namest="c5" nameend="c7" align="left">Target Objects Found
         <footnote>
          <para>
-          If no link exists for the source object, OpenIDM executes a
-          correlation query. If no previous object is available, OpenIDM cannot
-          correlate.
+          If no link exists for the source object, OpenIDM executes any included
+          correlation logic. If a link exists, correlation does not apply.
          </para>
         </footnote>
        </entry>
@@ -3909,11 +3901,12 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
    <title>Synchronization Actions</title>
 
    <variablelist>
-    <para>Once OpenIDM has assigned a situation to an object, OpenIDM takes
-    the actions configured in the mapping. If no action is configured, then
-    OpenIDM takes the default action for the situation. OpenIDM supports the
-    following actions.</para>
-
+    <para>
+     Once OpenIDM has assigned a situation to an object, OpenIDM takes the
+     actions configured in the mapping. If no action is configured, then OpenIDM
+     takes the default action for the situation. OpenIDM supports the following
+     actions.
+    </para>
     <varlistentry>
      <term>"CREATE"</term>
      <listitem>
@@ -4018,6 +4011,77 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
      Available in Scripts</citetitle></link> in the <citetitle>Scripting
     Appendix</citetitle>.
    </para>
+  </section>
+
+  <section xml:id="sync-link-qualifiers">
+   <title>Using Link Qualifiers in Policies</title>
+
+   <para>
+    If you have configured managed objects such as users with more than one
+    account, you can set different policies, per
+    <emphasis>link qualifier</emphasis>, in the <filename>sync.json</filename>
+    file.
+   </para>
+   <para>
+    The process is similar to the following:
+    <xref linkend="mapping-link-qualifiers" />.
+   </para>
+   <para>
+    You can choose from the list of <literal>linkQualifiers</literal> defined
+    near the start of the <filename>sync.json</filename> file. The following
+    excerpt shows two <literal>linkQualifiers</literal>: <literal>user</literal>
+    and <literal>test</literal>.
+   </para>
+   <programlisting language="javascript">{
+    "mappings" : [
+        {
+            "name" : "systemLdapAccounts_managedUser",
+            "source" : "system/ldap/account",
+            "target" : "managed/user",
+            "linkQualifiers" : [
+                "user",
+                "test"
+        ],
+    "properties" : [
+    ... </programlisting>
+
+   <para>
+    Later in the same file, in the <literal>policies</literal> section, you can
+    see different <literal>ABSENT</literal> actions for each link qualifier:
+   </para>
+   <programlisting language="javascript">
+    "policies" : [
+        {
+             "situation" : "CONFIRMED",
+             "action" : "IGNORE"
+        },
+        {
+             "situation" : "FOUND",
+             "action" : "IGNORE
+        }
+        {
+             "condition" : "/linkQualifier eq \"user\""
+             }
+             "situation" : "ABSENT",
+             "action" : "IGNORE",
+             "postAction" : {
+                 "type" : "text/javascript",
+                 "source" : "java.lang.System.out.println('Ignored user: \');"
+             }
+        },
+        {
+            "condition : {
+                "filter" : "/linkQualifier eq \"test\""
+             }
+            "situation" : "ABSENT",
+            "action" : "CREATE",
+            "postAction" : {
+                "type" : "text/javascript",
+                "source" : "java.lang.System.out.println('Created user: ');"
+            }
+        },
+        ...
+   </programlisting>
   </section>
  </section>
 
@@ -4135,8 +4199,8 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
   <para>
    The following example creates a link between a managed object and its
    corresponding system object. Such a call is useful in the context of manual
-   data association, when a correlation query has linked an incorrect object, or
-   when OpenIDM has been unable to determine the correct target object.
+   data association, when correlation logic has linked an incorrect object,
+   or when OpenIDM has been unable to determine the correct target object.
   </para>
   <para>
    In this example, there are two separate target accounts
@@ -4336,79 +4400,126 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
   <title>Correlating Existing Target Objects</title>
   <indexterm>
    <primary>Synchronization</primary>
-   <secondary>Correlation queries</secondary>
+   <secondary>Correlation query</secondary>
   </indexterm>
   <indexterm>
-   <primary>Correlation queries</primary>
+   <primary>Synchronization</primary>
+   <secondary>Correlation script</secondary>
   </indexterm>
+  <indexterm>
+   <primary>Correlation query</primary>
+  </indexterm>
+  <indexterm>
+   <primary>Correlation script</primary>
+  </indexterm>
+
+  <para>
+   When OpenIDM creates an object through synchronization, it creates a
+   <emphasis>link</emphasis> between the source and target objects. OpenIDM
+   then uses the link to determine the object's situation during later
+   synchronization operations.
+  </para>
+
+  <para>
+   Initial, full synchronization operations can involve correlating many
+   objects on both source and target systems. You can use correlation to return
+   <emphasis>matching</emphasis> record IDs with either a
+   <literal>correlation query</literal> or a <literal>correlation script</literal>.
+  </para>
+
+  <para>
+   With a correlation query, you can set up a query definition (_queryId,
+   _queryFilter, _queryExpression), possibly with the help of a
+   <literal>linkQualifier.</literal> OpenIDM executes that query
+   to search through a target repository for record IDs.
+  </para>
+
+  <para>
+   With a correlation script, you return a list of target record IDs. This
+   script makes use of the "source" object, and possibly the value of a
+   <literal>linkQualifier</literal> to find those matching record IDs.
+   There is no restriction imposed on the method for finding these ID values.
+   Be aware, such scripts may be relatively complex.
+  </para>
+
+  <!--
+  Include when a correlationScript is ready:
+
+  "As you can see in the following section:
+   <xref linkend="correlation-scripts" />,
+
+    which makes this option very powerful; however, as you can see in the
+    following section: .... these types of scripts are relatively complex.
+"
+  -->
+
   <section xml:id="correlation-queries-overview">
-   <title>Correlation Queries Overview</title>
+   <title>Correlation Queries, in Detail</title>
    <para>
-    Every time OpenIDM creates an object through synchronization, it creates a
-    <emphasis>link</emphasis> between the source and target objects. OpenIDM
-    then uses the link to determine the object's situation during later
-    synchronization operations.
-   </para>
-   <para>
-    Initial, full synchronization operations can involve correlating many
-    objects that exist on both source and target systems. In this case, OpenIDM
-    uses <emphasis>correlation queries</emphasis> to find target objects that
-    already exist, and that correspond to source objects. For the target objects
-    that match a correlation query, OpenIDM needs only to create a link, rather
-    than a new target object.
-   </para>
-   <para>
-    Correlation queries are accomplished by using a script to construct a query
-    map. The content of the query is generated dynamically, using values from
+    OpenIDM processes a correlation query by constructing a query map. The
+    content of the query is generated dynamically, using values from
     the source object. Each source object results in a new query being sent
     to the target system, using (possibly transformed) values from the source
     object for its execution.
    </para>
-  </section>
 
-  <section xml:id="correlation-queries-configuring">
-   <title>Adding Correlation Queries to a Mapping</title>
-   <para>
-    Correlation queries are defined as part of the mapping objects that are
-    configured in the <filename>conf/sync.json</filename> file. They are run
-    against <emphasis>target resources</emphasis>, either managed or system
-    objects, depending on the mapping. Correlation queries on system objects
-    access the connector, which executes the query on the external resource.
-   </para>
-   <para>
-    The preferred syntax for a correlation query is a filtered query, using the
-    <literal>_queryFilter</literal> keyword. Filtered queries should work in the
-    same way on any backend, whereas other query types are generally specific to
-    the targeted backend. Predefined queries (using <literal>_queryId</literal>)
-    and native queries (using <literal>_queryExpression</literal>) can also be
-    used for correlation queries. Note, however, that <literal>system</literal>
-    objects do not support predefined queries, other than
-    <literal>query-all-ids</literal>, which serves no purpose in a correlation
-    query.
-   </para>
-   <para>
-    To configure a correlation query, define a script whose source returns a
-    query that uses the <literal>_queryFilter</literal>,
-    <literal>_queryId</literal>, or <literal>_queryExpression</literal> keyword.
-    For example:
-   </para>
-   <programlisting>
-{ "_queryFilter" : "uid eq \"" + source.userName + "\"" }</programlisting>
-   <para>
-    or
-   </para>
-   <programlisting>
+   <section xml:id="correlation-queries-configuring">
+    <title>Adding Correlation Queries to a Mapping</title>
+
+    <para>
+     Correlation queries are defined as part of the mapping objects that are
+     configured in the <filename>conf/sync.json</filename> file. They are run
+     against <emphasis>target resources</emphasis>, either managed or system
+     objects, depending on the mapping. Correlation queries on system objects
+     access the connector, which executes the query on the external resource.
+    </para>
+    <para>
+     The preferred syntax for a correlation query is a filtered query, using the
+     <literal>_queryFilter</literal> keyword. Filtered queries should work in the
+     same way on any backend, whereas other query types are generally specific to
+     the targeted backend. Predefined queries (using <literal>_queryId</literal>)
+     and native queries (using <literal>_queryExpression</literal>) can also be
+     used for correlation queries. Note, however, that <literal>system</literal>
+     objects do not support predefined queries, other than
+     <literal>query-all-ids</literal>, which serves no purpose in a correlation
+     query.
+    </para>
+    <para>
+     To configure a correlation query, define a script whose source returns a
+     query that uses the <literal>_queryFilter</literal>,
+     <literal>_queryId</literal>, or <literal>_queryExpression</literal> keyword.
+     For example:
+    </para>
+    <itemizedlist>
+     <listitem>
+      <para>
+       For a <literal>_queryId</literal>, the value is the named query. There
+       are also named parameters in the query map are expected by that query.
+      </para>
+      <programlisting language="javascript">
 {'_queryId' : 'for-userName', 'uid' : source.name}</programlisting>
-   <para>
-    or
-   </para>
-   <programlisting>
+     </listitem>
+     <listitem>
+      <para>
+       For a <literal>_queryFilter</literal>, the value is the abstract filter
+       string:
+      </para>
+      <programlisting language="javascript">
+{ "_queryFilter" : "uid eq \"" + source.userName + "\"" }</programlisting>
+     </listitem>
+     <listitem>
+      <para>
+       For a <literal>_queryExpression</literal>, the value is the
+       system-specific query expression, such as raw SQL.
+      </para>
+      <programlisting>
 {'_queryExpression': 'select * from managed_user where givenName = \"' + source.firstname + '\"' }</programlisting>
-   <para>
-    A sample correlation query definition, inside a mapping object, follows:
-   </para>
-   <programlisting>
-{
+     </listitem>
+    </itemizedlist>
+    <para>
+     A sample correlation query definition, inside a mapping object, follows:
+    </para>
+    <programlisting>{
     "mappings" : [
         {
             "name" : "managedUser_systemHrdb",
@@ -4419,168 +4530,194 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
                 "type" : "text/javascript",
                 "source" : "var qry = {'_queryFilter': 'uid eq \"' + source.userName + '\"'}; qry"
             },
-...
-   </programlisting>
+...</programlisting>
 
-   <section xml:id="correlation-filtered-queries">
-    <title>Using Filtered Queries to Correlate Objects</title>
-    <para>
-     For filtered queries, the script that is defined or referenced in the
-     <literal>correlationQuery</literal> property must return an object with the
-     following elements:
-    </para>
-    <itemizedlist>
-     <listitem>
-      <para>
-       The element that is being compared, on the target object, for example,
-       <literal>uid</literal>.
-      </para>
-      <para>
-       Note that this element on the target object is not necessarily a single
-       attribute. Your query filter can be as simple, or as complex, as you need
-       it to be, from a single operator to an entire boolean expression tree.
-      </para>
-      <para>
-       If the target object is a system object, this attribute must be referred
-       to by its OpenIDM name, rather than its OpenICF
-       <literal>nativeName</literal>. For example, given the following
-       provisioner configuration excerpt, the name to use in the correlation
-       query would be <literal>uid</literal> and not <literal>__NAME__</literal>:
-      </para>
-      <programlisting language="javascript">"uid" : {
+    <section xml:id="correlation-filtered-queries">
+     <title>Using Filtered Queries to Correlate Objects</title>
+
+     <para>
+      For filtered queries, the script that is defined or referenced in the
+      <literal>correlationQuery</literal> property must return an object with the
+      following elements:
+     </para>
+     <itemizedlist>
+      <listitem>
+       <para>
+        The element that is being compared, on the target object, for example,
+        <literal>uid</literal>.
+       </para>
+       <para>
+        The element on the target object is not necessarily a single attribute.
+        Your query filter can be simple or complex; valid query filters range
+        from a single operator to an entire boolean expression tree.
+       </para>
+       <para>
+        If the target object is a system object, this attribute must be referred
+        to by its OpenIDM name, rather than its OpenICF
+        <literal>nativeName</literal>. For example, given the following
+        provisioner configuration excerpt, the name to use in the correlation
+        query would be <literal>uid</literal> and not <literal>__NAME__</literal>:
+       </para>
+       <programlisting language="javascript">"uid" : {
     "type" : "string",
     "nativeName" : "__NAME__",
     "required" : true,
     "nativeType" : "string"
 }
-...   </programlisting>
-     </listitem>
-     <listitem>
-      <para>
-       A condition, such as "Equals", "Starts with", or "Greater than".
-      </para>
-      <para>
-       For examples of query conditions, see <link xlink:show="new"
-       xlink:href="integrators-guide#constructing-queries"
-       xlink:role="http://docbook.org/xlink/role/olink"><citetitle>Constructing
-       Queries</citetitle></link>.
-      </para>
-     </listitem>
-     <listitem>
-      <para>
-       The value to search for in the query.
-      </para>
-      <para>
-       This value is generally based on one or more values from the source object,
-       but is not necessarily the value of a single source object property. The
-       way in which your script uses the values from the source object to find a
-       matching record in the target system is up to you. It might be a
-       transformation of a source object property (for example,
-       <literal>toUpperCase()</literal>), concatenated with other strings or
-       properties. You can also use this value to call an external REST endpoint,
-       the response from which would be the final "value" portion of the query.
-      </para>
-     </listitem>
-    </itemizedlist>
-    <para>
-     The following query finds objects on the target whose <literal>uid</literal>
-     is the same as the <literal>userName</literal> of a source object.
-    </para>
-    <programlisting language="javascript">"correlationQuery" : {
-    "type" : "text/javascript",
-    "source" : "var qry = {'_queryFilter': 'uid eq \"' + source.userName + '\"'}; qry"
-},
-    </programlisting>
-    <para>
-     The query can return zero or more objects. The situation that OpenIDM
-     assigns to the source object depends on the number of target objects that
-     are returned. For more information, see <xref linkend="sync-situations" />.
-    </para>
-   </section>
+...    </programlisting>
+      </listitem>
+      <listitem>
+       <para>
+        The value to search for in the query.
+       </para>
+       <para>
+        This value is generally based on one or more values from the source
+        object. However, it does not have to match the value of a single source
+        object property. You can define how your script uses the values from the
+        source object to find a matching record in the target system.
+       </para>
+       <para>
+        You might use a transformation of a source object property, such as
+        <literal>toUpperCase()</literal>. You can concatenate that output with
+        other strings or properties. You can also use this value to call an
+        external REST endpoint, and redirect the response to the final
+        "value" portion of the query.
+       </para>
+      </listitem>
+     </itemizedlist>
+     <para>
+      The following query finds objects on the target whose <literal>uid</literal>
+      is the same as the <literal>userName</literal> of a source object.
+     </para>
+     <programlisting language="javascript">"correlationQuery" : {
+     "type" : "text/javascript",
+     "source" : "var qry = {'_queryFilter': 'uid eq \"' + source.userName + '\"'}; qry"
+},   </programlisting>
+     <para>
+      The query filter can be simple or complex; valid query filters range
+      from a single operator to an entire boolean expression tree.
+     </para>
+     <para>
+      The query can return zero or more objects. The situation that OpenIDM
+      assigns to the source object depends on the number of target objects that
+      are returned. For more information, see <xref linkend="sync-situations" />.
+     </para>
 
-   <section xml:id="correlation-predefined-queries">
-    <title>Using Predefined Queries to Correlate Objects</title>
-    <para>
-     Correlation queries that use predefined queries must be defined in the
-     configuration file for the repository, either
-     <filename>openidm/conf/repo.jdbc.json</filename> or
-     <filename>openidm/conf/repo.orientdb.json</filename>, and must be referenced
-     in the mapping (<literal>sync.json</literal>) file.
-    </para>
-    <para>
-     The following example shows a query, defined in the OrientDB repository
-     configuration (<filename>openidm/conf/repo.orientdb.json</filename>), that
-     can be used as the basis for a correlation query.
-    </para>
-    <programlisting language="javascript">
-  "for-userName" : "SELECT * FROM ${unquoted:_resource} WHERE userName = ${uid} SKIP ${unquoted:_pagedResultsOffset} LIMIT ${unquoted:_pageSize}"
-    </programlisting>
-    <para>
-     By default, a <literal>${value}</literal> token replacement is assumed to be
-     a quoted string. If the value is not a quoted string, use the
-     <literal>unquoted:</literal> prefix, as shown above.
-    </para>
-    <para>
-     You would call this query in the mapping (<literal>sync.json</literal>) file
-     as follows:
-    </para>
-    <programlisting language="javascript">
-  {
+    </section>
+
+    <section xml:id="correlation-predefined-queries">
+     <title>Using Predefined Queries to Correlate Objects</title>
+
+     <para>
+      If you configure correlation queries with predefined queries, they must
+      be defined in the configuration file for the repository, either
+      <filename>openidm/conf/repo.jdbc.json</filename> or
+      <filename>openidm/conf/repo.orientdb.json</filename> In addition, these
+      predefined queries must also be referenced in the mapping file:
+      <literal>sync.json</literal>.
+     </para>
+     <para>
+      The following example shows a query, defined in the OrientDB repository
+      configuration (<filename>openidm/conf/repo.orientdb.json</filename>), that
+      can be used as the basis for a correlation query.
+     </para>
+     <programlisting language="javascript">"for-userName" : "SELECT * FROM ${unquoted:_resource} WHERE userName = ${uid} SKIP ${unquoted:_pagedResultsOffset} LIMIT ${unquoted:_pageSize}"
+     </programlisting>
+     <para>
+      By default, a <literal>${value}</literal> token replacement is assumed to be
+      a quoted string. If the value is not a quoted string, use the
+      <literal>unquoted:</literal> prefix, as shown above.
+     </para>
+     <para>
+      You would call this query in the mapping (<literal>sync.json</literal>) file
+      as follows:
+     </para>
+     <programlisting language="javascript">{
     "correlationQuery": {
       "type": "text/javascript",
       "source":
         "var qry = {'_queryId' : 'for-userName', 'uid' : source.name}; qry;"
     }
-  }</programlisting>
-    <para>
-    The <literal>_queryId</literal> property
-    value (<literal>for-userName</literal>) matches the name of the query
-    specified in <filename>openidm/conf/repo.orientdb.json</filename>. The
-    <literal>source.name</literal> value replaces <literal>${uid}</literal> in
-    the query. OpenIDM replaces <literal>${unquoted:_resource}</literal> in the
-    query with the name of the table that holds managed objects.
-    </para>
-   </section>
+  }  </programlisting>
+     <para>
+      In this correlation query, the <literal>_queryId</literal> property
+      value (<literal>for-userName</literal>) matches the name of the query
+      specified in <filename>openidm/conf/repo.orientdb.json</filename>. The
+      <literal>source.name</literal> value replaces <literal>${uid}</literal> in
+      the query. OpenIDM replaces <literal>${unquoted:_resource}</literal> in
+      the query with the name of the table that holds managed objects.
+     </para>
+    </section>
 
-   <section xml:id="correlation-expression-builder">
-    <title>Using the Expression Builder to Create Correlation Queries</title>
+    <section xml:id="correlation-expression-builder">
+     <title>Using the Expression Builder to Create Correlation Queries</title>
+
+     <para>
+      OpenIDM ${docTargetVersion} provides a declarative correlation option,
+      named the expression builder, that makes it easier to configure
+      correlation queries.
+     </para>
+     <para>
+      The easiest way to use the expression builder to create a correlation
+      query is through the Admin UI. To access the Expression Builder, navigate
+      to the desired mapping, select Association Rules, and then change the No
+      Correlation Query option to Correlation Queries.
+     </para>
+     <mediaobject>
+      <alt>Admin UI mapping screen, Association Rules</alt>
+      <imageobject>
+       <imagedata fileref="images/association-rules.png" format="PNG"/>
+      </imageobject>
+     </mediaobject>
+
+     <para>
+      Now click Add Correlation query. In the pop-up window that appears, select
+      a link qualifier. (For more information, see
+      <xref linkend="link-qualifier-conditions" />). You can now create your
+      expression.
+     </para>
+     <para>
+      The following image shows how you can use the expression builder to build
+      a correlation query for a mapping from
+      <literal>system/ldap/accounts</literal> to <literal>managed/user</literal>
+      objects. The query essentially states, in order for a match to exist
+      between the source (LDAP) object and the target (managed) object, both the
+      <literal>givenName</literal> and <literal>telephoneNumber</literal> of those
+      objects must match.
+     </para>
+     <mediaobject>
+      <alt>Admin UI mapping screen showing correlation query</alt>
+      <imageobject>
+       <imagedata fileref="images/expression-builder.png" format="PNG"/>
+      </imageobject>
+     </mediaobject>
+
+     <para>
+      Click Submit to exit the Correlation Query pop-up window. After creating
+      the Correlation Queries that you need, click Save
+     </para>
+     <para>
+      The resulting correlation query, in the mapping configuration
+      (<literal>sync.json</literal>) is as follows:
+     </para>
+
+     <programlisting language="javascript">"correlationQuery" : {
+     "linkQualifier" : "user",
+     "expressionTree" : {
+         "all" : [
+             "givenName",
+             "telephoneNumber"
+         ]
+     },
+     "mapping" : "systemLdapAccounts_managedUser",
+     "type" : "text/javascript",
+     "file" : "ui/correlateTreeToQueryFilter.js"
+},   </programlisting>
+
     <para>
-     OpenIDM ${docTargetVersion} provides a declarative correlation option, named
-     the expression builder, that makes it easier to configure correlation
-     queries. The easiest way to use the expression builder to build up a
-     correlation query is by using the Admin UI. The following image shows how the
-     expression builder is used to build up a correlation query for a mapping from
-     <literal>system/ldap/accounts</literal> to <literal>managed/user</literal>
-     objects. The query essentially states that, in order for a match to exist
-     between the source (LDAP) object and the target (managed) object, both the
-     <literal>userName</literal> and <literal>telephoneNumber</literal> of those
-     objects must match.
-    </para>
-    <mediaobject>
-     <alt>Admin UI mapping screen showing correlation query</alt>
-     <imageobject>
-      <imagedata fileref="images/expression-builder.png" format="PNG"/>
-     </imageobject>
-    </mediaobject>
-    <para>
-     The resulting correlation query, in the mapping configuration
-     (<literal>sync.json</literal>) is as follows:
-    </para>
-    <programlisting language="javascript">"correlationQuery" : {
-      "type" : "text/javascript",
-      "expressionTree" : {
-          "all" : [
-              "givenName",
-              "telephoneNumber"
-          ]
-      },
-      "mapping" : "systemLdapAccounts_managedUser",
-      "file" : "ui/correlateTreeToQueryFilter.js"
-  },</programlisting>
-    <para>
-     The logic in the expression builder is in the script
-     <filename>openidm/bin/defaults/script/ui/correlateTreeToQueryFilter.js</filename>
-     which converts the expression into the required query filter.
+     You can find the logic in the expression builder in the following script:
+     <filename>openidm/bin/defaults/script/ui/correlateTreeToQueryFilter.js</filename>.
+     It converts the expression into the required query filter.
     </para>
    </section>
   </section>
@@ -4589,12 +4726,14 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
    <title>Correlating Multiple Target Objects</title>
    <para>
     To correlate a single source entry with multiple target entries, you
-    indicate how the source entry should be linked to the target entries, based
-    on the distinguishing attribute of the target object. Effectively, a
-    separate correlation query is created for each potential target object to
-    which a single source object is mapped. These correlation queries are
-    distinguished by using a <literal>link qualifier</literal> for each link
-    that will be created.
+    indicate how the source entry should be linked to the target entries, by
+    providing correlation logic appropriate for each link qualifier.
+   </para>
+   <para>
+    When complete, you will have created a separate correlation query for each
+    mapping from a single source object to a potential target object. You can
+    differentiate these correlation queries, by link, with a
+    <literal>link qualifier</literal>.
    </para>
    <para>
     In the following example, the correlation query might be constructed as
@@ -4624,6 +4763,108 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
    </para>
   </section>
 
+  </section>
+
+  <section xml:id="correlation-scripts">
+   <title>Correlation Scripts</title>
+
+   <para>
+    One alternative to correlation queries is a correlation script. You can
+    configure a correlation script as part of a mapping in the
+    <filename>sync.json</filename> file.
+   </para>
+
+   <para>
+    In the following example excerpt, the <filename>correlateScript.js</filename>
+    script is used to return IDs from the target repository:
+   </para>
+
+   <programlisting language="javascript">{
+    "mappings" : [
+        "name" : "managedUser_systemLdapAccounts",
+        "source" : "managed/user"
+        "target" : "system/ldap/account",
+        "correlationScript" : {
+            "type" : "text/javascript",
+            "file" : "script/correlateScript.js"
+        },
+        ... </programlisting>
+
+   <para>
+    You can create a correlation script in the Admin UI. To access this feature,
+    navigate to the desired mapping, select Association Rules, and then change
+    the No Correlation Query option to Correlation Script.
+   </para>
+
+   <mediaobject>
+    <alt>Admin UI mapping screen showing correlation script</alt>
+    <imageobject>
+     <imagedata fileref="images/admin-ui-corr-script.png" format="PNG"/>
+    </imageobject>
+   </mediaobject>
+
+   <para>
+    To create a correlation script, you should use the details from the source
+    object to find the matching record in the target system. If you are using
+    link qualifiers to match a single source record to multiple target records,
+    then you should also use the value of the <literal>linkQualifier</literal>
+    variable within your correlation script to find the target id that applies
+    for that qualifier.
+   </para>
+
+   <!-- Jake recommends removing. TODO substitute a "real"
+    correlationScript.js when available
+   <para>
+    The following is one example of
+    how you might implement such a script, using the results from a
+    <literal>linkQualifier</literal>.
+   </para>
+
+   <programlisting language="javascript">"correlationScript": {
+    "type":"text/javascript",
+    "source": "
+
+    var ids = [];
+
+    switch (linkQualifier) {
+        case "test":
+            ids = openidm.query('system/ldap/account', {
+                '_queryFilter': '/uid eq \"' + source.userName + '.test\"'
+                }).results.map(function (r) { return r.uid; }
+    );
+    break;
+        case "admin":
+            ids = openidm.query('system/ldap/account', {
+                '_queryFilter': '/uid eq \"' + source.userName + '.test\"'
+                }).results.map(function (r) { return r.uid; }
+    );
+    break;
+        case "readonly":
+            ids = openidm.query('system/ldap/account', {
+                '_queryFilter': '/uid eq \"' + source.userName + '\"
+                AND /isReadOnly eq true'}).results.map(function (r) { return r.uid; }
+    );
+    break;
+    }
+    if (['test','admin','readonly'].indexOf(linkQualifier)) {
+        ids.concat(openidm.query('system/ldap/account', {
+            '_queryFilter': '/uid eq \"' + source.userName + '\"'
+            }).results.map(function (r) { return r.uid; })
+    );
+}
+
+ids;
+"
+   </programlisting>
+
+   <para>
+
+   The logic uses the source and linkQualifier variables together to find
+   the target system IDs that are appropriate for their respective values.
+     </para>
+                                       -->
+  </section>
+
  </section>
 
  <section xml:id="advanced-dataflow">
@@ -4636,8 +4877,8 @@ INFO: uid=jdoe,ou=people,dc=example,dc=com saved to dead letter queue
   <para><xref linkend="basic-sync"/> shows how to trigger scripts when objects
   are created and updated. Other situations require you to trigger scripts
   in response to other synchronization actions. For example, you might not
-  want OpenIDM to delete a managed user directly when an external account is
-  deleted, but instead unlink the objects and deactivate the user in another
+  want OpenIDM to delete a managed user directly when an external account record
+  is deleted, but instead unlink the objects and deactivate the user in another
   resource. (Alternatively, you might delete the object in OpenIDM but
   nevertheless execute a script.) The following example shows a more advanced
   mapping configuration.</para>

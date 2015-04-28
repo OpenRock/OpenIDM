@@ -34,6 +34,8 @@ define("org/forgerock/openidm/ui/admin/main", [
     "./delegates/SearchDelegate",
     "./delegates/ReconDelegate",
     "./delegates/SecurityDelegate",
+    "./delegates/WorkflowDelegate",
+    "./delegates/ScriptDelegate",
 
     "./ResourcesView",
     "./MapResourceView",
@@ -46,7 +48,7 @@ define("org/forgerock/openidm/ui/admin/main", [
     "./managed/AddEditManagedView",
 
     "./util/ConnectorUtils",
-    "./util/AbstractScriptEditor",
+    "./util/LinkQualifierUtils",
     "./util/ScriptEditor",
     "./util/ScriptList",
     "./util/ScriptDialog",
@@ -57,6 +59,7 @@ define("org/forgerock/openidm/ui/admin/main", [
     "./util/QueryFilterUtils",
     "./util/AutoCompleteUtils",
     "./util/SaveChangesView",
+    "./util/FilterEvaluator",
 
     "./objectTypes/ObjectTypesDialog",
 
@@ -71,6 +74,7 @@ define("org/forgerock/openidm/ui/admin/main", [
 
     "./sync/SyncView",
     "./sync/SituationPolicyView",
+    "./sync/SituationPolicyDialogView",
     "./sync/CorrelationView",
     "./sync/AnalysisView",
     "./sync/ObjectFiltersView",
@@ -78,6 +82,7 @@ define("org/forgerock/openidm/ui/admin/main", [
     "./sync/ReconScriptsView",
     "./sync/ReconQueriesView",
     "./sync/QueryFilterEditor",
+    "./sync/LinkQualifierFilterEditor",
     "./sync/CorrelationQueryBuilderView",
     "./sync/CorrelationQueryDialog",
     "./sync/CorrelationQueryView",
@@ -88,6 +93,9 @@ define("org/forgerock/openidm/ui/admin/main", [
 
     "./login/LoginView",
     
-    "./settings/SettingsView"
+    "./settings/SettingsView",
+    
+    "./role/EditRoleView",
+    "./role/RoleUsersView"
 
 ]);

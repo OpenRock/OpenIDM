@@ -28,7 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * A single property of an objectType item, contained in {@link CustomObjectTypePropertyItem}.
+ * A single property of an objectType item, contained in {@link CustomObjectTypePropertyItems}.
  *
  * Represented in JSON as:
  * <pre><blockquote>
@@ -80,6 +80,7 @@ public class CustomObjectTypePropertyItemProperty extends CustomBaseObject {
      * @param type
      */
     public void setType(String type) {
+        type = type.toLowerCase();
         if (PROPERTY_TYPES.contains(type)) {
             this.type = type;
         } else {

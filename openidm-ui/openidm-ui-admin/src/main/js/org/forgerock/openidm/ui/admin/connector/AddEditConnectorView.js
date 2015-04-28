@@ -174,7 +174,7 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
 
                         //Filter down to the current edited connector Type
                         this.data.versionDisplay = _.filter(this.data.versionDisplay, function(connector){
-                            return $.t("templates.connector." +connectorUtils.cleanConnectorName(this.data.connectorTypeName)) === connector.groupName;
+                            return  data.connectorRef.displayName  === connector.groupName;
                         }, this);
 
                         data.connectorRef.bundleVersion = this.versionRangeCheck(data.connectorRef.bundleVersion);
@@ -672,7 +672,13 @@ define("org/forgerock/openidm/ui/admin/connector/AddEditConnectorView", [
                 tempKeys,
                 arrayComponents = $(".connector-array-component");
 
+
             connectorData = form2js('connectorForm', '.', true);
+
+            if(this.connectorTypeRef.getGenericState()) {
+                delete connectorData.root;
+                connectorData.configurationProperties = this.connectorTypeRef.getGenericConnector();
+            }
 
             if (connectorData.enabled === "true") {
                 connectorData.enabled = true;

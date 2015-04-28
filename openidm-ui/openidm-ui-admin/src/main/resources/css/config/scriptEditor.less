@@ -1,14 +1,24 @@
 .event-hook-window {
+
   .panel {
     border: none;
     margin-left: 6px;
   }
   .panel-heading {
+    padding-top:0px;
     padding-bottom: 5px;
+  }
+
+  .event-hook-title {
+    margin-top:0px;
   }
 
   .panel-body {
     padding: 0 0 0 15px;
+  }
+
+  .CodeMirror-empty {
+    color:#aaa;
   }
 
   #scriptAccordions {
@@ -52,6 +62,41 @@
   }
 }
 
+/*
+  Preview Pane
+*/
+.preview-pane {
+  margin-top:15px;
+
+  .preview-button {
+    position: relative;
+    bottom: 10px;
+    left: 10px;
+    cursor:pointer;
+    opacity:.5;
+    float:right;
+    margin-bottom:10px;
+  }
+
+  .preview-button:hover {
+    opacity:1;
+    float:right;
+    margin-bottom:10px;
+  }
+
+  .preview-results {
+    margin-top:10px;
+
+    pre {
+      background-color:white;
+    }
+
+  }
+
+  .script-eval-message {
+    margin-top:30px;
+  }
+}
 
 /**
   Styles for Script Editor base

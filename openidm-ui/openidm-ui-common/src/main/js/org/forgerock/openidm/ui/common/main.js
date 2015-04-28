@@ -26,15 +26,18 @@
 
 define("org/forgerock/openidm/ui/common/main", [
     "./MandatoryPasswordChangeDialog",
-    "./managed/ListManagedObjectView",
-    "./managed/EditManagedObjectView",
+    
+    "./resource/ListResourceView",
+    "./resource/EditResourceView",
+    "./resource/GenericEditResourceView",
+    "./resource/ResourceEditViewRegistry",
     
     "./delegates/ConfigDelegate",
     "./delegates/InternalUserDelegate",
     "./delegates/PolicyDelegate",
     "./delegates/SiteConfigurationDelegate",
-    "./delegates/ManagedObjectDelegate",
     "./delegates/OpenAMProxyDelegate",
+    "./delegates/ResourceDelegate",
 
     "./login/InternalLoginHelper",
     "./login/AuthenticationUnavailable",

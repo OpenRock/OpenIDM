@@ -75,7 +75,8 @@
             "MappingMessages" : {
                 "mappingSaveSuccess": "Mapping successfully updated",
                 "newMappingAdded": "New mapping successfully created",
-                "mappingDeleted": "Mapping successfully deleted"
+                "mappingDeleted": "Mapping successfully deleted",
+                "mappingEvalError" : "Error in script evaluation process"
             },
             "SyncMessages" : {
                 "policySaveSuccessful" : "The situational policy has been saved.",
@@ -106,7 +107,8 @@
                     "startProcess" : "Start process",
                     "resources" : "Resources",
                     "mapping" : "Mappings",
-                    "authentication": "Authentication"
+                    "authentication": "Authentication",
+                    "roles": "Roles"
                 }
             }
         }
@@ -218,6 +220,39 @@
             },
             "UsersTemplate" : {
                 "remainingUsers" : "Remaining users"
+            },
+            "ResourceEdit":
+            {
+                "confirmDelete": "Are you sure you want to delete this __objectTitle__?",
+                "confirmDeleteSelected": "Are you sure you want to delete the selected __objectTitle__s?",
+                "backToList": "Back to List",
+                "addSuccess": "Successfully added __objectTitle__",
+                "editSuccess": "Successfully updated __objectTitle__",
+                "deleteSuccess": "Successfully deleted __objectTitle__",
+                "deleteSelectedSuccess": "Successfully deleted selected __objectTitle__s",
+                "noData": "No Data",
+                "data": "Data"
+            },
+            "ResourceList":
+            {
+                "noData": "No Data",
+                "invalidObject": "Invalid Object"
+            },
+            "RoleUsersTemplate":
+            {
+                "addSelectedSuccess": "Successfully added users to __roleId__",
+                "removeSelectedSuccess": "Successfully removed users from __roleId__",
+                "details": "Details",
+                "users": "Users",
+                "removeUsers": "Remove Users",
+                "addUsers": "Add Users",
+                "details": "Details",
+                "description": "Description",
+                "roleName": "Role Name",
+                "backToRoles": "Back to Roles",
+                "role": "Role",
+                "newRole": "New Role"
+                
             }
         },
         "managed" : {
@@ -280,7 +315,7 @@
             "schedules": "Schedules",
             "situationalScripts":"Situational Event Scripts",
             "reconciliationScript":"Reconciliation Script",
-            "policiesDesc": "Define actions for various synchronization issues.",
+            "policiesDesc": "Define policies for various synchronization issues. You can define multiple policies for a single situation.",
             "situationalEventScriptsDesc": "Action scripts. Add a script for each event.",
             "reconScriptDesc": "Add a script triggered on reconciliation.",
             "singleRecordReconDesc": "Test the process on a single record.",
@@ -299,6 +334,8 @@
         },
         "correlation": {
             "correlation": "Association",
+            "static" : "Static",
+            "dynamic" : "Dynamic",
             "type" : "Type",
             "status" : "Status",
             "objectFilters": "Individual Record Validation",
@@ -307,6 +344,9 @@
             "targetQuery": "Target Query",
             "associationRules": "Association Rules",
             "dataAssociationManagment": "Data Association Management",
+            "correlationScript" : "Correlation Script",
+            "correlationScriptHelp" : "Provide a correlation script to list IDs for specific source records.",
+            "correlationQueryHelp" : "Build a correlation query for each link qualifier.",
             "noQuery": "No Correlation Query",
             "addQuery": "Add Correlation Query",
             "queries": "Correlation Queries",
@@ -334,6 +374,9 @@
             "noLQdefined": "No link qualifiers defined",
             "notAvailableMsg2": " associated with this property is not available.  Add this link qualifier or update the condition.",
             "conditionScriptInfo": "Define how to conditionally update a property, using either a link qualifier or a script.",
+            "linkQualifierInfo": "Link one record in the source system to multiple records in the target system.",
+            "linkQualifierStaticInfo" : "Static lists will apply each qualifier to every source record.",
+            "linkQualifierScriptInfo" : "Dynamic scripts may return different qualifiers for each source record.",
             "noCondition": "No Condition",
             "undo": "Undo",
             "query": {
@@ -372,7 +415,28 @@
             "situation": "Situation",
             "starDef": "Default",
             "hollowStarDef": "Valid action",
-            "dialogTitle": "Situational Policy Configuration"
+            "dialogTitle": "Situational Policy Configuration",
+            "situation": "Situation",
+            "condition": "Condition",
+            "action": "Action",
+            "onComplete": "On Complete",
+            "addPolicyBtn": "Add a Policy",
+            "pendingChanges": "You have pending changes.",
+            "actionHelp": "Assign a default action, workflow or script.",
+            "workflow": "Workflow",
+            "defaultAction": "Default Action",
+            "script": "Script",
+            "activeHelp": "Creates a new record in the target system.",
+            "restrictHelp": "Specify query filters or add a script to restrict policy actions.",
+            "filter": "Filter",
+            "actionCompleteHelp": "Set up a script to execute after your action is complete.",
+            "confirmChange": "Confirm Change",
+            "confirmChangeMsg": "All pending changes will be lost.",
+            "editPolicy": "Edit Policy for Situation:",
+            "addPolicy": "Add Policy for Situation:",
+            "conditionPhrase": "When these <strong>Conditions</strong> apply",
+            "actionPhrase": "Perform this <strong>Action</strong>",
+            "onCompletePhrase": "And <strong>On Complete</strong>"
         },
         "auth": {
             "sessionInfo": "The Session Module sets token life and idle time limits on user sessions.",
@@ -735,7 +799,10 @@
             }
         },
         "mapping": {
+            "conditionalUpon" : "Conditional Upon:",
+            "transformationScriptApplied" : "Transformation script applied",
             "attributes": "Attributes",
+            "badScript" : "Invalid script. A valid Link Qualifier script returns an array of strings.",
             "linkQualifiers": "Link Qualifiers",
             "uniqueLinkQualifiers": "The link qualifier must be unique.",
             "backToMapping" : "Back to Mappings",
@@ -782,7 +849,7 @@
             "property": "Property",
             "confirmDeleteMapping": "Are you sure you want to delete the &quot;__mappingName__&quot; mapping?<br/><br/>**Caution: this action cannot be reversed.",
             "noMappingsDefined": "No mappings defined.",
-            "addProperty": "Add property.",
+            "addProperty": "Add property",
             "sampleSource": "Sample source.",
             "confirmRemoveProperty": "Are you sure you want to remove the &quot;__property__&quot; property mapping?",
             "transformRequiredForMulti": "A transformation script is required when mapping from a multiple-value source to a single-value target.",
@@ -791,7 +858,8 @@
             "invalidConditionScript": "You cannot save a condition script that contains errors.",
             "completeSourceObject": "Complete source object.",
             "changesPending": "Changes pending.",
-            "clearChanges": "Clear Changes",
+            "sampleSource" : "Sample Source",
+            "undoAllChanges": "Undo All Changes",
             "saveProperties": "Save Properties",
             "noPropertiesMapped": "No properties mapped.",
             "conditionScriptApplied": "Conditional update script applied.",
@@ -807,7 +875,7 @@
                 "propertyListLabel": "Enter or select the source property that you need",
                 "propertyListHeader": "Property List",
                 "transformationHeader": "Transformation Script",
-                "conditionalUpdateHeader": "Conditional Update Script",
+                "conditionalUpdateHeader": "Conditional Updates",
                 "defaultValuesHeader": "Default Values",
                 "transformationSciptLabel": "Enter a transformation script for complex properties.",
                 "conditionSciptLabel": "Enter a conditional update script for",
@@ -886,7 +954,9 @@
         "form" : {
             "add" : "Add",
             "userView" : "Data Management View",
+            "removeAttribute" : "Remove Attribute",
             "ok" : "Okay",
+            "list" : "List",
             "confirm" :"Confirmation",
             "true" : "True",
             "false" : "False",
@@ -902,6 +972,7 @@
             "continue" : "Continue",
             "back" : "Back",
             "delete" : "Delete",
+            "deleteSelected" : "Delete Selected",
             "edit" : "Edit",
             "details" : "Details",
             "pleaseSelect" : "Please Select",
