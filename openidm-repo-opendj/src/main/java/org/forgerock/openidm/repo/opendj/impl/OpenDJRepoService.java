@@ -1,7 +1,9 @@
 package org.forgerock.openidm.repo.opendj.impl;
 
 import java.io.OutputStreamWriter;
+import java.util.Map;
 
+import com.forgerock.opendj.grizzly.GrizzlyTransportProvider;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -9,8 +11,12 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Service;
 import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.resource.CollectionResourceProvider;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
+import org.forgerock.opendj.ldap.ConnectionFactory;
+import org.forgerock.opendj.ldap.spi.TransportProvider;
+import org.forgerock.opendj.rest2ldap.Rest2LDAP;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
@@ -40,7 +46,9 @@ public class OpenDJRepoService extends CRESTRepoService {
     final static Logger logger = LoggerFactory.getLogger(OpenDJRepoService.class);
     
     public static final String PID = "org.forgerock.openidm.repo.opendj";
-	
+
+    static OpenDJRepoService bootSvc = null;
+
     /**
      * The current OpenDJ configuration
      */
@@ -50,7 +58,7 @@ public class OpenDJRepoService extends CRESTRepoService {
      * Used for parsing the configuration
      */
     private EnhancedConfig enhancedConfig = new JSONEnhancedConfig();
-    
+
     @Override
     protected String getResourceId(Request request) {
         // TODO - calculate the resource id based on the request
@@ -61,7 +69,7 @@ public class OpenDJRepoService extends CRESTRepoService {
     @Activate
     void activate(ComponentContext compContext) throws Exception { 
         logger.info("Activating Service with configuration {}", compContext.getProperties());
-        
+
         try {
             existingConfig = enhancedConfig.getConfigurationAsJson(compContext);
         } catch (RuntimeException ex) {
@@ -74,34 +82,56 @@ public class OpenDJRepoService extends CRESTRepoService {
         JsonValue embeddedConfig = existingConfig.get("embeddedConfig");
         if (embeddedConfig != null && !embeddedConfig.isNull()) {
         	logger.info("Setting up embedded OpenDJ server");
-        	if (EmbeddedOpenDJ.isInstalled()) {
-                System.out.println("DB_SETUP_ALD");
-            } else {
-                try {
-                    SetupProgress.setWriter(new OutputStreamWriter(System.out));
-                    EmbeddedOpenDJ.setup(OpenDJConfig.getOdjRoot());                
-
-                    // Determine if we are a secondary install
-                    if (EmbeddedOpenDJ.isMultiNode()) {
-                        EmbeddedOpenDJ.setupReplication(OpenDJConfig.getOpenDJSetupMap(), 
-                                ExistingServerConfig.getOpenDJSetupMap(OpenDJConfig.getExistingServerUrl(), 
-                                		embeddedConfig.get(Constants.USERNAME).asString(),
-                                		embeddedConfig.get(Constants.PASSWORD).asString()));
-                        EmbeddedOpenDJ.registerServer(OpenDJConfig.getHostUrl());
-                    }
-                    
-                    EmbeddedOpenDJ.shutdownServer();
-                } catch (Exception ex) {
-                    System.err.println("DB_SETUP_FAIL" + ex.getMessage());
-                    System.exit(Constants.EXIT_INSTALL_FAILED);
-                }
-            }
+//        	if (EmbeddedOpenDJ.isInstalled()) {
+//                System.out.println("DB_SETUP_ALD");
+//            } else {
+//                try {
+//                    SetupProgress.setWriter(new OutputStreamWriter(System.out));
+//                    EmbeddedOpenDJ.setup(OpenDJConfig.getOdjRoot());
+//
+//                    // Determine if we are a secondary install
+//                    if (EmbeddedOpenDJ.isMultiNode()) {
+//                        EmbeddedOpenDJ.setupReplication(OpenDJConfig.getOpenDJSetupMap(),
+//                                ExistingServerConfig.getOpenDJSetupMap(OpenDJConfig.getExistingServerUrl(),
+//                                		embeddedConfig.get(Constants.USERNAME).asString(),
+//                                		embeddedConfig.get(Constants.PASSWORD).asString()));
+//                        EmbeddedOpenDJ.registerServer(OpenDJConfig.getHostUrl());
+//                    }
+//
+//                    EmbeddedOpenDJ.shutdownServer();
+//                } catch (Exception ex) {
+//                    System.err.println("DB_SETUP_FAIL" + ex.getMessage());
+//                    System.exit(Constants.EXIT_INSTALL_FAILED);
+//                }
+//            }
         	
         }
         
         //  Initialize the repo service
-        //init(existingConfig);
+        init(existingConfig);
         
         logger.info("Repository started.");
+    }
+
+    void init(JsonValue config) {
+//        config.add("providerClassLoader", GrizzlyTransportProvider.class.getClassLoader());
+        final ConnectionFactory ldapFactory = Rest2LDAP.configureConnectionFactory(
+                config.get("connection").required(),
+                "root",
+                GrizzlyTransportProvider.class.getClassLoader());
+
+        JsonValue mappings = config.get("mappings").required();
+
+        // FIXME - this needs to be broken up to support multiple mappings
+
+        JsonValue managedUser = mappings.get("managed/user");
+        String baseDn = managedUser.get("baseDN").required().asString();
+        CollectionResourceProvider managedUserProvider = Rest2LDAP.builder()
+                .ldapConnectionFactory(ldapFactory)
+                .baseDN(baseDn)
+                .configureMapping(managedUser)
+                .build();
+
+        setResourceProvider(managedUserProvider);
     }
 }
