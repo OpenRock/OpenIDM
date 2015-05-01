@@ -28,9 +28,7 @@
     "query-all": "true",
     "query-all-count": "true",
     "get-managed-users": "true",
-    "get-managed-users-count": "true",
-    "get-managed-users-filtered" : "???",
-    "get-managed-users-filtered-count" : "???"
+    "get-managed-users-count": "true"
   },
   "mappings": {
     "managed/user": {

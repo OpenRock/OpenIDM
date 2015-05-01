@@ -2,6 +2,7 @@ package org.forgerock.openidm.repo.opendj.impl;
 
 import java.io.OutputStreamWriter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.forgerock.opendj.grizzly.GrizzlyTransportProvider;
@@ -13,12 +14,14 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Service;
 import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.CollectionResourceProvider;
 import org.forgerock.json.resource.QueryFilter;
 import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResultHandler;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
+import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.ServerContext;
 import org.forgerock.opendj.ldap.ConnectionFactory;
 import org.forgerock.opendj.ldap.spi.TransportProvider;
@@ -32,6 +35,7 @@ import org.forgerock.openidm.repo.opendj.embedded.EmbeddedOpenDJ;
 import org.forgerock.openidm.repo.opendj.embedded.ExistingServerConfig;
 import org.forgerock.openidm.repo.opendj.embedded.OpenDJConfig;
 import org.forgerock.openidm.repo.opendj.embedded.SetupProgress;
+import org.forgerock.openidm.repo.util.TokenHandler;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +69,12 @@ public class OpenDJRepoService extends CRESTRepoService {
      */
     private EnhancedConfig enhancedConfig = new JSONEnhancedConfig();
 
-    private Map<String, JsonValue> configuredQueries = new HashMap<>();
+    /**
+     * Map of pre-configured queryFilters in the form of key: queryId value: tokenized queryFilter.
+     *
+     * TODO - these should probably be object specific
+     */
+    private Map<String, String> namedQueryFilters = new HashMap<>();
 
     @Override
     protected String getResourceId(Request request) {
@@ -129,12 +138,10 @@ public class OpenDJRepoService extends CRESTRepoService {
 
         JsonValue queries = config.get("queries").required();
 
-        // FIXME - we probably need to store these as strings.
-        //         We can then tokenize and make QueryFilter on every request depending on fields
         for (String queryId : queries.keys()) {
-            String queryFilter = queries.get(queryId).asString();
+            final String tokenizedFilter = queries.get(queryId).required().asString();
 
-            queryFilters.put(queryId, QueryFilter.valueOf(queryFilter));
+            namedQueryFilters.put(queryId, tokenizedFilter);
         }
 
         JsonValue mappings = config.get("mappings").required();
@@ -154,10 +161,49 @@ public class OpenDJRepoService extends CRESTRepoService {
 
     @Override
     public void handleQuery(ServerContext context, QueryRequest request, QueryResultHandler handler) {
-        if (request.getQueryFilter() == null) {
-            throw new UnsupportedOperationException("OpenDJ repo currently only supports query operations via queryFilter");
+        try {
+            // check for a queryId and if so convert it to a queryFilter
+            processQueryId(request);
+
+            super.handleQuery(context, request, handler);
+        } catch (ResourceException e) {
+            handler.handleError(e);
+        }
+    }
+
+    /**
+     * Process queryIds to QueryFilters and place them in the request.
+     *
+     * @param request
+     */
+    private void processQueryId(final QueryRequest request) throws BadRequestException {
+        // We only care if there is a queryId
+        if (StringUtils.isBlank(request.getQueryId())) {
+            return;
         }
 
-        super.handleQuery(context, request, handler);
+        if (namedQueryFilters.containsKey(request.getQueryId())) {
+            final String tokenized = namedQueryFilters.get(request.getQueryId());
+
+            final TokenHandler handler = new TokenHandler();
+            final List<String> tokens = handler.extractTokens(tokenized);
+            Map<String, String> replacements = new HashMap<>();
+
+            for (String token : tokens) {
+                final String param = request.getAdditionalParameter(token);
+
+                if (StringUtils.isBlank(param)) {
+                    throw new BadRequestException("Query expected additional parameter " + token);
+                } else {
+                    replacements.put(token, param);
+                }
+            }
+
+            final String detokenized = handler.replaceTokensWithValues(tokenized, replacements);
+
+            request.setQueryFilter(QueryFilter.valueOf(detokenized));
+        } else {
+            throw new BadRequestException("Requested query " + request.getQueryId() + " does not exist");
+        }
     }
 }
