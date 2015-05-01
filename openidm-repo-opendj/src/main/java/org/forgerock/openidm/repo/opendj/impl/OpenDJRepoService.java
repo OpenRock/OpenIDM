@@ -74,7 +74,7 @@ public class OpenDJRepoService extends CRESTRepoService {
      *
      * TODO - these should probably be object specific
      */
-    private Map<String, String> namedQueryFilters = new HashMap<>();
+    private Map<String, JsonValue> configQueries = new HashMap<>();
 
     @Override
     protected String getResourceId(Request request) {
@@ -139,9 +139,14 @@ public class OpenDJRepoService extends CRESTRepoService {
         JsonValue queries = config.get("queries").required();
 
         for (String queryId : queries.keys()) {
-            final String tokenizedFilter = queries.get(queryId).required().asString();
+            final JsonValue queryConfig = queries.get(queryId).required();
 
-            namedQueryFilters.put(queryId, tokenizedFilter);
+            // TODO - improve initial config check.
+            //        We should be checking if fields is a csv.
+            //        Possibly if _queryFilter is valid syntax?
+            queryConfig.get("_queryFilter").required();
+
+            configQueries.put(queryId, queryConfig);
         }
 
         JsonValue mappings = config.get("mappings").required();
@@ -182,11 +187,28 @@ public class OpenDJRepoService extends CRESTRepoService {
             return;
         }
 
-        if (namedQueryFilters.containsKey(request.getQueryId())) {
-            final String tokenized = namedQueryFilters.get(request.getQueryId());
+        if (configQueries.containsKey(request.getQueryId())) {
+            final JsonValue queryConfig = configQueries.get(request.getQueryId());
+
+            /*
+             * Process fields
+             */
+
+            final JsonValue fields = queryConfig.get("_fields");
+
+            if (!fields.isNull()) {
+                // TODO - Can we do this in JsonValue without asString()?
+                request.addField(fields.asString().split(","));
+            }
+
+            /*
+             * Process queryFilter
+             */
+
+            final String tokenizedFilter = queryConfig.get("_queryFilter").asString();
 
             final TokenHandler handler = new TokenHandler();
-            final List<String> tokens = handler.extractTokens(tokenized);
+            final List<String> tokens = handler.extractTokens(tokenizedFilter);
             Map<String, String> replacements = new HashMap<>();
 
             for (String token : tokens) {
@@ -199,7 +221,7 @@ public class OpenDJRepoService extends CRESTRepoService {
                 }
             }
 
-            final String detokenized = handler.replaceTokensWithValues(tokenized, replacements);
+            final String detokenized = handler.replaceTokensWithValues(tokenizedFilter, replacements);
 
             request.setQueryFilter(QueryFilter.valueOf(detokenized));
         } else {

@@ -20,15 +20,37 @@
     }
   },
   "queries": {
-    "credential-query": "/userName eq \"${username}\"",
-    "find-by-id": "/_id eq \"${id}\"",
-    "get-by-field-value": "/${field} eq \"${value}\"",
-    "for-userName":	"/userName eq \"${username}\"",
-    "get-users-of-direct-role": "/roles eq \"${role}\"",
-    "query-all": "true",
-    "query-all-count": "true",
-    "get-managed-users": "true",
-    "get-managed-users-count": "true"
+    "query-all-ids": {
+      "_queryFilter": "true",
+      "_fields": "_id,_rev"
+    },
+    "credential-query": {
+      "_queryFilter": "/userName eq \"${username}\""
+    },
+    "find-by-id": {
+      "_queryFilter": "/_id eq \"${id}\""
+    },
+    "get-by-field-value": {
+      "_queryFilter": "/${field} eq \"${value}\""
+    },
+    "for-userName":	{
+      "_queryFilter": "/userName eq \"${username}\""
+    },
+    "get-users-of-direct-role": {
+      "_queryFilter": "/roles eq \"${role}\""
+    },
+    "query-all": {
+      "_queryFilter": "true"
+    },
+    "query-all-count": {
+      "_queryFilter": "true"
+    },
+    "get-managed-users": {
+      "_queryFilter": "true"
+    },
+    "get-managed-users-count": {
+      "_queryFilter": "true"
+    }
   },
   "mappings": {
     "managed/user": {
