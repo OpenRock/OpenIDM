@@ -1,9 +1,11 @@
 package org.forgerock.openidm.repo.opendj.impl;
 
 import java.io.OutputStreamWriter;
+import java.util.HashMap;
 import java.util.Map;
 
 import com.forgerock.opendj.grizzly.GrizzlyTransportProvider;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -12,8 +14,12 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Service;
 import org.forgerock.json.fluent.JsonValue;
 import org.forgerock.json.resource.CollectionResourceProvider;
+import org.forgerock.json.resource.QueryFilter;
+import org.forgerock.json.resource.QueryRequest;
+import org.forgerock.json.resource.QueryResultHandler;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
+import org.forgerock.json.resource.ServerContext;
 import org.forgerock.opendj.ldap.ConnectionFactory;
 import org.forgerock.opendj.ldap.spi.TransportProvider;
 import org.forgerock.opendj.rest2ldap.Rest2LDAP;
@@ -59,13 +65,14 @@ public class OpenDJRepoService extends CRESTRepoService {
      */
     private EnhancedConfig enhancedConfig = new JSONEnhancedConfig();
 
+    private Map<String, JsonValue> configuredQueries = new HashMap<>();
+
     @Override
     protected String getResourceId(Request request) {
         // TODO - calculate the resource id based on the request
         return null;
     }
-    
-    
+
     @Activate
     void activate(ComponentContext compContext) throws Exception { 
         logger.info("Activating Service with configuration {}", compContext.getProperties());
@@ -120,6 +127,16 @@ public class OpenDJRepoService extends CRESTRepoService {
                 "root",
                 GrizzlyTransportProvider.class.getClassLoader());
 
+        JsonValue queries = config.get("queries").required();
+
+        // FIXME - we probably need to store these as strings.
+        //         We can then tokenize and make QueryFilter on every request depending on fields
+        for (String queryId : queries.keys()) {
+            String queryFilter = queries.get(queryId).asString();
+
+            queryFilters.put(queryId, QueryFilter.valueOf(queryFilter));
+        }
+
         JsonValue mappings = config.get("mappings").required();
 
         // FIXME - this needs to be broken up to support multiple mappings
@@ -133,5 +150,14 @@ public class OpenDJRepoService extends CRESTRepoService {
                 .build();
 
         setResourceProvider(managedUserProvider);
+    }
+
+    @Override
+    public void handleQuery(ServerContext context, QueryRequest request, QueryResultHandler handler) {
+        if (request.getQueryFilter() == null) {
+            throw new UnsupportedOperationException("OpenDJ repo currently only supports query operations via queryFilter");
+        }
+
+        super.handleQuery(context, request, handler);
     }
 }

@@ -19,6 +19,19 @@
       }
     }
   },
+  "queries": {
+    "credential-query": "/userName eq \"${username}\"",
+    "find-by-id": "/_id eq \"${id}\"",
+    "get-by-field-value": "/${field} eq \"${value}\"",
+    "for-userName":	"/userName eq \"${username}\"",
+    "get-users-of-direct-role": "/roles eq \"${role}\"",
+    "query-all": "true",
+    "query-all-count": "true",
+    "get-managed-users": "true",
+    "get-managed-users-count": "true",
+    "get-managed-users-filtered" : "???",
+    "get-managed-users-filtered-count" : "???"
+  },
   "mappings": {
     "managed/user": {
       "baseDN": "ou=user,dc=managed,dc=openidm,dc=forgerock,dc=com",
