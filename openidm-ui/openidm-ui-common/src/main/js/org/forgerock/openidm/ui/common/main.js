@@ -43,5 +43,6 @@ define("org/forgerock/openidm/ui/common/main", [
     "./login/AuthenticationUnavailable",
     
     "./util/Constants",
-    "./util/AMLoginUtils"
+    "./util/AMLoginUtils",
+    "./util/JSONEditorSetupUtils"
 ]);

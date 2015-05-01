@@ -36,6 +36,7 @@ define("org/forgerock/openidm/ui/admin/main", [
     "./delegates/SecurityDelegate",
     "./delegates/WorkflowDelegate",
     "./delegates/ScriptDelegate",
+    "./delegates/SiteConfigurationDelegate",
 
     "./ResourcesView",
     "./MapResourceView",
@@ -71,6 +72,7 @@ define("org/forgerock/openidm/ui/admin/main", [
     "./mapping/PropertiesView",
     "./mapping/AddPropertyMappingDialog",
     "./mapping/EditPropertyMappingDialog",
+    "./mapping/MappingRoleEntitlementsView",
 
     "./sync/SyncView",
     "./sync/SituationPolicyView",
@@ -96,6 +98,8 @@ define("org/forgerock/openidm/ui/admin/main", [
     "./settings/SettingsView",
     
     "./role/EditRoleView",
-    "./role/RoleUsersView"
+    "./role/RoleUsersView",
+    "./role/RoleEntitlementsListView",
+    "./role/RoleEntitlementsEditView"
 
 ]);

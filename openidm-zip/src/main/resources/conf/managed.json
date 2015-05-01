@@ -146,6 +146,26 @@
                         "viewable" : true,
                         "type" : "string",
                         "searchable" : true
+                    },
+                    "manager" : {
+                        "description" : "",
+                        "title" : "Manager",
+                        "viewable" : true,
+                        "searchable" : false,
+                        "resourceCollection" : {
+                            "path" : "managed/user",
+                            "query" : {
+                                "queryFilter" : "true",
+                                "fields" : [
+                                    "userName",
+                                    "mail"
+                                ],
+                                "sortKeys" : [
+                                    "userName"
+                                ]
+                            }
+                        },
+                        "type" : "string"
                     }
                 },
                 "type" : "object",
@@ -184,8 +204,8 @@
                     "_id" : {
                         "description" : "",
                         "title" : "Name",
-                        "viewable" : true,
-                        "searchable" : true,
+                        "viewable" : false,
+                        "searchable" : false,
                         "type" : "string"
                     },
                     "properties" : {
@@ -195,18 +215,27 @@
                         "searchable" : false,
                         "type" : "object",
                         "properties" : {
+                            "name" : {
+                                "description" : "The role name, used for display purposes.",
+                                "title" : "Name",
+                                "viewable" : true,
+                                "searchable" : true,
+                                "type" : "string"
+                            },
                             "description" : {
                                 "description" : "",
                                 "title" : "Description",
                                 "viewable" : true,
-                                "searchable" : false,
+                                "searchable" : true,
                                 "type" : "string"
                             }
                         },
                         "required" : [
+                            "name",
                             "description"
                         ],
                         "order" : [
+                            "name",
                             "description"
                         ]
                     },
@@ -219,7 +248,8 @@
                     }
                 },
                 "required" : [
-                    "_id"
+                    "_id",
+                    "properties"
                 ],
                 "order" : [
                     "_id",

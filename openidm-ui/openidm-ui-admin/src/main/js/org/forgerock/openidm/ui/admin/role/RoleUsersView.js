@@ -57,6 +57,9 @@ define("org/forgerock/openidm/ui/admin/role/RoleUsersView", [
                 args = _.clone(this.data.args,true);
             
             args[1] = "user";
+            
+            this.data.serviceUrl = resourceDelegate.getServiceUrl(args);
+            
             resourceDelegate.getSchema(args).then(_.bind(function(schema){
                 var cols = [],
                     unorderedCols = [];
@@ -161,29 +164,30 @@ define("org/forgerock/openidm/ui/admin/role/RoleUsersView", [
                 if(action === "remove") {
                     rowdata.roles = _.reject(rowdata.roles,function(role) { return role === currentRole; });
                     doUpdate = hasRole;
-                    successMsg = $.t("templates.admin.RoleUsersTemplate.removeSelectedSuccess",{ roleId: this.data.roleId });
+                    successMsg = $.t("templates.admin.RoleUsersTemplate.removeSelectedSuccess",{ roleId: this.data.role.properties.name });
                 } else {
                     rowdata.roles.push(currentRole);
                     doUpdate = !hasRole;
-                    successMsg = $.t("templates.admin.RoleUsersTemplate.addSelectedSuccess",{ roleId: this.data.roleId });
+                    successMsg = $.t("templates.admin.RoleUsersTemplate.addSelectedSuccess",{ roleId: this.data.role.properties.name });
                 }
                 
                 if(doUpdate) {
-                    promArr.push(resourceDelegate.updateEntity(rowdata._id, rowdata));
+                    promArr.push(resourceDelegate.updateResource(this.data.serviceUrl, rowdata._id, rowdata));
                 }
             },this));
             
             $.when.apply($,promArr).then(_.bind(function(){
-                this.render(this.data.args, _.bind(function() {
+                this.render(this.data.args, this.data.role, _.bind(function() {
                     messagesManager.messages.addMessage({"message": successMsg});
                 },this));
             },this));
         },
         
-        render: function(args, callback) {
+        render: function(args, role, callback) {
             var _this = this;
             this.data.args = args;
             this.data.roleId = args[2];
+            this.data.role = role;
             this.data.grid_id = "roleUsersViewTable";
             this.grid_id_selector = "#" + this.data.grid_id;
 

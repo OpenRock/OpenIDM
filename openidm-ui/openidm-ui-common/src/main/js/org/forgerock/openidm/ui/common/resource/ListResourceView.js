@@ -110,7 +110,8 @@ define("org/forgerock/openidm/ui/common/resource/ListResourceView", [
             return "/" + constants.context + "/" + this.data.objectType + "/" + this.data.objectName;
         },
         getCols: function(){
-            var prom = $.Deferred();
+            var prom = $.Deferred(),
+                setCols;
             
             $.when(resourceDelegate.getSchema(this.data.args)).then(_.bind(function(schema){
                 var cols = [],
@@ -132,32 +133,43 @@ define("org/forgerock/openidm/ui/common/resource/ListResourceView", [
                             this.data.pageTitle = schema.title;
                         }
                         
-                        _.each(schema.properties, _.bind(function(col,colName){
-                            if(col.searchable || this.isSystemResource){
-                                //if _id is in the schema properties and is searchable get rid of the default
-                                //_id col and replace it with a visible one
-                                if(colName === "_id") {
-                                    cols.splice(0,1); 
-                                    
-                                    unorderedCols.push(
-                                            {
-                                                "name":"_id",
-                                                "key": true,
-                                                "label": col.title || colName,
-                                                "formatter": Handlebars.Utils.escapeExpression
-                                            }
-                                    );
+                        setCols = _.bind(function(properties, parentProp) {
+                            _.each(properties, _.bind(function(col,colName){
+                                if(col.type === "object") {
+                                    setCols(col.properties, colName);
                                 } else {
-                                    unorderedCols.push(
-                                            {
-                                                "name": colName,
-                                                "label": col.title || colName,
-                                                "formatter": Handlebars.Utils.escapeExpression
+                                    if(col.searchable || this.isSystemResource){
+                                        //if _id is in the schema properties and is searchable get rid of the default
+                                        //_id col and replace it with a visible one
+                                        if(colName === "_id") {
+                                            cols.splice(0,1); 
+                                            
+                                            unorderedCols.push(
+                                                    {
+                                                        "name":"_id",
+                                                        "key": true,
+                                                        "label": col.title || colName,
+                                                        "formatter": Handlebars.Utils.escapeExpression
+                                                    }
+                                            );
+                                        } else {
+                                            if(parentProp) {
+                                                colName = parentProp + "." + colName;
                                             }
-                                    );
+                                            unorderedCols.push(
+                                                    {
+                                                        "name": colName,
+                                                        "label": col.title || colName,
+                                                        "formatter": Handlebars.Utils.escapeExpression
+                                                    }
+                                            );
+                                        }
+                                    }
                                 }
-                            }
-                        }, this));
+                            }, this));
+                        }, this);
+                        
+                        setCols(schema.properties);
                         
                         _.each(schema.order,function(prop){
                             var col = _.findWhere(unorderedCols, { name : prop });
@@ -165,6 +177,10 @@ define("org/forgerock/openidm/ui/common/resource/ListResourceView", [
                             if(col){
                                 cols.push(col);
                             }
+                        });
+                        
+                        _.each(_.difference(unorderedCols, cols), function(col) {
+                            cols.push(col);
                         });
                         
                         if (cols.length === 1) {
@@ -232,9 +248,9 @@ define("org/forgerock/openidm/ui/common/resource/ListResourceView", [
             
             uiUtils.jqConfirm($.t("templates.admin.ResourceEdit.confirmDeleteSelected",{ objectTitle: this.data.objectName }), _.bind(function(){
                 var promArr = [];
-                _.each(this.selectedRows(), function(objectId) {
-                    promArr.push(resourceDelegate.deleteEntity(objectId));
-                });
+                _.each(this.selectedRows(), _.bind(function(objectId) {
+                    promArr.push(resourceDelegate.deleteResource(this.data.serviceUrl, objectId));
+                }, this));
                 $.when.apply($,promArr).then(_.bind(function(proms){
                     this.render(this.data.args, _.bind(function() {
                         messagesManager.messages.addMessage({"message": $.t("templates.admin.ResourceEdit.deleteSelectedSuccess",{ objectTitle: this.data.objectName })});
@@ -251,6 +267,7 @@ define("org/forgerock/openidm/ui/common/resource/ListResourceView", [
             this.data.grid_id = args[0] + "ViewTable";
             this.grid_id_selector = "#" + this.data.grid_id;
             this.isSystemResource = false;
+            this.data.serviceUrl = resourceDelegate.getServiceUrl(args);
             
             if (this.data.objectType === "system") {
                 this.isSystemResource = true;
@@ -344,15 +361,35 @@ define("org/forgerock/openidm/ui/common/resource/ListResourceView", [
                             searchOperator: "sw",
                             suppressColumnChooser: true,
                             storageKey: this.objectNameClean(),
-                            serializeGridData: function(view, posted_data){
-                                var cachedParams = sessionStorage.getItem(_this.objectNameClean() + "ViewGridParams");
+                            serializeGridData: function(posted_data){
+                                var cachedParams = sessionStorage.getItem(_this.objectNameClean() + "ViewGridParams"),
+                                    omittedFields = ["_pageSize","_pagedResultsOffset","_queryFilter","_sortKeys","page","sord"],
+                                    searchFields = _.omit(posted_data,omittedFields),
+                                    filterArray = [];
+                                
+                                //convert sortKeys to json pointer
+                                posted_data._sortKeys = posted_data._sortKeys.replace(".","/");
+                                
                                 if(cachedParams && JSON.parse(cachedParams)._queryFilter){
                                     return JSON.parse(cachedParams)._queryFilter;
                                 } else {
-                                    if(_this.isSystemResource) {
-                                        return cols[1].name + ' sw ""';
+                                    if(!_.isEmpty(searchFields)) {
+                                        _.each(posted_data, function(val, key){
+                                            if(_.contains(_.keys(searchFields),key)) {
+                                                //convert the field name to json pointer
+                                                filterArray.push('/' + key.replace(".","/") + ' sw "' + val + '"');
+                                                //remove the old dot notation version
+                                                delete posted_data[key];
+                                            }
+                                        });
+                                        
+                                        return filterArray.join(" AND ");
                                     } else {
-                                        return '_id sw ""';
+                                        if(_this.isSystemResource) {
+                                            return "/" + cols[1].name + ' sw ""';
+                                        } else {
+                                            return '/_id sw ""';
+                                        }
                                     }
                                 } 
                             },

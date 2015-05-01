@@ -91,7 +91,7 @@
       border-radius: 4px;
       color: #444444;
       &:hover {
-        border-color: #519387;
+        border-color: @base-theme-color;
         -webkit-transition: border-color 0.3s ease-in-out;
         -o-transition: border-color 0.3s ease-in-out;
         -moz-transition: border-color 0.3s ease-in-out;
@@ -156,7 +156,7 @@
       margin-left: -31px;
     }
     .arrow-box:after {
-      border-bottom-color: #f7f7f7;
+      border-bottom-color: @background-color;
       border-width: 30px;
       margin-left: -30px;
     }
@@ -186,15 +186,13 @@
 }
 .mappings-list .mapping:hover .panel,
 .mappings-list .mapping:focus .panel {
-  border-color: #519387;
+  border-color: @base-theme-color;
 }
 #mappingConfigHolder {
   clear: both;
   margin-top: -25px;
 }
-.popover-info {
-  width: 400px;
-}
+
 .mapping .panel {
   overflow: auto;
   display: table;
@@ -274,7 +272,7 @@ h4.connector-role {
   display: table;
   width: 100%;
   text-align: center;
-  color: #519387;
+  color: @base-theme-color;
 }
 .mapping .source .arrow .arrow-inner{
   display: table-cell;
@@ -307,7 +305,7 @@ h4.connector-role {
   border-radius: 50%;
   overflow: hidden;
   width: 60px;
-  background-color: #519387;
+  background-color: @base-theme-color;
   color: #fff;
   font-size: 28px;
 }
@@ -341,7 +339,7 @@ h4.connector-role {
   position: relative;
   margin-top: 10px;
   display: block;
-  color: #519387;
+  color: @base-theme-color;
   cursor: pointer;
 }
 .mapping .panel-footer .connector-info .sync-status:before {
@@ -375,7 +373,7 @@ h4.connector-role {
   width: 100%;
 }
 .sync-detail-list .sync-item:nth-child(2n+1) {
-  background-color: #f7f7f7;
+  background-color: @background-color;
 }
 .sync-detail-list .sync-item .fa-circle {
   font-size: 12px;
@@ -412,6 +410,7 @@ h4.connector-role {
 .boxed-stats {
   border: 1px solid #ddd;
   margin-bottom: 15px;
+  overflow:hidden;
 }
 .boxed-stats p {
   padding-bottom: 0;
@@ -478,6 +477,15 @@ h4.connector-role {
   padding: 18px;
 }
 
+#roleEntitlementsPanel .panel-heading .panel-title .help-text {
+  color: #888;
+  margin-left: 10px;
+  margin-top: 1px;
+  margin-bottom: 0;
+  font-weight: 400;
+  font-size: 14px;
+}
+
 .mapping .panel-heading .mapping-action .btn-link,
 .mapping .panel-footer .mapping-action .btn-link {
   border-right: none;
@@ -491,7 +499,7 @@ h4.connector-role {
   text-decoration: none;
 }
 .table-user-association>thead {
-  background-color: #f7f7f7;
+  background-color: @background-color;
 }
 .mappings-table .table>tbody>tr>td {
   padding-top: 20px;
@@ -624,7 +632,7 @@ h4.connector-role {
         color: #777;
 
         i:hover {
-          color: #519387;
+          color: @base-theme-color;
         }
       }
 
@@ -636,6 +644,25 @@ h4.connector-role {
         }
         min-height: 38px;
       }
+    }
+  }
+
+  .mapped-entitlement {
+    margin-bottom: 50px;
+    .mapped-entitlement-heading {
+      border-top: 2px solid @base-theme-color;
+      padding: 0 12px;
+    }
+
+    .entitlement-meta {
+      margin-bottom: 10px;
+      padding: 8px 15px;
+      background-color: @background-color;
+    }
+
+    pre {
+      background-color: transparent;
+      border-color: transparent;
     }
   }
 }
@@ -656,9 +683,29 @@ h4.connector-role {
   Properties styles
 */
 
+.popover .popover-header {
+  margin-left:15px;
+  margin-top:10px;
+  margin-bottom:0px;
+}
+
 .popover-content .code-tooltip {
   max-height:200px;
   white-space:pre;
+}
+
+.popover-info {
+  max-width:250px;
+  width:250px;
+}
+
+.popover-info.popover-large {
+  max-width:550px;
+  width:550px;
+}
+
+.selectize-holder .selectize-control {
+  margin-top:4px;
 }
 
 /*
@@ -739,7 +786,18 @@ h4.connector-role {
   }
 
   .properties-badge {
-    margin-right:5px;
+    margin-right:6px;
+    position:relative;
+    top:19px;
+  }
+
+  .properties-icon-container {
+    background-color:#f3f3f3;
+    height:60px;
+  }
+
+  td[aria-describedby="mappingTable_iconDisplay"] {
+    padding:0px;
   }
 
   .jqgrid-container {
@@ -749,6 +807,15 @@ h4.connector-role {
   .removePropertyBtn {
     cursor:pointer;
     color: #777;
+  }
+
+  .property-container {
+    margin-left:15px;
+
+    .title {
+      margin-bottom:5px;
+    }
+
   }
 
   .removePropertyBtn:hover {
@@ -902,7 +969,7 @@ h4.connector-role {
     height: 100px;
     width: auto;
     display: table;
-    color: #519387;
+    color: @base-theme-color;
   }
   .mapping .source .arrow .arrow-inner{
     display: table-cell;
