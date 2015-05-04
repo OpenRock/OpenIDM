@@ -24,6 +24,7 @@ import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
+import org.forgerock.json.resource.QueryResult;
 import org.forgerock.json.resource.QueryResultHandler;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Request;
@@ -36,7 +37,9 @@ import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.repo.RepoBootService;
 import org.forgerock.openidm.repo.RepositoryService;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 
 /**
  * Generic repository wrapping a {@link CollectionResourceProvider}
@@ -87,6 +90,48 @@ public abstract class CRESTRepoService implements RequestHandler, RepositoryServ
         }
     }
 
+    protected class BlockingQueryResultHandler implements QueryResultHandler {
+        private List<Resource> results = new ArrayList<>();
+        private ResourceException exception = null;
+
+        @Override
+        public synchronized void handleError(ResourceException error) {
+            this.exception = error;
+            notify();
+        }
+
+        @Override
+        public synchronized boolean handleResource(Resource resource) {
+            results.add(resource);
+
+            /*
+             * TODO - this will go on forever so long as there are more results.
+             *        we may wish to constrain this by returning false eventually.
+             */
+
+            return true;
+        }
+
+        @Override
+        public synchronized void handleResult(QueryResult result) {
+            notify();
+        }
+
+        public synchronized List<Resource> get() throws ResourceException {
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                throw new InternalServerErrorException(e.getMessage(), e);
+            }
+
+            if (exception != null) {
+                throw exception;
+            } else {
+                return results;
+            }
+        }
+    }
+
     @Override
     public Resource create(CreateRequest request) throws ResourceException {
         BlockingResultHandler<Resource> handler = new BlockingResultHandler<Resource>();
@@ -125,7 +170,11 @@ public abstract class CRESTRepoService implements RequestHandler, RepositoryServ
 
     @Override
     public List<Resource> query(QueryRequest request) throws ResourceException {
-        return null;
+        BlockingQueryResultHandler handler = new BlockingQueryResultHandler();
+
+        handleQuery(null, request, handler);
+
+        return handler.get();
     }
 
     @Override
