@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -235,6 +236,21 @@ public class OpenDJRepoService extends CRESTRepoService {
             }
 
             obj.put("_id", createRequest.getNewResourceId());
+
+            /*
+             * XXX - all nulls are coming in as blank Strings. INVESTIGATE
+             */
+
+            Iterator<Map.Entry<String, Object>> iter = obj.entrySet().iterator();
+
+            while (iter.hasNext()) {
+                Map.Entry<String, Object> entry = iter.next();
+                Object val = entry.getValue();
+
+                if (val instanceof String && StringUtils.isBlank((String) val)) {
+                    iter.remove();
+                }
+            }
 
             createRequest.setContent(new JsonValue(obj));
 
