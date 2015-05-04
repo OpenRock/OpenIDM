@@ -28,7 +28,9 @@ import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.QueryFilter;
 import org.forgerock.json.resource.QueryRequest;
+import org.forgerock.json.resource.QueryResult;
 import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
 import org.forgerock.json.resource.Requests;
@@ -210,6 +212,31 @@ public class OpenDJRepoService extends CRESTRepoService {
     }
 
     @Override
+    public void handleRead(final ServerContext context, final ReadRequest _request, final ResultHandler<Resource> handler) {
+        final ReadRequest readRequest = Requests.copyOfReadRequest(_request);
+
+        // Create a proxy handler so we can unStringify properties inline
+        final ResultHandler<Resource> proxy = new ResultHandler<Resource>() {
+            @Override
+            public void handleError(ResourceException error) {
+                handler.handleError(error);
+            }
+
+            @Override
+            public void handleResult(Resource result) {
+                try {
+                    final JsonValue fixed = unStringifyProperties(result.getContent(), propertiesToStringify);
+                    handler.handleResult(new Resource(result.getId(), result.getRevision(), fixed));
+                } catch (ResourceException e) {
+                    handleError(e);
+                }
+            }
+        };
+
+        super.handleRead(context, readRequest, proxy);
+    }
+
+    @Override
     public void handleUpdate(ServerContext context, UpdateRequest request, ResultHandler<Resource> handler) {
         UpdateRequest updateRequest = Requests.copyOfUpdateRequest(request);
 
@@ -261,12 +288,38 @@ public class OpenDJRepoService extends CRESTRepoService {
     }
 
     @Override
-    public void handleQuery(ServerContext context, QueryRequest request, QueryResultHandler handler) {
+    public void handleQuery(final ServerContext context, final QueryRequest _request, final QueryResultHandler handler) {
         try {
             // check for a queryId and if so convert it to a queryFilter
-            QueryRequest queryRequest = populateQuery(request);
+            final QueryRequest queryRequest = populateQuery(_request);
 
-            super.handleQuery(context, queryRequest, handler);
+            // Create a proxy handler so we can unStringify properties inline
+            final QueryResultHandler proxy = new QueryResultHandler() {
+                @Override
+                public void handleError(ResourceException error) {
+                    handler.handleError(error);
+                }
+
+                @Override
+                public boolean handleResource(final Resource resource) {
+                    try {
+                        final JsonValue fixed = unStringifyProperties(resource.getContent(), propertiesToStringify);
+                        return handler.handleResource(new Resource(resource.getId(), resource.getRevision(), fixed));
+                    } catch (ResourceException e) {
+                        handleError(e);
+
+                        // TODO - verify this is what we want
+                        return false;
+                    }
+                }
+
+                @Override
+                public void handleResult(QueryResult result) {
+                    handler.handleResult(result);
+                }
+            };
+
+            super.handleQuery(context, queryRequest, proxy);
         } catch (ResourceException e) {
             handler.handleError(e);
         }
