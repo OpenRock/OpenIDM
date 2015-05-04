@@ -1,9 +1,14 @@
 package org.forgerock.openidm.repo.opendj.impl;
 
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 import com.forgerock.opendj.grizzly.GrizzlyTransportProvider;
 import org.apache.commons.lang3.StringUtils;
@@ -13,16 +18,24 @@ import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Service;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
 import org.forgerock.json.fluent.JsonValue;
 import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.CollectionResourceProvider;
+import org.forgerock.json.resource.CreateRequest;
+import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.QueryFilter;
 import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResultHandler;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
+import org.forgerock.json.resource.Requests;
+import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
+import org.forgerock.json.resource.ResultHandler;
 import org.forgerock.json.resource.ServerContext;
+import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.opendj.ldap.ConnectionFactory;
 import org.forgerock.opendj.ldap.spi.TransportProvider;
 import org.forgerock.opendj.rest2ldap.Rest2LDAP;
@@ -50,7 +63,7 @@ import org.slf4j.LoggerFactory;
 @Properties({
     @Property(name = "service.description", value = "Repository Service using OpenDJ"),
     @Property(name = "service.vendor", value = ServerConstants.SERVER_VENDOR_NAME),
-    @Property(name = ServerConstants.ROUTER_PREFIX, value = "/repo/managed/user") })
+    @Property(name = ServerConstants.ROUTER_PREFIX, value = "/repo/managed/*") })
 public class OpenDJRepoService extends CRESTRepoService {
 
     final static Logger logger = LoggerFactory.getLogger(OpenDJRepoService.class);
@@ -58,6 +71,8 @@ public class OpenDJRepoService extends CRESTRepoService {
     public static final String PID = "org.forgerock.openidm.repo.opendj";
 
     static OpenDJRepoService bootSvc = null;
+
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     /**
      * The current OpenDJ configuration
@@ -69,6 +84,33 @@ public class OpenDJRepoService extends CRESTRepoService {
      */
     private EnhancedConfig enhancedConfig = new JSONEnhancedConfig();
 
+    class TypeContext {
+        private final JsonValue config;
+
+        /**
+         * List of properties that should be stored as JSON strings.
+         * This can be useful for repositories that do not support fully-unstructured
+         * JSON documents such as OpenDJ.
+         */
+        private Set<String> stringProperties;
+
+        TypeContext(JsonValue config, Set<String> stringProperties) {
+            this.config = config;
+            this.stringProperties = stringProperties;
+        }
+
+        public Set<String> getStringProperties() {
+            return stringProperties;
+        }
+
+        public void setStringProperties(Set<String> stringProperties) {
+            this.stringProperties = stringProperties;
+        }
+    }
+
+    private Set<String> propertiesToStringify = new HashSet<>();
+
+
     /**
      * Map of pre-configured queryFilters in the form of key: queryId value: tokenized queryFilter.
      *
@@ -78,8 +120,8 @@ public class OpenDJRepoService extends CRESTRepoService {
 
     @Override
     protected String getResourceId(Request request) {
-        // TODO - calculate the resource id based on the request
-        return null;
+        // TODO - This needs to be updated when we support multiple object types
+        return request.getResourceNameObject().leaf();
     }
 
     @Activate
@@ -154,41 +196,123 @@ public class OpenDJRepoService extends CRESTRepoService {
         // FIXME - this needs to be broken up to support multiple mappings
 
         JsonValue managedUser = mappings.get("managed/user");
-        String baseDn = managedUser.get("baseDN").required().asString();
+        JsonValue rest2ldapConfig = managedUser.get("rest2ldapConfig");
+        propertiesToStringify = managedUser.get("propertiesToStringify").asSet(String.class);
+        String baseDn = rest2ldapConfig.get("baseDN").required().asString();
         CollectionResourceProvider managedUserProvider = Rest2LDAP.builder()
                 .ldapConnectionFactory(ldapFactory)
                 .baseDN(baseDn)
-                .configureMapping(managedUser)
+                .configureMapping(rest2ldapConfig)
                 .build();
 
         setResourceProvider(managedUserProvider);
     }
 
     @Override
-    public void handleQuery(ServerContext context, QueryRequest request, QueryResultHandler handler) {
-        try {
-            // check for a queryId and if so convert it to a queryFilter
-            processQueryId(request);
+    public void handleUpdate(ServerContext context, UpdateRequest request, ResultHandler<Resource> handler) {
+        UpdateRequest updateRequest = Requests.copyOfUpdateRequest(request);
 
-            super.handleQuery(context, request, handler);
+        try {
+            updateRequest.setContent(stringifyProperties(request.getContent(), propertiesToStringify));
+        } catch (ResourceException e) {
+            handler.handleError(e);
+        }
+
+        super.handleUpdate(context, request, handler);
+    }
+
+    @Override
+    public void handleCreate(final ServerContext context, final CreateRequest _request, final ResultHandler<Resource> handler) {
+        final CreateRequest createRequest = Requests.copyOfCreateRequest(_request);
+
+        try {
+            Map<String, Object> obj = stringifyProperties(createRequest.getContent(),
+                    propertiesToStringify).asMap();
+
+            // Set id to a new UUID if none is specified (_action=create)
+            if (StringUtils.isBlank(createRequest.getNewResourceId())) {
+                createRequest.setNewResourceId(UUID.randomUUID().toString());
+            }
+
+            obj.put("_id", createRequest.getNewResourceId());
+
+            createRequest.setContent(new JsonValue(obj));
+
+            super.handleCreate(context, createRequest, handler);
         } catch (ResourceException e) {
             handler.handleError(e);
         }
     }
 
-    /**
-     * Process queryIds to QueryFilters and place them in the request.
-     *
-     * @param request
-     */
-    private void processQueryId(final QueryRequest request) throws BadRequestException {
-        // We only care if there is a queryId
-        if (StringUtils.isBlank(request.getQueryId())) {
-            return;
+    @Override
+    public void handleQuery(ServerContext context, QueryRequest request, QueryResultHandler handler) {
+        try {
+            // check for a queryId and if so convert it to a queryFilter
+            QueryRequest queryRequest = populateQuery(request);
+
+            super.handleQuery(context, queryRequest, handler);
+        } catch (ResourceException e) {
+            handler.handleError(e);
+        }
+    }
+
+    private JsonValue unStringifyProperties(JsonValue object, Set<String> props) throws ResourceException {
+        Map<String, Object> obj = object.asMap();
+
+        ObjectMapper mapper = new ObjectMapper();
+        final TypeReference<LinkedHashMap<String,Object>> typeRef = new TypeReference<LinkedHashMap<String,Object>>() {};
+
+        try {
+            for (String key : props) {
+                String val = (String) obj.get(key);
+
+                if (val != null) {
+                    obj.put(key, mapper.readValue(val, typeRef));
+                }
+            }
+        } catch (IOException e) {
+            throw new InternalServerErrorException("Failed to convert String property to object", e);
         }
 
-        if (configQueries.containsKey(request.getQueryId())) {
-            final JsonValue queryConfig = configQueries.get(request.getQueryId());
+        return new JsonValue(obj);
+    }
+
+    private JsonValue stringifyProperties(JsonValue object, Set<String> props) throws ResourceException {
+        Map<String, Object> obj = object.asMap();
+
+        try {
+            for (String property : propertiesToStringify) {
+                Object val = obj.get(property);
+
+                if (val != null) {
+                    obj.put(property, mapper.writeValueAsString(val));
+                }
+            }
+        } catch (IOException e) {
+            throw new InternalServerErrorException("Failed to convert password object to String", e);
+        }
+
+        return new JsonValue(obj);
+    }
+
+    /**
+     * If the request has a queryId translate it to the appropriate queryFilter
+     * or queryExpression and place in request.
+     *
+     * @param request
+     *
+     * @return A new {@link QueryRequest} with a populated queryFilter or queryExpression
+     */
+    private QueryRequest populateQuery(final QueryRequest request) throws BadRequestException {
+        // We only care if there is a queryId
+        if (StringUtils.isBlank(request.getQueryId())) {
+            return request;
+        }
+
+        final QueryRequest queryRequest = Requests.copyOfQueryRequest(request);
+
+        if (configQueries.containsKey(queryRequest.getQueryId())) {
+            final JsonValue queryConfig = configQueries.get(queryRequest.getQueryId());
 
             /*
              * Process fields
@@ -198,7 +322,7 @@ public class OpenDJRepoService extends CRESTRepoService {
 
             if (!fields.isNull()) {
                 // TODO - Can we do this in JsonValue without asString()?
-                request.addField(fields.asString().split(","));
+                queryRequest.addField(fields.asString().split(","));
             }
 
             /*
@@ -212,7 +336,7 @@ public class OpenDJRepoService extends CRESTRepoService {
             Map<String, String> replacements = new HashMap<>();
 
             for (String token : tokens) {
-                final String param = request.getAdditionalParameter(token);
+                final String param = queryRequest.getAdditionalParameter(token);
 
                 if (StringUtils.isBlank(param)) {
                     throw new BadRequestException("Query expected additional parameter " + token);
@@ -223,7 +347,9 @@ public class OpenDJRepoService extends CRESTRepoService {
 
             final String detokenized = handler.replaceTokensWithValues(tokenizedFilter, replacements);
 
-            request.setQueryFilter(QueryFilter.valueOf(detokenized));
+            queryRequest.setQueryFilter(QueryFilter.valueOf(detokenized));
+
+            return queryRequest;
         } else {
             throw new BadRequestException("Requested query " + request.getQueryId() + " does not exist");
         }
