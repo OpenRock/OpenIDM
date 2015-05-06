@@ -34,7 +34,7 @@
       "_queryFilter": "/${field} eq \"${value}\""
     },
     "for-userName":	{
-      "_queryFilter": "/userName eq \"${username}\""
+      "_queryFilter": "/userName eq \"${uid}\""
     },
     "get-users-of-direct-role": {
       "_queryFilter": "/roles eq \"${role}\""
