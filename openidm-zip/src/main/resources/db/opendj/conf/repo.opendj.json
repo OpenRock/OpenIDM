@@ -50,6 +50,12 @@
     },
     "get-managed-users-count": {
       "_queryFilter": "true"
+    },
+    "get-managed-users-filtered": {
+      "_queryFilter": "/userName sw \"${userName}\" AND /mail sw \"${mail}\" AND /givenName sw \"${givenName}\" AND /sn sw \"${sn}\" AND /accountStatus sw \"${accountStatus}\""
+    },
+    "get-managed-users-filtered-count": {
+      "_queryFilter": "/userName sw \"${userName}\" AND /mail sw \"${mail}\" AND /givenName sw \"${givenName}\" AND /sn sw \"${sn}\" AND /accountStatus sw \"${accountStatus}\""
     }
   },
   "mappings": {
