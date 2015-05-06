@@ -1,7 +1,7 @@
 package org.forgerock.openidm.repo.opendj.impl;
 
 import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -43,24 +43,15 @@ import org.forgerock.json.resource.ResultHandler;
 import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.opendj.ldap.ConnectionFactory;
-import org.forgerock.opendj.ldap.spi.TransportProvider;
 import org.forgerock.opendj.rest2ldap.Rest2LDAP;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.repo.crest.CRESTRepoService;
-import org.forgerock.openidm.repo.opendj.embedded.Constants;
-import org.forgerock.openidm.repo.opendj.embedded.EmbeddedOpenDJ;
-import org.forgerock.openidm.repo.opendj.embedded.ExistingServerConfig;
-import org.forgerock.openidm.repo.opendj.embedded.OpenDJConfig;
-import org.forgerock.openidm.repo.opendj.embedded.SetupProgress;
 import org.forgerock.openidm.repo.util.TokenHandler;
-import org.forgerock.util.promise.Function;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.xml.crypto.dsig.Transform;
 
 /**
  * Repository service implementation using OpenDJ
@@ -94,72 +85,75 @@ public class OpenDJRepoService extends CRESTRepoService {
     private EnhancedConfig enhancedConfig = new JSONEnhancedConfig();
 
     /**
-     * A {@link ResultHandler} that runs a transform function on a result prior to
-     * passing it along to the proxied handler.
-     *
-     * @param <V> Type of Result
+     * ResultHandler proxy that converts string fields back to JsonValues
      */
-    class TransformProxyResultHandler<V> implements ResultHandler<V> {
-        /** The handler we are proxying */
-        final ResultHandler<V> handler;
-
-        /** Function used to transform the result prior to passing it to the handler */
-        final Function<V, V, ResourceException> transformer;
-
-        TransformProxyResultHandler(ResultHandler<V> handler, Function<V, V, ResourceException> transformer) {
-            this.handler = handler;
-            this.transformer = transformer;
+    class ResourceProxyHandler extends ResultTransformerProxyHandler<Resource> {
+        ResourceProxyHandler(ResultHandler<Resource> handler) {
+            super(handler);
         }
 
         @Override
-        public void handleError(ResourceException error) {
-            handler.handleError(error);
-        }
-
-        @Override
-        public void handleResult(V result) {
-            try {
-                handler.handleResult(transformer.apply(result));
-            } catch (ResourceException e) {
-                handler.handleError(e);
-            }
+        Resource transform(Resource obj) throws ResourceException {
+            return destringify(obj, propertiesToStringify);
         }
     }
 
-    final Function<JsonValue, JsonValue, ResourceException> JSON_VALUE_TRANSFORMER =
-            new Function<JsonValue, JsonValue, ResourceException>() {
-                @Override
-                public JsonValue apply(JsonValue jsonValue) throws ResourceException {
-                    Map<String, Object> obj = jsonValue.asMap();
+    /**
+     * ResultHandler proxy that converts string fields back to JsonValues
+     */
+    class JsonValueProxyHandler extends ResultTransformerProxyHandler<JsonValue> {
+        JsonValueProxyHandler(ResultHandler<JsonValue> handler) {
+            super(handler);
+        }
 
-                    final TypeReference<LinkedHashMap<String,Object>> typeRef = new TypeReference<LinkedHashMap<String,Object>>() {};
+        @Override
+        JsonValue transform(JsonValue obj) throws ResourceException {
+            return destringify(obj, propertiesToStringify);
+        }
+    }
 
-                    try {
-                        // FIXME - parameterize
-                        for (String key : propertiesToStringify) {
-                            String val = (String) obj.get(key);
+    static JsonValue destringify(JsonValue jsonValue, Collection<String> properties) throws ResourceException {
+        Map<String, Object> obj = jsonValue.asMap();
 
-                            if (val != null) {
-                                obj.put(key, mapper.readValue(val, typeRef));
-                            }
-                        }
-                    } catch (IOException e) {
-                        throw new InternalServerErrorException("Failed to convert String property to object", e);
-                    }
+        final TypeReference<LinkedHashMap<String,Object>> typeRef = new TypeReference<LinkedHashMap<String,Object>>() {};
 
-                    return new JsonValue(obj);
+        try {
+            // FIXME - parameterize
+            for (String key : properties) {
+                String val = (String) obj.get(key);
+
+                if (val != null) {
+                    obj.put(key, mapper.readValue(val, typeRef));
                 }
-            };
+            }
+        } catch (IOException e) {
+            throw new InternalServerErrorException("Failed to convert String property to object", e);
+        }
 
-    final Function<Resource, Resource, ResourceException> RESOURCE_TRANSFORMER =
-            new Function<Resource, Resource, ResourceException>() {
-                @Override
-                public Resource apply(Resource resource) throws ResourceException {
-                    return new Resource(resource.getId(), resource.getRevision(),
-                            JSON_VALUE_TRANSFORMER.apply(resource.getContent()));
+        return new JsonValue(obj);
+    }
+
+    static Resource destringify(Resource r, Collection<String> properties) throws ResourceException {
+        return new Resource(r.getId(), r.getRevision(), destringify(r.getContent(), properties));
+    }
+
+    static JsonValue stringify(JsonValue jsonValue, Collection<String> properties) throws ResourceException {
+        Map<String, Object> obj = jsonValue.asMap();
+
+        try {
+            for (String property : properties) {
+                Object val = obj.get(property);
+
+                if (val != null) {
+                    obj.put(property, mapper.writeValueAsString(val));
                 }
-            };
+            }
+        } catch (IOException e) {
+            throw new InternalServerErrorException("Failed to convert password object to String", e);
+        }
 
+        return new JsonValue(obj);
+    }
 
     private Set<String> propertiesToStringify = new HashSet<>();
 
@@ -262,50 +256,34 @@ public class OpenDJRepoService extends CRESTRepoService {
 
     @Override
     public void handleRead(final ServerContext context, final ReadRequest request, final ResultHandler<Resource> handler) {
-        final TransformProxyResultHandler<Resource> proxy =
-                new TransformProxyResultHandler<>(handler, RESOURCE_TRANSFORMER);
-        super.handleRead(context, request, proxy);
+        super.handleRead(context, request, new ResourceProxyHandler(handler));
     }
 
     @Override
-    public void handleUpdate(ServerContext context, UpdateRequest request, ResultHandler<Resource> handler) {
-        UpdateRequest updateRequest = Requests.copyOfUpdateRequest(request);
-
+    public void handleUpdate(ServerContext context, UpdateRequest _request, ResultHandler<Resource> handler) {
         try {
-            updateRequest.setContent(stringifyProperties(request.getContent(), propertiesToStringify));
+            final UpdateRequest updateRequest = Requests.copyOfUpdateRequest(_request);
+            updateRequest.setContent(stringify(_request.getContent(), propertiesToStringify));
+
+            super.handleUpdate(context, updateRequest, new ResourceProxyHandler(handler));
         } catch (ResourceException e) {
             handler.handleError(e);
         }
-
-        final TransformProxyResultHandler<Resource> proxy =
-                new TransformProxyResultHandler<>(handler, RESOURCE_TRANSFORMER);
-
-        super.handleUpdate(context, request, proxy);
     }
-
-//    final Function<Resource, Resource> unStringifyResource = new Function<Resource, Resource>() {
-//        @Override
-//        public Resource apply(Resource o) {
-//            final JsonValue newJson = unStringifyProperties(o.getContent(), propertiesToStringify);
-//            return new Resource(o.getId(), o.getRevision(), newJson);
-//        }
-//    };
-//
-//    ProxyResultHandler<Resource> resourceProxyResultHandler = new ProxyResultHandler<Resource>()
 
     @Override
     public void handlePatch(final ServerContext context, final PatchRequest request, final ResultHandler<Resource> handler) {
-        super.handlePatch(context, request, new TransformProxyResultHandler<>(handler, RESOURCE_TRANSFORMER));
+        super.handlePatch(context, request, new ResourceProxyHandler(handler));
     }
 
     @Override
     public void handleAction(final ServerContext context, final ActionRequest request, final ResultHandler<JsonValue> handler) {
-        super.handleAction(context, request, new TransformProxyResultHandler<>(handler, JSON_VALUE_TRANSFORMER));
+        super.handleAction(context, request, new JsonValueProxyHandler(handler));
     }
 
     @Override
     public void handleDelete(ServerContext context, DeleteRequest request, ResultHandler<Resource> handler) {
-        super.handleDelete(context, request, new TransformProxyResultHandler<>(handler, RESOURCE_TRANSFORMER));
+        super.handleDelete(context, request, new ResourceProxyHandler(handler));
     }
 
     @Override
@@ -313,7 +291,7 @@ public class OpenDJRepoService extends CRESTRepoService {
         final CreateRequest createRequest = Requests.copyOfCreateRequest(_request);
 
         try {
-            Map<String, Object> obj = stringifyProperties(createRequest.getContent(),
+            Map<String, Object> obj = stringify(createRequest.getContent(),
                     propertiesToStringify).asMap();
 
             // Set id to a new UUID if none is specified (_action=create)
@@ -340,7 +318,7 @@ public class OpenDJRepoService extends CRESTRepoService {
 
             createRequest.setContent(new JsonValue(obj));
 
-            super.handleCreate(context, createRequest, new TransformProxyResultHandler<>(handler, RESOURCE_TRANSFORMER));
+            super.handleCreate(context, createRequest, new ResourceProxyHandler(handler));
         } catch (ResourceException e) {
             handler.handleError(e);
         }
@@ -362,7 +340,7 @@ public class OpenDJRepoService extends CRESTRepoService {
                 @Override
                 public boolean handleResource(final Resource resource) {
                     try {
-                        return handler.handleResource(RESOURCE_TRANSFORMER.apply(resource));
+                        return handler.handleResource(destringify(resource, propertiesToStringify));
                     } catch (ResourceException e) {
                         handleError(e);
 
@@ -381,24 +359,6 @@ public class OpenDJRepoService extends CRESTRepoService {
         } catch (ResourceException e) {
             handler.handleError(e);
         }
-    }
-
-    private JsonValue stringifyProperties(JsonValue object, Set<String> props) throws ResourceException {
-        Map<String, Object> obj = object.asMap();
-
-        try {
-            for (String property : propertiesToStringify) {
-                Object val = obj.get(property);
-
-                if (val != null) {
-                    obj.put(property, mapper.writeValueAsString(val));
-                }
-            }
-        } catch (IOException e) {
-            throw new InternalServerErrorException("Failed to convert password object to String", e);
-        }
-
-        return new JsonValue(obj);
     }
 
     /**
