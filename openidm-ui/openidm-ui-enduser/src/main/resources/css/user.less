@@ -1,0 +1,136 @@
+/*
+  Clean up CSS
+*/
+.resourcesContainer {
+  margin-bottom:25px;
+
+  .btn-toolbar,  {
+    border-bottom: none;
+    padding-bottom: 0px;
+    margin-bottom: 0px;
+    margin-top: 0px;
+  }
+
+  .ui-jqgrid {
+    margin: auto;
+    margin-top: 10px;
+  }
+}
+
+.checkboxList ol {
+  padding-left:20px;
+  margin-bottom:0px;
+  list-style: none;
+}
+
+.form-group.no-bottom-margin {
+  margin-bottom:0px;
+}
+
+.ui-state-default, .ui-widget-content .ui-state-default, .ui-widget-header .ui-state-default {
+  background-image:none;
+  background-color:none;
+}
+
+.ui-state-hover, .ui-widget-content .ui-state-hover, .ui-widget-header .ui-state-hover, .ui-state-focus, .ui-widget-content .ui-state-focus, .ui-widget-header .ui-state-focus {
+  background-image:none;
+}
+
+.detailsLink {
+  margin-left:15px;
+  text-decoration:underline;
+}
+
+
+/*
+  Messages
+*/
+
+#notifications .ui-accordion .ui-accordion-icons {
+  padding-left:0px;
+}
+
+#notifications .notification-title .message-icon {
+  float:left;
+  font-size:26px;
+  margin-right:5px;
+  margin-left:5px;
+}
+
+#notifications .details {
+  margin-left:5px;
+}
+
+#notifications .ui-accordion-header-icon {
+  background-image:none;
+}
+
+/*
+  manager search
+*/
+
+.manager-search .selectize-input .fa,
+.manager-search .selectize-control .selectize-dropdown .fa {
+  margin-right:5px;
+}
+
+.selectize-control .selectize-dropdown .manager-fullname {
+  display:block;
+}
+
+.selectize-control .selectize-dropdown .manager-title {
+  display:block;
+}
+
+.manager-search .selectize-input .caption,
+.selectize-control .selectize-dropdown .caption {
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+
+/*
+  Reports Details
+*/
+
+#reportsHolder {
+  margin-bottom:30px;
+
+  .table tbody tr td {
+    padding:15px;
+  }
+
+  .table tbody tr:hover {
+    background-color:#f3f3f3;
+  }
+}
+
+#reportsHolder .panel {
+  margin-bottom:0px;
+}
+
+#reportsHolder thead tr{
+  text-transform: uppercase;
+}
+
+/*
+  Graph Display
+*/
+
+
+#reportsGraphBody {
+  overflow:hidden;
+  .node circle {
+    fill: #fff;
+    stroke: @base-theme-color;
+    stroke-width: 3px;
+  }
+
+  .node text { font: 12px; }
+
+  .link {
+    fill: none;
+    stroke: #2a2f32;
+    stroke-width: 2px;
+  }
+}

@@ -1,0 +1,99 @@
+<form action="" class="form center no-margin" method="post" onsubmit="return false" id="propertyEditForm" autocomplete="off">
+    <div id="mappingDialogTabs" role="tabpanel">
+        <ul class="nav nav-tabs" role="tablist">
+            <li role="presentation"><a href="#Property_List">{{t "templates.mapping.propertyEdit.propertyListHeader"}}</a></li>
+            <li role="presentation"><a href="#Transformation_Script">{{t "templates.mapping.propertyEdit.transformationHeader"}}</a></li>
+            <li class="conditionScript" role="presentation"><a href="#Condition_Script">{{t "templates.mapping.propertyEdit.conditionalUpdateHeader"}}</a></li>
+            <li role="presentation"><a href="#Default_Values">{{t "templates.mapping.propertyEdit.defaultValuesHeader"}}</a></li>
+        </ul>
+        <div class="tab-content">
+            <div role="tabpanel" class="tab-pane" id="Property_List">
+                <div class="row">
+                    <div class="col-sm-11">
+                        <label>{{t "templates.mapping.propertyEdit.propertyListLabel"}}</label>
+                    </div>
+                    <div class="col-sm-5">
+                        <input autocomplete="off" class="form-control" name="source" value="{{property.source}}"/>
+
+                        <div class="validation-message"></div>
+                    </div>
+                    <div class="col-sm-11">
+                        <div id="arrayAssociationTabs" style="display:none">
+                            <ul>
+                                <li><a href="#arrayAssociations">{{t "templates.mapping.propertyEdit.valueMapping"}}</a></li>
+                                <li><a href="#valuePrecedence">{{t "templates.mapping.propertyEdit.valuePrecedence"}}</a></li>
+                            </ul>
+                            <div class="arrayAssociations" id="arrayAssociations">
+                                <label>{{t "templates.mapping.target"}}</label><label>{{t "templates.mapping.source"}}</label>
+                                <ul></ul>
+                            </div>
+                            <div id="valuePrecedence">
+                                <label>{{t "templates.mapping.propertyEdit.valuePrecedenceNote"}}</label>
+                                <ul></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div role="tabpanel" class="tab-pane" id="Transformation_Script">
+                <div class="row">
+                    <div class="col-sm-11">
+                        <label>{{t "templates.mapping.propertyEdit.transformationSciptLabel"}}</label>
+                    </div>
+                    <div class="col-sm-6">
+                        <label for="currentSourceDisplay">{{t "templates.mapping.propertyEdit.currentSourceValue"}}: </label>
+                        <span class="text-muted"><i>{{#if property.source}}{{property.source}}{{else}}Complete User Object{{/if}}</i></span>
+                        {{#if sampleSourceTooltip}}
+                        <i class="fa fa-eye details-tooltip"><pre style="display:none;" class="tooltip-details">{{sampleSourceTooltip}}</pre></i>
+                        {{/if}}
+                    </div>
+                    <div class="col-sm-12">
+                        <div id="transformationScriptHolder"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div role="tabpanel" class="tab-pane" id="Condition_Script">
+                <p>{{t "templates.correlation.conditionScriptInfo"}}</p>
+
+                <div class="btn-group btn-group-tabs" data-toggle="buttons" id="conditionTabButtons" role="tablist">
+                    <label class="btn btn-default">
+                        <input data-target="noneTab" type="radio" name="conditionalUpdate" id="conditionalNone" value="none" class="conditionalUpdateType" aria-controls="conditions-scripts-tab" role="tab" data-toggle="tab"/> {{t "templates.correlation.noCondition"}}
+                    </label>
+                    <label class="btn btn-default">
+                        <input data-target="conditionFilterTab" type="radio" name="conditionalUpdate" id="conditionalFilter" value="conditionalFilter" aria-controls="conditions-scripts-tab" role="tab" data-toggle="tab"  class="conditionalUpdateType"/> {{t "templates.correlation.conditionFilter"}}
+                    </label>
+                    <label class="btn btn-default">
+                        <input data-target="conditionScriptTab" type="radio" name="conditionalUpdate" id="conditionalScript" value="script" aria-controls="conditions-scripts-tab" role="tab" data-toggle="tab"  class="conditionalUpdateType" /> {{t "templates.correlation.script"}}
+                    </label>
+                </div>
+
+                <div class="tab-content">
+                    <div style="display:none;" id="noneTab" class="tab-none">
+
+                    </div>
+                    <div style="display:none;"  id="conditionFilterTab" class="conditionalFilter">
+                        <div class="col-sm-12 filter-form form-horizontal" id="conditionFilterHolder">
+
+                        </div>
+                        <div class="clearfix"></div>
+                    </div>
+                    <div  style="display:none;" id="conditionScriptTab" class="conditionalScript">
+                        <div id="conditionScriptHolder"></div>
+                    </div>
+                </div>
+            </div>
+            <div role="tabpanel" class="tab-pane" id="Default_Values">
+                <div class="row">
+                    <div class="col-sm-11">
+                        <label>{{t "templates.mapping.propertyEdit.defaultValuesLabel"}}</label>
+                    </div>
+                    <div class="col-sm-5">
+                        <input autocomplete="off" name="default" class="form-control" value="{{property.default}}"/>
+                        <span class="ok" id="default_desc" style="display:none"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
