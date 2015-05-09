@@ -37,6 +37,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import javax.xml.bind.annotation.adapters.HexBinaryAdapter;
 
 /**
@@ -93,6 +94,15 @@ public class FileStateChecker {
                 }
             }
         }
+    }
+
+    /**
+     * Return the file (paths) listed in the checksum file.
+     *
+     * @return a set of paths
+     */
+    Set<Path> getFilePaths() {
+        return digestCache.keySet();
     }
 
     /**
