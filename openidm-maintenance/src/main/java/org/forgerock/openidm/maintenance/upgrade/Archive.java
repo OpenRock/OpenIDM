@@ -27,6 +27,7 @@ package org.forgerock.openidm.maintenance.upgrade;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.Set;
 
 /**
  * Abstraction of an upgrade archive
@@ -34,6 +35,20 @@ import java.nio.file.Path;
  * TODO Maybe this can be coalesced with the {@link org.forgerock.openidm.patch.Archive}
  */
 public interface Archive {
+    /**
+     * Return the version of the archive.
+     *
+     * @return the product version in the archive
+     */
+    ProductVersion getVersion();
+
+    /**
+     * Return the set of files in the archive.
+     *
+     * @return a set of Path object corresponding to the relative file paths in the archive
+     */
+    Set<Path> getFiles();
+
     /**
      * Get an InputStream for a path within the archive.
      *
