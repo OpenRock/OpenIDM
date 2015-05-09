@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -49,7 +50,7 @@ public class FileStateChecker {
     private static final HexBinaryAdapter hexAdapter = new HexBinaryAdapter();
 
     // Cache of the checksum file's contents.
-    private final Map<String, String> digestCache = new HashMap<String, String>();
+    private final Map<Path, String> digestCache = new HashMap<Path, String>();
 
     // MessageDigest appropriate for algorithm used for checksum
     private final MessageDigest digest;
@@ -86,7 +87,7 @@ public class FileStateChecker {
             while ((line = reader.readLine()) != null) {
                 parts = line.split(",");
                 if (!line.startsWith("#") && parts.length > 1) {
-                    digestCache.put(parts[0], parts[1]);
+                    digestCache.put(Paths.get(parts[0]), parts[1]);
                 } else {
                     throw new IllegalArgumentException(checksums.toString() + " has incomplete line.");
                 }
@@ -101,7 +102,7 @@ public class FileStateChecker {
      * @return the current file state
      */
     public FileState getCurrentFileState(Path originalDeployFile) throws IOException {
-        if (!digestCache.containsKey(originalDeployFile.toString())) {
+        if (!digestCache.containsKey(originalDeployFile)) {
             return Files.exists(originalDeployFile)
                     ? FileState.UNEXPECTED
                     : FileState.NONEXISTENT;
@@ -121,7 +122,7 @@ public class FileStateChecker {
      * @throws IOException
      */
     public void updateState(Path newFile) throws IOException {
-        String cacheKey = newFile.toString();
+        Path cacheKey = newFile;
         if (!Files.exists(newFile)) {
             digestCache.remove(cacheKey);
         } else {
@@ -147,7 +148,7 @@ public class FileStateChecker {
      * @return the digestCache
      */
     private byte[] getOriginalDigest(Path shippedFile) {
-        return hexAdapter.unmarshal(digestCache.get(shippedFile.toString()));
+        return hexAdapter.unmarshal(digestCache.get(shippedFile));
     }
 
     /**
@@ -173,8 +174,8 @@ public class FileStateChecker {
         writer.newLine();
 
         // Write all of the checksums.
-        for (String path : digestCache.keySet()) {
-            writer.write(path + "," + digestCache.get(path));
+        for (Map.Entry<Path, String>  entry : digestCache.entrySet()) {
+            writer.write(entry.getKey().toString() + "," + entry.getValue());
             writer.newLine();
         }
 
