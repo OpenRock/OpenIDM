@@ -29,6 +29,8 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.Set;
 
+import org.forgerock.util.promise.Function;
+
 /**
  * Abstraction of an upgrade archive
  *
@@ -50,10 +52,12 @@ public interface Archive {
     Set<Path> getFiles();
 
     /**
-     * Get an InputStream for a path within the archive.
+     * Get an InputStream for a path within the archive and process it according to the provided Function.
      *
      * @param path The Path for which to retrieve an InputStream
-     * @return the InputStream
+     * @param function the function to apply to the InputStream
+     * @return the return value from the function
      */
-    InputStream getInputStream(Path path) throws IOException;
+    <R, E extends Exception> R withInputStreamForPath(Path path, Function<InputStream, R, E> function)
+            throws E, IOException;
 }
