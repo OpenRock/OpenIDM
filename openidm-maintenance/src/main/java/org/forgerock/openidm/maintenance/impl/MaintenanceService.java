@@ -27,8 +27,12 @@ import static org.forgerock.json.fluent.JsonValue.field;
 import static org.forgerock.json.fluent.JsonValue.json;
 import static org.forgerock.json.fluent.JsonValue.object;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 import org.apache.felix.scr.ScrService;
@@ -59,6 +63,8 @@ import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.ServerConstants;
+import org.forgerock.openidm.maintenance.upgrade.UpgradeException;
+import org.forgerock.openidm.maintenance.upgrade.UpgradeManager;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.ServiceReference;
@@ -126,7 +132,7 @@ public class MaintenanceService implements RequestHandler {
         "org.forgerock.openidm.ui.context",
         */
     };
-    
+
 
     /**
      * A boolean indicating if maintenance mode is currently enabled
@@ -147,6 +153,9 @@ public class MaintenanceService implements RequestHandler {
      * The SCR Service managed used to activate/deactivate components.
      */
     protected ScrService scrService;
+
+    private final UpgradeManager upgradeManager = new UpgradeManager();
+
 
     @Activate
     void activate(ComponentContext compContext) throws Exception {
@@ -169,6 +178,8 @@ public class MaintenanceService implements RequestHandler {
         status,
         enable,
         disable,
+        upgradereport,
+        diff,
         upgrade
     }
     
@@ -194,12 +205,68 @@ public class MaintenanceService implements RequestHandler {
                     disableMaintenanceMode();
                     handleMaintenanceStatus(handler);
                     break;
+                case upgradereport:
+                    enableMaintenanceMode();
+                    upgradereport(request.getAdditionalParameters(), handler);
+                    disableMaintenanceMode();
+                    break;
+                case diff:
+                    enableMaintenanceMode();
+                    diff(request.getAdditionalParameters(), handler);
+                    disableMaintenanceMode();
+                    break;
+                case upgrade:
+                    enableMaintenanceMode();
+                    upgrade(request.getAdditionalParameters(), handler);
+                    disableMaintenanceMode();
+                    break;
                 default:
                     handler.handleError(new NotSupportedException(request.getAction() + " is not supported"));
                     break;
             }
         } catch (ResourceException e) {
             handler.handleError(e);
+        }
+    }
+
+    private void upgradereport(Map<String, String> parameters, ResultHandler<JsonValue> handler) throws ResourceException {
+        try {
+            handler.handleResult(
+                    upgradeManager.report(
+                            new URL(parameters.get("url")),
+                            Paths.get(IdentityServer.getInstance().getServerRoot())));
+        } catch (MalformedURLException e) {
+            handler.handleError(new BadRequestException("Passed in url is invalid " + e.getMessage(), e));
+        } catch (UpgradeException e) {
+            handler.handleError(new InternalServerErrorException(e.getMessage(), e));
+        }
+    }
+
+    private void diff(Map<String, String> parameters, ResultHandler<JsonValue> handler) throws ResourceException {
+        try {
+            handler.handleResult(
+                    upgradeManager.diff(
+                            new URL(parameters.get("url")),
+                            Paths.get(IdentityServer.getInstance().getServerRoot()),
+                            parameters.get("file")));
+        } catch (MalformedURLException e) {
+            handler.handleError(new BadRequestException("Passed in url is invalid " + e.getMessage(), e));
+        } catch (UpgradeException e) {
+            handler.handleError(new InternalServerErrorException(e.getMessage(), e));
+        }
+    }
+
+    private void upgrade(Map<String, String> parameters, ResultHandler<JsonValue> handler) throws ResourceException {
+        try {
+            handler.handleResult(
+                    upgradeManager.upgrade(
+                            new URL(parameters.get("url")),
+                            Paths.get(IdentityServer.getInstance().getServerRoot()),
+                            Boolean.valueOf(parameters.get("keep"))));
+        } catch (MalformedURLException e) {
+            handler.handleError(new BadRequestException("Passed in url is invalid " + e.getMessage(), e));
+        } catch (UpgradeException e) {
+            handler.handleError(new InternalServerErrorException(e.getMessage(), e));
         }
     }
 
