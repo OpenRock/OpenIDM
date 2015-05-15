@@ -37,7 +37,7 @@ import org.forgerock.util.promise.Function;
 /**
  * Updates / replaces / adds a new static file in the distribution.
  */
-public class StaticFileUpdate {
+class StaticFileUpdate {
 
     static final String IDM_SUFFIX = ".idm-";
 

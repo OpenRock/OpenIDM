@@ -34,7 +34,7 @@ import java.security.NoSuchAlgorithmException;
  * the digest of the original, shipped files with the digest of the files as they presently exist on the
  * filesystem.
  */
-public class FileStateChecker {
+class FileStateChecker {
 
     // Path to checksum file
     private final ChecksumFile checksum;
