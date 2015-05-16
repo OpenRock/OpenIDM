@@ -64,11 +64,16 @@ public class OpenDJTypeHandler extends CRESTTypeHandler {
 
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    private final RouteEntry routeEntry;
+    private RouteEntry routeEntry;
 
     @Override
     public RouteEntry getRouteEntry() {
         return routeEntry;
+    }
+
+    @Override
+    public void setRouteEntry(RouteEntry routeEntry) {
+        this.routeEntry = routeEntry;
     }
 
     /**

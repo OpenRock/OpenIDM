@@ -25,4 +25,11 @@ public interface TypeHandler extends RepositoryService, RequestHandler {
      * @return A {@link RouteEntry} if configured or null.
      */
     RouteEntry getRouteEntry();
+
+    /**
+     * Set the {@link RouteEntry} associated with this handler.
+     *
+     * @param entry
+     */
+    void setRouteEntry(RouteEntry entry);
 }

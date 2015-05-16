@@ -46,6 +46,8 @@ import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.repo.RepositoryService;
 import org.forgerock.openidm.repo.crest.TypeHandler;
 import org.forgerock.openidm.repo.util.TokenHandler;
+import org.forgerock.openidm.router.RouteBuilder;
+import org.forgerock.openidm.router.RouteEntry;
 import org.forgerock.openidm.router.RouterRegistry;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
@@ -60,8 +62,8 @@ import org.slf4j.LoggerFactory;
 @Service (value = {/*RepositoryService.class, */ RequestHandler.class})
 @Properties({
     @Property(name = "service.description", value = "Repository Service using OpenDJ"),
-    @Property(name = "service.vendor", value = ServerConstants.SERVER_VENDOR_NAME),
-    @Property(name = ServerConstants.ROUTER_PREFIX, value = "/repo/managed/user/*") })
+    @Property(name = "service.vendor", value = ServerConstants.SERVER_VENDOR_NAME)/*,
+    @Property(name = ServerConstants.ROUTER_PREFIX, value = "/repo/managed/user/*")*/ })
 public class OpenDJRepoService implements RepositoryService, RequestHandler {
 
     final static Logger logger = LoggerFactory.getLogger(OpenDJRepoService.class);
@@ -155,7 +157,7 @@ public class OpenDJRepoService implements RepositoryService, RequestHandler {
         
         //  Initialize the repo service
         init(existingConfig);
-        
+
         logger.info("Repository started.");
     }
 
@@ -177,6 +179,10 @@ public class OpenDJRepoService implements RepositoryService, RequestHandler {
                 "root",
                 GrizzlyTransportProvider.class.getClassLoader());
 
+        /*
+         * Queries
+         */
+
         JsonValue queries = config.get("queries").required();
 
         for (String queryId : queries.keys()) {
@@ -190,15 +196,33 @@ public class OpenDJRepoService implements RepositoryService, RequestHandler {
             configQueries.put(queryId, queryConfig);
         }
 
+        /*
+         * Mappings
+         */
+
         JsonValue mappings = config.get("mappings").required();
 
         final Map<String, TypeHandler> typeHandlers = new HashMap<>();
 
         for (String type : mappings.keys()) {
             JsonValue mapping = mappings.get(type);
+            TypeHandler handler = new OpenDJTypeHandler(null, ldapFactory, mapping, queries);
+
+            /*
+             * Since we cannot simply listen on /repo/* while we do not have all objects mapped/implemented
+             * We must register individual routes for each handler.
+             */
+
+            final RouteEntry routeEntry = routerRegistry.addRoute(RouteBuilder.newBuilder()
+                    .withModeStartsWith()
+                    .withTemplate("/repo/" + type)
+                    .withRequestHandler(handler)
+                    .seal());
+
+            handler.setRouteEntry(routeEntry);
 
             // TODO - breakup queries
-            typeHandlers.put(type, new OpenDJTypeHandler(null, ldapFactory, mapping, queries));
+            typeHandlers.put(type, handler);
         }
 
         this.typeHandlers = typeHandlers;
