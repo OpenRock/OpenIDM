@@ -217,8 +217,15 @@ public class OpenDJTypeHandler extends CRESTTypeHandler {
     }
 
     @Override
-    public void handleUpdate(ServerContext context, UpdateRequest request, ResultHandler<Resource> handler) {
-        super.handleUpdate(context, request, new ResourceProxyHandler(handler));
+    public void handleUpdate(ServerContext context, UpdateRequest _request, ResultHandler<Resource> handler) {
+        try {
+            final UpdateRequest updateRequest = Requests.copyOfUpdateRequest(_request);
+            updateRequest.setContent(stringify(updateRequest.getContent(), propertiesToStringify));
+
+            super.handleUpdate(context, updateRequest, new ResourceProxyHandler(handler));
+        } catch (ResourceException e) {
+            handler.handleError(e);
+        }
     }
 
     @Override
@@ -252,7 +259,7 @@ public class OpenDJTypeHandler extends CRESTTypeHandler {
 
             createRequest.setContent(new JsonValue(obj));
 
-            super.handleCreate(context, createRequest, handler);
+            super.handleCreate(context, createRequest, new ResourceProxyHandler(handler));
         } catch (ResourceException e) {
             handler.handleError(e);
         }
