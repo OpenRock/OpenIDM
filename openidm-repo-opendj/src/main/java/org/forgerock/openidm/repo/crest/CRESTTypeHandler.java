@@ -42,24 +42,26 @@ import java.util.List;
 import java.util.Vector;
 
 /**
- * Generic repository wrapping a {@link CollectionResourceProvider}
+ * CREST-based repository implementation using {@link RequestHandler}'s
  */
-public abstract class CRESTRepoService implements RequestHandler, RepositoryService, RepoBootService {
+public abstract class CRESTTypeHandler implements TypeHandler {
     private CollectionResourceProvider resourceProvider;
 
-    public CRESTRepoService(CollectionResourceProvider resourceProvider) {
+    public CRESTTypeHandler(CollectionResourceProvider resourceProvider) {
         this.resourceProvider = resourceProvider;
     }
 
-    public CRESTRepoService() {}
+    public CRESTTypeHandler() {}
 
-    protected abstract String getResourceId(Request request);
+    protected String getResourceId(final Request request) {
+        return request.getResourceNameObject().leaf();
+    }
 
     protected void setResourceProvider(CollectionResourceProvider provider) {
         this.resourceProvider = provider;
     }
 
-    protected class BlockingResultHandler<T> implements ResultHandler<T> {
+    protected final class BlockingResultHandler<T> implements ResultHandler<T> {
         private T result = null;
         private ResourceException exception = null;
 
@@ -90,7 +92,7 @@ public abstract class CRESTRepoService implements RequestHandler, RepositoryServ
         }
     }
 
-    protected class BlockingQueryResultHandler implements QueryResultHandler {
+    protected final class BlockingQueryResultHandler implements QueryResultHandler {
         private List<Resource> results = new ArrayList<>();
         private ResourceException exception = null;
 
