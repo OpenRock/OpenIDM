@@ -149,7 +149,10 @@ public class OpenDJTypeHandler extends CRESTTypeHandler {
             for (String key : properties) {
                 String val = (String) obj.get(key);
 
-                if (val != null) {
+                // TODO - this is horrific ... hopefully we can dump stringify soon.
+                // Or at least make it clear it's only for objects so this isn't horribly broken.
+                // If val doesn't start with { it's likely a password we have yet to encrypt
+                if (val != null && val.trim().startsWith("{")) {
                     obj.put(key, mapper.readValue(val, typeRef));
                 }
             }

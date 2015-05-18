@@ -1,36 +1,108 @@
-dn: dc=forgerock,dc=com
-changetype: add
-objectClass: domain
-objectClass: top
-dc: forgerock
+#dn: dc=forgerock,dc=com
+#changetype: add
+#objectClass: domain
+#objectClass: top
+#dc: forgerock
+
 dn: dc=openidm,dc=forgerock,dc=com
 changetype: add
 objectClass: domain
 objectClass: top
 dc: openidm
-aci: (targetattr="*")(version 3.0; acl "IDM Access"; allow (all)
-  userdn="ldap:///uid=idm,ou=user,dc=managed,dc=openidm,dc=forgerock,dc=com";)
-dn: dc=managed,dc=openidm,dc=forgerock,dc=com
+#aci: (targetattr="*")(version 3.0; acl "IDM Access"; allow (all)
+#  userdn="ldap:///uid=idm,ou=user,dc=managed,dc=openidm,dc=forgerock,dc=com";)
+
+# Links OU
+
+dn: ou=Links,dc=openidm,dc=forgerock,dc=com
 changetype: add
-objectClass: domain
-objectClass: top
-dc: managed
-dn: ou=user,dc=managed,dc=openidm,dc=forgerock,dc=com
-changetype: add
-ou: user
-objectClass: top
 objectClass: organizationalUnit
-objectClass: openidmSchema
-dn: uid=idm,ou=user,dc=managed,dc=openidm,dc=forgerock,dc=com
-changetype: add
 objectClass: top
-objectClass: inetOrgPerson
-objectClass: openidmSchema
-uid: idm
-cn: IDM Administrator
-sn: IDM Administrator
-description: Special LDAP acccount used by openIDM
-ou: Administrators
-userPassword: password
-ds-privilege-name: bypass-acl
-ds-privilege-name: changelog-read
+ou: Links
+
+# Internal OU
+
+dn: ou=Internal,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Internal
+
+# Internal Users OU
+
+dn: ou=Users,ou=Internal,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Users
+
+dn: uid=openidm-admin,ou=Users,ou=Internal,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: openidmInternalUser
+objectClass: top
+uid: openidm-admin
+password: openidm-admin
+roles: openidm-admin
+roles: openidm-authorized
+
+dn: uid=anonymous,ou=Users,ou=Internal,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: openidmInternalUser
+objectClass: top
+uid: anonymous
+password: anonymous
+roles: openidm-reg
+
+# Security OU
+
+dn: ou=Security,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Security
+
+# Security Keys OU
+
+dn: ou=Keys,ou=Security,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Keys
+
+##
+# Generic Object OUs
+##
+
+dn: ou=Generic,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Generic
+
+dn: ou=Objects,ou=Generic,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Objects
+
+dn: ou=Properties,ou=Generic,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Properties
+
+##
+# Managed Object OUs
+##
+
+dn: ou=Managed,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Managed
+
+dn: ou=Users,ou=Managed,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Users

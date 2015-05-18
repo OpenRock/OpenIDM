@@ -27,6 +27,9 @@
     "credential-query": {
       "_queryFilter": "/userName eq \"${username}\""
     },
+    "credential-internaluser-query": {
+      "_queryFilter": "/_id eq \"${username}\""
+    },
     "find-by-id": {
       "_queryFilter": "/_id eq \"${id}\""
     },
@@ -70,7 +73,7 @@
   "mappings": {
     "link": {
       "rest2ldapConfig": {
-        "baseDN": "ou=link,dc=openidm,dc=forgerock,dc=com",
+        "baseDN": "ou=Links,dc=openidm,dc=forgerock,dc=com",
         "usePermissiveModify": true,
         "additionalLDAPAttributes": [
           {
@@ -110,10 +113,47 @@
         }
       }
     },
+    "internal/user": {
+      "propertiesToStringify": [ "password" ],
+      "rest2ldapConfig": {
+        "baseDN": "ou=Users,ou=Internal,dc=openidm,dc=forgerock,dc=com",
+        "usePermissiveModify": true,
+        "additionalLDAPAttributes": [
+          {
+            "values": [
+              "top",
+              "openidmInternalUser"
+            ],
+            "type": "objectClass"
+          }
+        ],
+        "readOnUpdatePolicy": "controls",
+        "etagAttribute": "etag",
+        "useSubtreeDelete": false,
+        "attributes": {
+          "_id": {
+            "simple": { "ldapAttribute": "uid", "isRequired": true, "writability": "createOnly", "isSingleValued": true }
+          },
+          "_rev": {
+            "simple": { "ldapAttribute": "etag", "writability": "readOnly",  "isSingleValued": true }
+          },
+          "roles": {
+            "simple": { "ldapAttribute": "roles", "isSingleValued": false }
+          },
+          "password": {
+            "simple": { "ldapAttribute": "password", "isSingleValued": true }
+          }
+        },
+        "namingStrategy": {
+          "dnAttribute": "uid",
+          "strategy": "clientDNNaming"
+        }
+      }
+    },
     "managed/user": {
       "propertiesToStringify" : [ "password", "effectiveAssignments" ],
       "rest2ldapConfig": {
-        "baseDN": "ou=user,dc=managed,dc=openidm,dc=forgerock,dc=com",
+        "baseDN": "ou=Users,ou=Managed,dc=openidm,dc=forgerock,dc=com",
         "usePermissiveModify": true,
         "additionalLDAPAttributes": [
           {

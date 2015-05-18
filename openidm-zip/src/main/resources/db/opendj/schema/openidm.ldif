@@ -53,3 +53,6 @@ attributeTypes: ( 1.3.6.1.4.1.36733.2.1.1.165 NAME 'secondid'
 objectClasses: ( 1.3.6.1.4.1.36733.2.1.2.23 NAME 'openidmLink' SUP top STRUCTURAL
         MUST ( objectid $ linktype $ linkqualifier $ firstid $ secondid )
         X-ORIGIN 'OpenIDM OpenDJRepoService' )
+objectClasses: ( 1.3.6.1.4.1.36733.2.1.2.24 NAME 'openidmInternalUser' SUP top STRUCTURAL
+        MUST ( uid $ password $ roles )
+        X-ORIGIN 'OpenIDM OpenDJRepoService' )
