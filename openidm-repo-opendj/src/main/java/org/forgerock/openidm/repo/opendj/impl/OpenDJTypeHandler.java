@@ -45,6 +45,7 @@ import org.forgerock.openidm.router.RouteEntry;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -108,7 +109,8 @@ public class OpenDJTypeHandler extends CRESTTypeHandler {
     //        This would likely involve a rehaul of the way repo queries are defined
     OpenDJTypeHandler(RouteEntry routeEntry, ConnectionFactory connectionFactory, JsonValue config, JsonValue queries) {
         this.routeEntry = routeEntry;
-        this.propertiesToStringify = config.get("propertiesToStringify").asSet(String.class);
+        this.propertiesToStringify = config.get("propertiesToStringify")
+                .defaultTo(new HashSet<String>()).asSet(String.class);
 
         this.queries = new HashMap<>();
         for (String queryId : queries.keys()) {
