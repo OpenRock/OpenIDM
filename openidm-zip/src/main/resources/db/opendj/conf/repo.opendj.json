@@ -56,9 +56,60 @@
     },
     "get-managed-users-filtered-count": {
       "_queryFilter": "/userName sw \"${userName}\" AND /mail sw \"${mail}\" AND /givenName sw \"${givenName}\" AND /sn sw \"${sn}\" AND /accountStatus sw \"${accountStatus}\""
+    },
+    "links-for-firstId": {
+      "_queryFilter": "/linkType eq \"${linkType}\" AND /firstid = \"${firstId}\""
+    },
+    "links-for-secondId": {
+      "_queryFilter": "/linkType eq \"${linkType}\" AND /secondid = \"${secondId}\""
+    },
+    "links-for-linkType": {
+      "_queryFilter": "/linkType eq \"${linkType}\""
     }
   },
   "mappings": {
+    "link": {
+      "rest2ldapConfig": {
+        "baseDN": "ou=link,dc=openidm,dc=forgerock,dc=com",
+        "usePermissiveModify": true,
+        "additionalLDAPAttributes": [
+          {
+            "values": [
+              "top",
+              "openidmLink"
+            ],
+            "type": "objectClass"
+          }
+        ],
+        "readOnUpdatePolicy": "controls",
+        "etagAttribute": "etag",
+        "useSubtreeDelete": false,
+        "attributes": {
+          "_id": {
+            "simple": { "ldapAttribute": "objectid", "isRequired": true, "writability": "createOnly", "isSingleValued": true }
+          },
+          "_rev": {
+            "simple": { "ldapAttribute": "etag", "writability": "readOnly",  "isSingleValued": true }
+          },
+          "linkType": {
+            "simple": { "ldapAttribute": "linktype", "isSingleValued": true }
+          },
+          "linkQualifier": {
+            "simple": { "ldapAttribute": "linkqualifier", "isSingleValued": true }
+          },
+          "firstId": {
+            "simple": { "ldapAttribute": "firstid", "isSingleValued": true }
+          },
+          "secondId": {
+            "simple": { "ldapAttribute": "secondid", "isSingleValued": true }
+          }
+        },
+        "namingStrategy": {
+          "dnAttribute": "objectid",
+          "strategy": "clientDNNaming"
+        }
+      }
+    },
     "managed/user": {
       "propertiesToStringify" : [ "password", "effectiveAssignments" ],
       "rest2ldapConfig": {
