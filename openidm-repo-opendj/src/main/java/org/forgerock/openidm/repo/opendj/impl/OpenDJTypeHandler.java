@@ -33,6 +33,7 @@ import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
+import org.forgerock.json.resource.ResourceName;
 import org.forgerock.json.resource.ResultHandler;
 import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.UpdateRequest;
@@ -274,7 +275,14 @@ public class OpenDJTypeHandler extends CRESTTypeHandler {
 
     @Override
     protected String getResourceId(Request request) {
-        return request.getResourceNameObject().leaf();
+        ResourceName name = request.getResourceNameObject();
+
+        // FIXME - this is a hack
+        if (name.size() > 0) {
+            return name.leaf();
+        } else {
+            return name.toString();
+        }
     }
 
     @Override
