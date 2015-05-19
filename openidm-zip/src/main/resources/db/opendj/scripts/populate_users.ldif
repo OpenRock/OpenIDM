@@ -1,8 +1,14 @@
-#dn: dc=forgerock,dc=com
-#changetype: add
-#objectClass: domain
-#objectClass: top
-#dc: forgerock
+dn: dc=com
+changetype: add
+objectClass: domain
+objectClass: top
+dc: com
+
+dn: dc=forgerock,dc=com
+changetype: add
+objectClass: domain
+objectClass: top
+dc: forgerock
 
 dn: dc=openidm,dc=forgerock,dc=com
 changetype: add
