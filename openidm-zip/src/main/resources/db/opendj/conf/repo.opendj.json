@@ -213,6 +213,12 @@
           "postalAddress": {
             "simple": { "ldapAttribute": "postalAddress", "isSingleValued": true }
           },
+          "displayName": {
+            "simple": { "ldapAttribute": "displayName", "isSingleValued": true }
+          },
+          "description": {
+            "simple": { "ldapAttribute": "description", "isSingleValued": true }
+          },
           "country": {
             "simple": { "ldapAttribute": "country", "isSingleValued": true }
           },
