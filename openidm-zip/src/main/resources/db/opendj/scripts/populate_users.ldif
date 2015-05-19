@@ -106,3 +106,53 @@ changetype: add
 objectClass: organizationalUnit
 objectClass: top
 ou: Users
+
+##
+# Audit
+##
+
+dn: ou=Audit,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Audit
+
+dn: ou=Activity,ou=Audit,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Activity
+
+dn: ou=Recon,ou=Audit,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Recon
+
+dn: ou=Sync,ou=Audit,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Sync
+
+dn: ou=Access,ou=Audit,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Access
+
+##
+# UI
+##
+
+dn: ou=UI,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: UI
+
+dn: ou=Notifications,ou=UI,dc=openidm,dc=forgerock,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Notifications
