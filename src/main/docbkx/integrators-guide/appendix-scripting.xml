@@ -1022,18 +1022,16 @@ r = openidm.action("repo/audit/recon", "command", {}, command);</programlisting>
           </term>
           <listitem>
            <para>
-            claim, createProcessInstance
+            claim
            </para>
            <para>
             For example:
            </para>
            <informalexample><?dbfo pgwide="1"?>
 <programlisting language="javascript">var params = {
-"_key" : "EmailNotification",
-"fromSender" : "admin@example.com",
-"toEmail" : "bjensen@example.com"
+"userId":"manager1"
 };
-openidm.action('workflow/processinstance', {"_action" : "createProcessInstance"}, params);</programlisting>
+openidm.action('workflow/processinstance/15', {"_action" : "claim"}, params);</programlisting>
            </informalexample>
           </listitem>
          </varlistentry>
@@ -1517,8 +1515,7 @@ logger = LoggerFactory.getLogger('logger');
           <term>Triggered by situation</term>
           <listitem>
            <para>
-            onCreate, onUpdate, onDelete, onLink, onUnlink, postCreate,
-            postUpdate, postDelete
+            onCreate, onUpdate, onDelete, onLink, onUnlink
            </para>
           </listitem>
          </varlistentry>
@@ -1640,7 +1637,7 @@ logger = LoggerFactory.getLogger('logger');
        </listitem>
       </varlistentry>
       <varlistentry>
-       <term>onCreate, postCreate</term>
+       <term>onCreate</term>
        <listitem>
         <para>
          Triggered in <filename>sync.json</filename> : object, source, target
@@ -1651,7 +1648,7 @@ logger = LoggerFactory.getLogger('logger');
        </listitem>
       </varlistentry>
       <varlistentry>
-       <term>onDelete, postDelete</term>
+       <term>onDelete</term>
        <listitem>
         <para>
          Triggered in <filename>sync.json</filename> : object, source, target
@@ -1698,7 +1695,7 @@ logger = LoggerFactory.getLogger('logger');
        </listitem>
       </varlistentry>
       <varlistentry>
-       <term>onUpdate, postUpdate</term>
+       <term>onUpdate</term>
        <listitem>
         <para>
          Triggered in <filename>sync.json</filename> : source, target
@@ -1712,6 +1709,22 @@ logger = LoggerFactory.getLogger('logger');
        <term>onValidate</term>
        <listitem>
         <para>object, property</para>
+       </listitem>
+      </varlistentry>
+      <varlistentry>
+       <term>postCreate, postDelete</term>
+       <listitem>
+        <para>
+         Triggered in <filename>managed.json</filename> : object
+        </para>
+       </listitem>
+      </varlistentry>
+      <varlistentry>
+       <term>postUpdate</term>
+       <listitem>
+        <para>
+         Triggered in <filename>managed.json</filename> : oldObject, newObject
+        </para>
        </listitem>
       </varlistentry>
       <varlistentry>
