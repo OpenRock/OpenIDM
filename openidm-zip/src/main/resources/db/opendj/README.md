@@ -41,8 +41,9 @@ You can then populate the directory structure
                --port 1389 \
                --bindDN cn=Directory\ Manager \
                --bindPassword password \
+               --continueOnError \
                --file openidm/db/opendj/scripts/populate_users.ldif
-               
+
 # Preparing OpenIDM
 
 ## Copy Repo Configuration
