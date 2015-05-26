@@ -454,7 +454,6 @@ public class ConfigObjectService implements RequestHandler, ClusterEventListener
         }
 
         try {
-            parsedId = new ParsedId(resourceName);
             Configuration config = findExistingConfiguration(parsedId);
 
             Dictionary existingConfig = (config == null ? null : config.getProperties());
@@ -539,7 +538,7 @@ public class ConfigObjectService implements RequestHandler, ClusterEventListener
      * a pid or for factory configurations the <factory pid>/<alias>
      * pids can be qualified or if they use the default openidm prefix unqualified
      *
-     * @param fullId the id
+     * @param parsedId the id
      * @return the configuration if found, null if not
      * @throws IOException
      * @throws InvalidSyntaxException
