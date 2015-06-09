@@ -33,6 +33,8 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
+import org.forgerock.audit.events.handlers.AuditEventHandler;
+import org.forgerock.audit.events.handlers.impl.CSVAuditEventHandler;
 import org.forgerock.json.fluent.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ConnectionFactory;
@@ -49,12 +51,13 @@ import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
-import org.forgerock.openidm.core.ServerConstants;
-import org.forgerock.openidm.router.RouteService;
 import org.forgerock.openidm.util.DateUtil;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * This audit service is the entry point for audit logging on the router.
@@ -69,28 +72,37 @@ import org.slf4j.LoggerFactory;
 public class AuditService implements RequestHandler {
     private static final Logger logger = LoggerFactory.getLogger(AuditService.class);
 
-    // ----- Declarative Service Implementation
+    private static final String EVENT_HANDLERS = "eventHandlers";
+    private static final String EVENT_TYPES = "eventTypes";
+    private static final String EVENTS = "events";
+    private static final String CONFIG = "config";
 
     /** The connection factory */
     @Reference(policy = ReferencePolicy.STATIC, target="(service.pid=org.forgerock.openidm.internal)")
     protected ConnectionFactory connectionFactory;
 
-    /** Although we may not need the router here,
-     https://issues.apache.org/jira/browse/FELIX-3790
-     if using this with for scr 1.6.2
-     Ensure we do not get bound on router whilst it is activating
-     */
-    @Reference(target = "("+ServerConstants.ROUTER_PREFIX + "=/*)")
-    protected RouteService routeService;
-
     final EnhancedConfig enhancedConfig = new JSONEnhancedConfig();
 
-    final org.forgerock.audit.AuditService auditService =
-            new org.forgerock.audit.AuditService(connectionFactory);
+    org.forgerock.audit.AuditService auditService;
+    final Set<AuditEventHandler> auditEventHandlers = new HashSet<AuditEventHandler>();
 
     @Activate
     void activate(ComponentContext compContext) throws Exception {
         logger.debug("Activating Service with configuration {}", compContext.getProperties());
+        final JsonValue config = enhancedConfig.getConfigurationAsJson(compContext);
+
+        //create audit service
+        auditService = new org.forgerock.audit.AuditService(config.get(EVENT_TYPES));
+
+        //get and register the event handlers from the config
+        final JsonValue eventHandlers = config.get(EVENT_HANDLERS);
+        // TODO support dynamic audit event handlers
+        //register CSVAuditEventHandler
+        final CSVAuditEventHandler csvAuditEventHandler = new CSVAuditEventHandler();
+        csvAuditEventHandler.configure(eventHandlers.get("csv").get(CONFIG));
+        auditService.register(csvAuditEventHandler, "csv", eventHandlers.get("csv").get(EVENTS).asSet(String.class));
+        auditEventHandlers.add(csvAuditEventHandler);
+
         auditService.configure(enhancedConfig.getConfigurationAsJson(compContext));
         logger.info("Audit service started.");
     }
@@ -103,13 +115,17 @@ public class AuditService implements RequestHandler {
     @Modified
     void modified(ComponentContext compContext) throws Exception {
         logger.debug("Reconfiguring audit service with configuration {}", compContext.getProperties());
-        auditService.configure(enhancedConfig.getConfigurationAsJson(compContext));
+        deactivate(compContext);
     }
 
     @Deactivate
     void deactivate(ComponentContext compContext) throws Exception {
         logger.debug("Deactivating Service {}", compContext.getProperties());
-        auditService.configure(enhancedConfig.getConfigurationAsJson(compContext));
+        for (AuditEventHandler auditEventHandler : auditEventHandlers) {
+            auditEventHandler.close();
+        }
+        auditEventHandlers.clear();
+        auditService = null;
         logger.info("Audit service stopped.");
     }
 

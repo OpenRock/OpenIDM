@@ -49,15 +49,14 @@
             <artifactId>openidm-smartevent</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.forgerock.openidm</groupId>
-            <artifactId>openidm-core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
 
         <dependency>
             <groupId>org.forgerock.commons</groupId>
             <artifactId>forgerock-audit-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.forgerock.commons</groupId>
+            <artifactId>forgerock-audit-handler-csv</artifactId>
         </dependency>
 
         <!-- Provided OSGi Dependencies -->

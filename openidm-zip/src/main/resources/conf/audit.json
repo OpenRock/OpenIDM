@@ -1,6 +1,15 @@
 {
+  "eventHandlers" : {
+    "csv" : {
+      "config" : {
+        "location" : "audit"
+      },
+      "events" : [ "access", "activity", "recon", "sync", "config", "authentication" ]
+    }
+  },
+  "useForQueries" : "csv",
   "eventTypes" : {
-    "access": {
+    "sync" : {
       "logTo" : ["csv"],
       "schema": {
         "$schema": "http://json-schema.org/draft-04/schema#",
@@ -11,129 +20,61 @@
             "id": "_id",
             "type": "string"
           },
-          "timestamp": {
-            "id": "timestamp",
-            "type": "string"
-          },
           "transactionId": {
             "id": "transactionId",
             "type": "string"
           },
-          "messageId": {
-            "id": "messageId",
+          "timestamp": {
+            "id": "timestamp",
             "type": "string"
           },
-          "server": {
-            "id": "server",
-            "type": "object",
-            "properties": {
-              "ip": {
-                "id": "ip",
-                "type": "string"
-              },
-              "port": {
-                "id": "port",
-                "type": "string"
-              }
-            }
-          },
-          "client": {
-            "id": "client",
-            "type": "object",
-            "properties": {
-              "host": {
-                "id": "host",
-                "type": "string"
-              },
-              "ip": {
-                "id": "ip",
-                "type": "string"
-              },
-              "port": {
-                "id": "port",
-                "type": "string"
-              }
-            }
-          },
-          "authenticationId": {
-            "id": "authenticationId",
+          "rootActionId": {
+            "id": "rootActionId",
             "type": "string"
           },
-          "authorizationId": {
-            "id": "authorizationId",
-            "type": "object",
-            "properties": {
-              "roles": {
-                "id": "roles",
-                "type": "array",
-                "items": {
-                  "id": "1",
-                  "type": "string"
-                }
-              },
-              "component": {
-                "id": "component",
-                "type": "string"
-              },
-              "id": {
-                "id": "id",
-                "type": "string"
-              }
-            }
+          "status": {
+            "id": "status",
+            "type": "string"
           },
-          "resourceOperation": {
-            "id": "resourceOperation",
-            "type": "object",
-            "properties": {
-              "method": {
-                "id": "method",
-                "type": "string"
-              },
-              "action": {
-                "id": "action",
-                "type": "string"
-              }
-            }
+          "message": {
+            "id": "message",
+            "type": "string"
           },
-          "http": {
-            "id": "http",
-            "type": "object",
-            "properties": {
-              "method": {
-                "id": "method",
-                "type": "string"
-              },
-              "path": {
-                "id": "path",
-                "type": "string"
-              },
-              "queryString": {
-                "id": "queryString",
-                "type": "string"
-              },
-              "headers": {
-                "id": "headers",
-                "type": "array",
-                "items": {
-                  "id": "0",
-                  "type": "string"
-                }
-              }
-            }
+          "messageDetail": {
+            "id": "messageDetail",
+            "type": "string"
           },
-          "response": {
-            "id": "response",
-            "type": "object",
-            "properties": {
-              "status": {
-                "id": "status",
-                "type": "string"
-              },
-              "elapsedTime": {
-                "id": "elapsedTime",
-                "type": "string"
-              }
-            }
+          "exception": {
+            "id": "exception",
+            "type": "string"
+          },
+          "action": {
+            "id": "action",
+            "type": "string"
+          },
+          "actionId": {
+            "id": "actionId",
+            "type": "string"
+          },
+          "situation": {
+            "id": "situation",
+            "type": "string"
+          },
+          "sourceObjectId": {
+            "id": "sourceObjectId",
+            "type": "string"
+          },
+          "targetObjectId": {
+            "id": "targetObjectId",
+            "type": "string"
+          },
+          "mapping": {
+            "id": "mapping",
+            "type": "string"
+          },
+          "linkQualifier": {
+            "id": "linkQualifier",
+            "type": "string"
           }
         }
       }
@@ -442,162 +383,6 @@
           }
         }
       }
-    },
-    "activity" : {
-      "logTo" : ["csv"],
-      "schema": {
-        "$schema": "http://json-schema.org/draft-04/schema#",
-        "id": "/",
-        "type": "object",
-        "properties": {
-          "_id": {
-            "id": "_id",
-            "type": "string"
-          },
-          "transactionId": {
-            "id": "transactionId",
-            "type": "string"
-          },
-          "activityId": {
-            "id": "activityId",
-            "type": "string"
-          },
-          "timestamp": {
-            "id": "timestamp",
-            "type": "string"
-          },
-          "action": {
-            "id": "action",
-            "type": "string"
-          },
-          "message": {
-            "id": "message",
-            "type": "string"
-          },
-          "objectId": {
-            "id": "objectId",
-            "type": "string"
-          },
-          "rev": {
-            "id": "rev",
-            "type": "string"
-          },
-          "rootActionId": {
-            "id": "rootActionId",
-            "type": "string"
-          },
-          "parentActionId": {
-            "id": "parentActionId",
-            "type": "string"
-          },
-          "requester": {
-            "id": "requester",
-            "type": "string"
-          },
-          "before": {
-            "id": "before",
-            "type": "object"
-          },
-          "after": {
-            "id": "after",
-            "type": "object"
-          },
-          "status": {
-            "id": "status",
-            "type": "string"
-          },
-          "changedFields": {
-            "id": "changedFields",
-            "type": "array",
-            "items": {
-              "id": "0",
-              "type": "string"
-            }
-          },
-          "passwordChanged": {
-            "id": "passwordChanged",
-            "type": "boolean"
-          }
-        }
-      }
-    },
-    "sync" : {
-      "logTo" : ["csv"],
-      "schema": {
-        "$schema": "http://json-schema.org/draft-04/schema#",
-        "id": "/",
-        "type": "object",
-        "properties": {
-          "_id": {
-            "id": "_id",
-            "type": "string"
-          },
-          "transactionId": {
-            "id": "transactionId",
-            "type": "string"
-          },
-          "timestamp": {
-            "id": "timestamp",
-            "type": "string"
-          },
-          "rootActionId": {
-            "id": "rootActionId",
-            "type": "string"
-          },
-          "status": {
-            "id": "status",
-            "type": "string"
-          },
-          "message": {
-            "id": "message",
-            "type": "string"
-          },
-          "messageDetail": {
-            "id": "messageDetail",
-            "type": "string"
-          },
-          "exception": {
-            "id": "exception",
-            "type": "string"
-          },
-          "action": {
-            "id": "action",
-            "type": "string"
-          },
-          "actionId": {
-            "id": "actionId",
-            "type": "string"
-          },
-          "situation": {
-            "id": "situation",
-            "type": "string"
-          },
-          "sourceObjectId": {
-            "id": "sourceObjectId",
-            "type": "string"
-          },
-          "targetObjectId": {
-            "id": "targetObjectId",
-            "type": "string"
-          },
-          "mapping": {
-            "id": "mapping",
-            "type": "string"
-          },
-          "linkQualifier": {
-            "id": "linkQualifier",
-            "type": "string"
-          }
-        }
-      }
     }
-  },
-  "eventHandlers" : {
-    "csv" : {
-      "config" : {
-        "location" : "audit"
-      }
-    }
-  },
-  "useForQueries" : "csv"
+  }
 }
