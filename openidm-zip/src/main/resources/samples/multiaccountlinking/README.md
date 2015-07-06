@@ -163,7 +163,7 @@ commands :
            }' \
            https://localhost:8443/openidm/managed/user?_action=create
 
-    {"displayName":"Barbara Jensen","description":"Created for OpenIDM","givenName":"Barbara","mail":"bjensen@example.com","telephoneNumber":"1-360-229-7105","sn":"Jensen","userName":"bjensen","accountStatus":"active","roles":["openidm-authorized"],"postalCode":"","stateProvince":"","postalAddress":"","address2":"","country":"","city":"","lastPasswordSet":"","passwordAttempts":"0","lastPasswordAttempt":"Fri May 29 2015 11:19:40 GMT-0500 (CDT)","effectiveRoles":["openidm-authorized"],"effectiveAssignments":{},"_id":"9d38b5bf-b81e-4aee-b31e-7797efdef8b5","_rev":"1"}
+    {"displayName":"Barbara Jensen","description":"Created for OpenIDM","givenName":"Barbara","mail":"bjensen@example.com","telephoneNumber":"1-360-229-7105","sn":"Jensen","userName":"bjensen","accountStatus":"active","roles":["openidm-authorized"],"postalCode":"","stateProvince":"","postalAddress":"","address2":"","country":"","city":"","lastPasswordSet":"","passwordAttempts":"0","lastPasswordAttempt":"Fri May 29 2015 11:19:40 GMT-0500 (CDT)","effectiveRoles":[],"effectiveAssignments":{},"_id":"9d38b5bf-b81e-4aee-b31e-7797efdef8b5","_rev":"1"}
 
     $ curl --insecure \
            --header "Content-type: application/json" \
@@ -191,7 +191,7 @@ commands :
            }' \
            https://localhost:8443/openidm/managed/user?_action=create
 
-    {"displayName":"John Doe","description":"Created for OpenIDM","givenName":"John","mail":"jdoe@example.com","telephoneNumber":"1-415-599-1100","sn":"Doe","userName":"jdoe","accountStatus":"active","roles":["openidm-authorized"],"postalCode":"","stateProvince":"","postalAddress":"","address2":"","country":"","city":"","lastPasswordSet":"","passwordAttempts":"0","lastPasswordAttempt":"Fri May 29 2015 11:22:08 GMT-0500 (CDT)","effectiveRoles":["openidm-authorized"],"effectiveAssignments":{},"_id":"9736f2c6-0103-4c48-98b5-a7c189297107","_rev":"1"}
+    {"displayName":"John Doe","description":"Created for OpenIDM","givenName":"John","mail":"jdoe@example.com","telephoneNumber":"1-415-599-1100","sn":"Doe","userName":"jdoe","accountStatus":"active","roles":["openidm-authorized"],"postalCode":"","stateProvince":"","postalAddress":"","address2":"","country":"","city":"","lastPasswordSet":"","passwordAttempts":"0","lastPasswordAttempt":"Fri May 29 2015 11:22:08 GMT-0500 (CDT)","effectiveRoles":[],"effectiveAssignments":{},"_id":"9736f2c6-0103-4c48-98b5-a7c189297107","_rev":"1"}
 
 c. Granting Roles to Users
 
@@ -214,7 +214,7 @@ role `Agent` (e26b6d30-121c-479c-b094-7b02e166447c) to the user `jdoe`
                  ]' \
                'https://localhost:8443/openidm/managed/user/9736f2c6-0103-4c48-98b5-a7c189297107'
                
-    {"displayName":"John Doe","description":"Created for OpenIDM","givenName":"John","mail":"jdoe@example.com","telephoneNumber":"1-415-599-1100","sn":"Doe","userName":"jdoe","accountStatus":"active","roles":["openidm-authorized","managed/role/e26b6d30-121c-479c-b094-7b02e166447c"],"postalCode":"","stateProvince":"","postalAddress":"","address2":"","country":"","city":"","lastPasswordSet":"","passwordAttempts":"0","lastPasswordAttempt":"Fri May 29 2015 11:22:08 GMT-0500 (CDT)","effectiveRoles":["openidm-authorized","managed/role/e26b6d30-121c-479c-b094-7b02e166447c"],"effectiveAssignments":{},"_id":"9736f2c6-0103-4c48-98b5-a7c189297107","_rev":"2"}
+    {"displayName":"John Doe","description":"Created for OpenIDM","givenName":"John","mail":"jdoe@example.com","telephoneNumber":"1-415-599-1100","sn":"Doe","userName":"jdoe","accountStatus":"active","roles":["openidm-authorized","managed/role/e26b6d30-121c-479c-b094-7b02e166447c"],"postalCode":"","stateProvince":"","postalAddress":"","address2":"","country":"","city":"","lastPasswordSet":"","passwordAttempts":"0","lastPasswordAttempt":"Fri May 29 2015 11:22:08 GMT-0500 (CDT)","effectiveRoles":[{"_ref":"managed/role/e26b6d30-121c-479c-b094-7b02e166447c"}],"effectiveAssignments":{},"_id":"9736f2c6-0103-4c48-98b5-a7c189297107","_rev":"2"}
     
 and now we're granting the role `Insured` (2d11b41b-d77d-4cac-b6c2-9049c635d930)
 to the user `bjensen` (9d38b5bf-b81e-4aee-b31e-7797efdef8b5) :
@@ -234,7 +234,7 @@ to the user `bjensen` (9d38b5bf-b81e-4aee-b31e-7797efdef8b5) :
                  ]' \
                'https://localhost:8443/openidm/managed/user/9d38b5bf-b81e-4aee-b31e-7797efdef8b5'
 
-    {"displayName":"Barbara Jensen","description":"Created for OpenIDM","givenName":"Barbara","mail":"bjensen@example.com","telephoneNumber":"1-360-229-7105","sn":"Jensen","userName":"bjensen","accountStatus":"active","roles":["openidm-authorized","managed/role/2d11b41b-d77d-4cac-b6c2-9049c635d930"],"postalCode":"","stateProvince":"","postalAddress":"","address2":"","country":"","city":"","lastPasswordSet":"","passwordAttempts":"0","lastPasswordAttempt":"Fri May 29 2015 11:19:40 GMT-0500 (CDT)","effectiveRoles":["openidm-authorized","managed/role/2d11b41b-d77d-4cac-b6c2-9049c635d930"],"effectiveAssignments":{},"_id":"9d38b5bf-b81e-4aee-b31e-7797efdef8b5","_rev":"2"}
+    {"displayName":"Barbara Jensen","description":"Created for OpenIDM","givenName":"Barbara","mail":"bjensen@example.com","telephoneNumber":"1-360-229-7105","sn":"Jensen","userName":"bjensen","accountStatus":"active","roles":["openidm-authorized","managed/role/2d11b41b-d77d-4cac-b6c2-9049c635d930"],"postalCode":"","stateProvince":"","postalAddress":"","address2":"","country":"","city":"","lastPasswordSet":"","passwordAttempts":"0","lastPasswordAttempt":"Fri May 29 2015 11:19:40 GMT-0500 (CDT)","effectiveRoles":[{"_ref":"managed/role/2d11b41b-d77d-4cac-b6c2-9049c635d930"}],"effectiveAssignments":{},"_id":"9d38b5bf-b81e-4aee-b31e-7797efdef8b5","_rev":"2"}
 
 
 As a result, you should now have 2 new accounts created in the ldap directory
@@ -377,13 +377,14 @@ into play :
                             
                             while (!res && i < source.effectiveRoles.length) {
                                 var roleId = source.effectiveRoles[i];
-                                if (roleId != null && roleId.indexOf("/") != -1) {
-                                    var roleInfo = openidm.read(roleId);
+                                if (roleId != null && roleId._ref != null && 
+                                        roleId._ref.indexOf("managed/role") != -1) {
+                                    var roleInfo = openidm.read(roleId._ref);
                                     logger.warn("Role Info : {}",roleInfo);
-                                    res = (((roleInfo.properties.name === 'Agent')
-                                            &&(linkQualifier ==='agent'))
-                                          || ((roleInfo.properties.name === 'Insured')
-                                            &&(linkQualifier ==='insured')));
+                                    res = (((roleInfo.properties.name === 'Agent') &&
+                                               (linkQualifier ==='agent')) ||
+                                           ((roleInfo.properties.name === 'Insured') &&
+                                               (linkQualifier ==='insured')));
                                 }
                                 i++;
                             }
