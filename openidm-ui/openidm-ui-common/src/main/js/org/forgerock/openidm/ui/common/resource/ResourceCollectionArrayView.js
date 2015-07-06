@@ -44,21 +44,22 @@ define("org/forgerock/openidm/ui/common/resource/ResourceCollectionArrayView", [
                         this.parentRender(_.bind(function() {
                             this.setupAutocomplete(this.data.prop, this.onChange);
                             this.convertToHuman();
-                            
+
                             if(callback) {
                                 callback();
                             }
                         }, this));
                     }, this);
-                
+
                 if(args) {
                     this.element = args.element;
                     this.data.prop = args.prop;
+
                     this.onChange = args.onChange;
-                    
+
                     resourceDelegate.getSchema(this.data.prop.items.resourceCollection.path.split("/")).then(_.bind(function(schema) {
                         this.data.propTitle = schema.title || this.data.prop.title;
-                        
+
                         this.data.headerValues = resourceCollectionUtils.getHeaderValues(this.data.prop.items.resourceCollection.query.fields, schema.properties);
 
                         parentRender();
@@ -68,23 +69,13 @@ define("org/forgerock/openidm/ui/common/resource/ResourceCollectionArrayView", [
                 }
             },
             setupAutocomplete: function(prop) {
-                var autocompleteField = this.$el.parent().find("#autoCompleteResourceCollection_" + prop.propName),
-                    onChange = _.bind(function(value) {
-                        var newVal = this.data.prop.items.resourceCollection.path + "/" + value;
-                        
-                        if(!_.contains(this.data.prop.value, newVal)) {
-                            if(!this.data.prop.value) {
-                                this.data.prop.value = [];
-                            }
-                            this.data.prop.value.push(newVal);
-                        }
-                    }, this);
-                
-                    resourceCollectionUtils.setupAutocompleteField(autocompleteField, prop, { onChange: onChange });
+                var autocompleteField = this.$el.parent().find("#autoCompleteResourceCollection_" + prop.propName);
+
+                resourceCollectionUtils.setupAutocompleteField(autocompleteField, prop);
             },
             convertToHuman: function() {
                 var listElements = this.$el.find(".resourceListItem");
-                
+
                 _.each(listElements, _.bind(function(element) {
                     var path = $(element).attr("resourcePath"),
                         getRowContents = function(txt) {
@@ -110,19 +101,26 @@ define("org/forgerock/openidm/ui/common/resource/ResourceCollectionArrayView", [
                 if(e) {
                     e.preventDefault();
                 }
-                
+                var value = this.$el.parent().find("#autoCompleteResourceCollection_" + this.data.prop.propName).val();
+
+                if (value && value.length) {
+                    this.data.prop.value.push({ "_ref": this.data.prop.items.resourceCollection.path + "/" + value });
+                } else {
+                    return;
+                }
+
                 this.render();
                 this.onChange();
             },
             removeArrayItem: function(e) {
                 var path = $(e.target).closest(".list-group-item").attr("resourcePath");
-                
+
                 if(e) {
                     e.preventDefault();
                 }
-                
-                this.data.prop.value = _.reject(this.data.prop.value, function(val) { return val === path; });
-                
+
+                this.data.prop.value = _.reject(this.data.prop.value, function(val) { return val._ref === path; });
+
                 this.render();
                 this.onChange();
             },

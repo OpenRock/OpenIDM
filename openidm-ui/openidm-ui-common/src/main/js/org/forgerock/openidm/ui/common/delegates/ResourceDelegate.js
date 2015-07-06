@@ -41,7 +41,7 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
             objectName = args[1],
             objectName2 = args[2];
 
-        if(objectType === "managed") {
+        if (objectType === "managed") {
             return configDelegate.readEntity("managed").then(function(managed){
                 var managedObject = _.findWhere(managed.objects,{ name: objectName });
 
@@ -55,7 +55,7 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
                     return "invalidObject";
                 }
             });
-        } else {
+        } else if (objectType === "system") {
             return obj.getProvisioner(objectType, objectName).then(function(prov){
                 var schema;
 
@@ -71,6 +71,8 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
                     return "invalidObject";
                 }
             });
+        } else {
+            return $.Deferred().resolve({});
         }
     };
 
@@ -85,9 +87,9 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
     };
     obj.deleteResource = function (serviceUrl, id, successCallback, errorCallback) {
         var callParams = {
-                serviceUrl: serviceUrl, url: "/" + id, 
-                type: "DELETE", 
-                success: successCallback, 
+                serviceUrl: serviceUrl, url: "/" + id,
+                type: "DELETE",
+                success: successCallback,
                 error: errorCallback,
                 errorsHandlers: {
                     "Conflict": {
@@ -98,7 +100,7 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
                     "If-Match": "*"
                 }
             };
-        
+
         return obj.serviceCall(callParams).fail(function(err){
             var response = err.responseJSON;
             if(response.code === 409) {
@@ -125,7 +127,7 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
             url: serviceUrl +"?_queryFilter="+filter
         });
     };
-    
+
     obj.getProvisioner = function(objectType, objectName) {
         return obj.serviceCall({
             serviceUrl: obj.serviceUrl + objectType + "/" + objectName,
@@ -133,11 +135,11 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
             type: "POST"
         }).then(function(connector) {
             var config = connector.config.replace("config/","");
-            
+
             return configDelegate.readEntity(config);
         });
     };
-    
+
     obj.linkedView = function(id, resourcePath) {
         return obj.serviceCall({
             serviceUrl: constants.host + "/openidm/endpoint/linkedView/" + resourcePath,

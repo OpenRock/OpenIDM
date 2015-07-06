@@ -5,11 +5,6 @@
         "siteIdentification" : false,
         "lang" : "en",
         "passwordResetLink" : "",
-        "roles" : {
-            "openidm-admin" : "Administrator",
-            "openidm-authorized" : "User",
-            "openidm-tasks-manager" : "Tasks Manager"
-        },
         "siteImages" : [
             "images/passphrase/mail.png",
             "images/passphrase/user.png",
