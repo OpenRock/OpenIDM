@@ -5,7 +5,7 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`objecttypes` (
   `objecttype` VARCHAR(255) NULL ,
   PRIMARY KEY (`id`) ,
   UNIQUE INDEX `idx_objecttypes_objecttype` (`objecttype` ASC) );
-  
+
 CREATE  TABLE IF NOT EXISTS `openidm`.`genericobjects` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT ,
   `objecttypes_id` BIGINT UNSIGNED NOT NULL ,
@@ -19,11 +19,11 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`genericobjects` (
     REFERENCES `openidm`.`objecttypes` (`id` )
     ON DELETE CASCADE
     ON UPDATE NO ACTION) ;
-    
-  CREATE INDEX IF NOT EXISTS `openidm`.`fk_genericobjects_objecttypes` 
+
+  CREATE INDEX IF NOT EXISTS `openidm`.`fk_genericobjects_objecttypes`
   ON `openidm`.`genericobjects` ( `objecttypes_id` ASC );
-  
-  
+
+
 CREATE  TABLE IF NOT EXISTS `openidm`.`genericobjectproperties` (
   `genericobjects_id` BIGINT UNSIGNED NOT NULL ,
   `propkey` VARCHAR(255) NOT NULL ,
@@ -55,7 +55,7 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`managedobjects` (
     REFERENCES `openidm`.`objecttypes` (`id` )
     ON DELETE CASCADE
     ON UPDATE NO ACTION);
-    
+
 CREATE INDEX IF NOT EXISTS `openidm`.`fk_managedobjects_objectypes` ON `openidm`.`managedobjects`  (`objecttypes_id` ASC) ;
 
 
@@ -69,7 +69,7 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`managedobjectproperties` (
     REFERENCES `openidm`.`managedobjects` (`id` )
     ON DELETE CASCADE
     ON UPDATE NO ACTION);
-    
+
 CREATE INDEX IF NOT EXISTS `openidm`.`idx_managedobjectproperties_prop` ON `openidm`.`managedobjectproperties` (`propkey` ASC, `propvalue` ASC);
 CREATE INDEX IF NOT EXISTS `openidm`.`fk_managedobjectproperties_managedobjects` ON `openidm`.`managedobjectproperties` (`managedobjects_id` ASC);
 
@@ -87,7 +87,7 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`configobjects` (
     REFERENCES `openidm`.`objecttypes` (`id` )
     ON DELETE CASCADE
     ON UPDATE NO ACTION);
-    
+
 
 CREATE INDEX IF NOT EXISTS `openidm`.`fk_configobjects_objecttypes` ON `openidm`.`configobjects`(`objecttypes_id` ASC);
 
@@ -117,22 +117,22 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`links` (
   UNIQUE INDEX `idx_links_first` (`linktype` ASC, `linkqualifier` ASC, `firstid` ASC) ,
   UNIQUE INDEX `idx_links_second` (`linktype` ASC, `linkqualifier` ASC, `secondid` ASC) ,
   PRIMARY KEY (`objectid`) );
-  
+
 
 CREATE  TABLE IF NOT EXISTS `openidm`.`security` (
   `objectid` VARCHAR(38) NOT NULL ,
   `rev` VARCHAR(38) NOT NULL ,
   `storestring` TEXT NULL ,
   PRIMARY KEY (`objectid`) );
-  
+
 
 CREATE  TABLE IF NOT EXISTS `openidm`.`securitykeys` (
   `objectid` VARCHAR(38) NOT NULL ,
   `rev` VARCHAR(38) NOT NULL ,
   `keypair` TEXT NULL ,
   PRIMARY KEY (`objectid`) );
-  
-   
+
+
 CREATE TABLE IF NOT EXISTS `openidm`.`auditrecon` (
   `objectid` VARCHAR(38) NOT NULL ,
   `entrytype` VARCHAR(7) NULL ,
@@ -163,8 +163,8 @@ CREATE INDEX IF NOT EXISTS `openidm`.`idx_auditrecon_activitydate` ON `openidm`.
 CREATE INDEX IF NOT EXISTS `openidm`.`idx_auditrecon_entrytype` ON `openidm`.`auditrecon`(`entrytype` ASC);
 CREATE INDEX IF NOT EXISTS `openidm`.`idx_auditrecon_situation` ON `openidm`.`auditrecon`(`situation` ASC);
 CREATE INDEX IF NOT EXISTS `openidm`.`idx_auditrecon_status` ON `openidm`.`auditrecon`(`status` ASC);
-  
-   
+
+
 CREATE TABLE IF NOT EXISTS `openidm`.`auditsync` (
   `objectid` VARCHAR(38) NOT NULL ,
   `rootactionid` VARCHAR(511) NULL ,
@@ -181,8 +181,8 @@ CREATE TABLE IF NOT EXISTS `openidm`.`auditsync` (
   `linkqualifier` VARCHAR(255) NULL ,
   `messagedetail` MEDIUMTEXT NULL,
   PRIMARY KEY (`objectid`) );
-  
-  
+
+
 CREATE  TABLE IF NOT EXISTS `openidm`.`auditactivity` (
   `objectid` VARCHAR(38) NOT NULL ,
   `rootactionid` VARCHAR(511) NULL ,
@@ -201,17 +201,23 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`auditactivity` (
   `changedfields` VARCHAR(255) NULL ,
   `passwordchanged` VARCHAR(5) NULL,
   PRIMARY KEY (`objectid`));
-  
-CREATE INDEX IF NOT EXISTS `openidm`.`idx_auditactivity_rootactionid` ON  `openidm`.`auditactivity`(`rootactionid` ASC);    
-  
+
+CREATE INDEX IF NOT EXISTS `openidm`.`idx_auditactivity_rootactionid` ON  `openidm`.`auditactivity`(`rootactionid` ASC);
+
 CREATE  TABLE IF NOT EXISTS `openidm`.`internaluser` (
-  `objectid` VARCHAR(254) NOT NULL ,
+  `objectid` VARCHAR(255) NOT NULL ,
   `rev` VARCHAR(38) NOT NULL ,
   `pwd` VARCHAR(510) NULL ,
   `roles` VARCHAR(1024) NULL ,
   PRIMARY KEY (`objectid`) );
-  
-  
+
+CREATE TABLE IF NOT EXISTS `openidm`.`internalrole` (
+  `objectid` VARCHAR(255) NOT NULL ,
+  `rev` VARCHAR(38) NOT NULL ,
+  `description` VARCHAR(510) NULL,
+  PRIMARY KEY (`objectid`) );
+
+
 CREATE  TABLE IF NOT EXISTS `openidm`.`auditaccess` (
   `objectid` VARCHAR(38) NOT NULL ,
   `activitydate` VARCHAR(29) NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
@@ -266,7 +272,7 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`clusterobjects` (
     REFERENCES `openidm`.`objecttypes` (`id` )
     ON DELETE CASCADE
     ON UPDATE NO ACTION);
-    
+
 CREATE INDEX IF NOT EXISTS `openidm`.`fk_clusterobjects_objectypes` ON `openidm`.`clusterobjects` (`objecttypes_id` ASC);
 
 CREATE  TABLE IF NOT EXISTS `openidm`.`clusterobjectproperties` (
@@ -295,12 +301,26 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`uinotification` (
   `notificationSubtype` VARCHAR(255) NULL ,
   PRIMARY KEY (`objectid`) );
 
-INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`) 
+INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`)
 SELECT 'openidm-admin', '0', 'openidm-admin', '["openidm-admin","openidm-authorized"]' 
 WHERE NOT EXISTS (SELECT * FROM `openidm`.`internaluser` WHERE `objectid` = 'openidm-admin');
 
-INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`) 
+INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`)
 SELECT 'anonymous', '0', 'anonymous', '["openidm-reg"]'
 WHERE NOT EXISTS (SELECT * FROM `openidm`.`internaluser` WHERE `objectid` = 'anonymous');
 
-    
+INSERT INTO `openidm`.`internalrole` (`objectid`, `rev`, `description`)
+SELECT 'openidm-authorized', '0', 'Basic minimum user'
+WHERE NOT EXISTS (SELECT * FROM `openidm`.`internalrole` WHERE `objectid` = 'openidm-authorized')
+UNION
+SELECT 'openidm-admin', '0', 'Administrative access'
+WHERE NOT EXISTS (SELECT * FROM `openidm`.`internalrole` WHERE `objectid` = 'openidm-admin')
+UNION
+SELECT 'openidm-cert', '0', 'Authenticated via certificate'
+WHERE NOT EXISTS (SELECT * FROM `openidm`.`internalrole` WHERE `objectid` = 'openidm-cert')
+UNION
+SELECT 'openidm-tasks-manager', '0', 'Allowed to reassign workflow tasks'
+WHERE NOT EXISTS (SELECT * FROM `openidm`.`internalrole` WHERE `objectid` = 'openidm-tasks-manager')
+UNION
+SELECT 'openidm-reg', '0', 'Anonymous access'
+WHERE NOT EXISTS (SELECT * FROM `openidm`.`internaluser` WHERE `objectid` = 'openidm-reg');
