@@ -659,8 +659,10 @@ openidm.scheduler.execute.persistent.schedules=true
    <para>
     To update a schedule definition, use a PUT request and update all properties
     of the object. Note that PATCH requests are currently supported only for
-    managed objects. The following example disables the schedule created in the
-    previous section.
+    managed and system objects.
+   </para>
+   <para>
+    The following example disables the schedule created in the previous section.
    </para>
    <screen>$ <userinput>curl \
  --cacert self-signed.crt \
@@ -911,9 +913,6 @@ openidm.scheduler.execute.persistent.schedules=true
         <literal>"property" : "sunset/date"</literal> indicates a JSON pointer
         that maps to the object attribute, and can be understood as
         <literal>sunset: {"date" : "<replaceable>date</replaceable>"}</literal>.
-        For more information about JSON pointer syntax, see
-        <link xlink:show="new"
-        xlink:href="http://tools.ietf.org/html/rfc6901">RFC 6901</link>.
        </para>
        <para>
         If you are using a JDBC repository, with a generic mapping, you must

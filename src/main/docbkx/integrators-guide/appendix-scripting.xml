@@ -487,9 +487,9 @@
     <section xml:id="function-patch">
      <title>openidm.patch(id, rev, value)</title>
      <para>
-      This function performs a partial modification of a managed object. Unlike
-      the <literal>update</literal> function, only the modified attributes are
-      provided, not the entire object.
+      This function performs a partial modification of a managed or system
+      object. Unlike the <literal>update</literal> function, only the modified
+      attributes are provided, not the entire object.
      </para>
      <variablelist>
       <title>Parameters</title>
@@ -1791,129 +1791,110 @@ logger = LoggerFactory.getLogger('logger');
 
        <thead>
         <row>
-         <entry>Trigger</entry>
-         <entry>Variables</entry>
          <entry>Configuration File</entry>
+         <entry>Trigger</entry>
+         <entry>Variable</entry>
         </row>
        </thead>
        <tbody>
         <row>
-         <entry>condition</entry>
-         <entry>object</entry>
+         <entry morerows="7">managed.json</entry>
+         <entry>onCreate, onDelete</entry>
+         <entry>object, source, target, situation, linkQualifier</entry>
         </row>
         <row>
-         <entry>correlationQuery</entry>
-         <entry>source</entry>
-         <entry><filename>sync.json</filename></entry>
-        </row>
-        <row>
-         <entry>correlationScript</entry>
-         <entry>source</entry>
-         <entry><filename>sync.json</filename></entry>
-        </row>
-        <row>
-         <entry>linkQualifier</entry>
-         <entry>source</entry>
-         <entry><filename>sync.json</filename></entry>
-        </row>
-        <row>
-         <entry>onCreate</entry>
-         <entry><para>object, source, target</para></entry>
-         <entry><filename>sync.json</filename></entry>
-        </row>
-        <row>
-         <entry>onCreate</entry>
-         <entry>object</entry>
-         <entry><filename>managed.json</filename></entry>
-        </row>
-        <row>
-         <entry>onDelete</entry>
-         <entry>object, source, target</entry>
-         <entry><filename>managed.json</filename></entry>
-        </row>
-        <row>
-         <entry>onDelete</entry>
-         <entry>object</entry>
-         <entry><filename>managed.json</filename></entry>
-        </row>
-        <row>
-         <entry>onLink</entry>
-         <entry>source, target</entry>
-         <entry><filename>sync.json</filename></entry>
-        </row>
-        <row>
-         <entry>onRead</entry>
-         <entry><para>object, when called from either an object or a property storage trigger</para>
-          <para>property, only when called from a property storage trigger</para>
-         </entry>
-         <entry><filename>managed.json</filename></entry>
-        </row>
-        <row>
-         <entry>onStore</entry>
-         <entry>object, property</entry>
-         <entry><filename>managed.json</filename></entry>
-        </row>
-        <row>
-         <entry>onUnlink</entry>
-         <entry>source, target</entry>
-         <entry><filename>sync.json</filename></entry>
-        </row>
-        <row>
-         <entry>onUpdate</entry>
-         <entry>object, source, target</entry>
-         <entry><filename>sync.json</filename></entry>
-        </row>
-        <row>
-         <entry>onUpdate</entry>
-         <entry>object</entry>
-         <entry><filename>managed.json</filename></entry>
-        </row>
-        <row>
-         <entry>onValidate</entry>
-         <entry>object, property</entry>
-         <entry><filename>managed.json</filename></entry>
+         <entry>onRetrieve, onStore</entry>
+         <entry><para>
+          object, when called from either an object or a property storage
+          trigger
+         </para>
+          <para>
+           property and propertyName, only when called from a property storage
+           trigger
+          </para></entry>
         </row>
         <row>
          <entry>onSync</entry>
          <entry>syncResults, request, oldObject, newObject</entry>
-         <entry><filename>managed.json</filename></entry>
         </row>
         <row>
-         <entry>postCreate</entry>
+         <entry>onUpdate</entry>
+         <entry>oldObject, newObject, source, target, situation, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>onValidate</entry>
+         <entry>property, only when called from a property storage
+         trigger</entry>
+        </row>
+        <row>
+         <entry>postCreate, postDelete, postUpdate</entry>
          <entry>object</entry>
-         <entry><filename>managed.json</filename></entry>
         </row>
         <row>
-         <entry>postDelete</entry>
-         <entry>object</entry>
-         <entry><filename>managed.json</filename></entry>
+         <entry>onRead</entry>
+         <entry><para>
+          object, when called from either an object or a property storage trigger
+          </para>
+         <para>
+          property, only when called from a property storage trigger
+         </para></entry>
         </row>
         <row>
-         <entry>Custom endpoint scripts</entry>
+         <entry>onStore</entry>
+         <entry>object, property</entry>
+        </row>
+        <row>
+         <entry morerows="2">router.json</entry>
+         <entry>onFailure</entry>
+         <entry>exception</entry>
+        </row>
+        <row>
+         <entry>onRequest</entry>
          <entry>request</entry>
         </row>
         <row>
-         <entry>result</entry>
-         <entry>source, target</entry>
+         <entry>onResponse</entry>
+         <entry>response</entry>
         </row>
         <row>
-         <entry>taskScanner</entry>
-         <entry>input, objectID</entry>
+         <entry morerows="7">sync.json</entry>
+         <entry>onCreate, onDelete, onUpdate</entry>
+         <entry>object, source, target, situation, linkQualifier</entry>
         </row>
         <row>
-         <entry>transform</entry>
-         <entry>source</entry>
+         <entry>onLink, onUnlink</entry>
+         <entry>source, target, linkQualifier</entry>
         </row>
         <row>
          <entry>validSource</entry>
-         <entry>source</entry>
-         <entry><filename>sync.json</filename></entry>
+         <entry>source, linkQualifier</entry>
         </row>
         <row>
          <entry>validTarget</entry>
-         <entry>target</entry>
-         <entry><filename>sync.json</filename></entry>
+         <entry>target, linkQualifier</entry>
         </row>
+        <row>
+         <entry>correlationQuery, correlationScript</entry>
+         <entry>source, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>condition</entry>
+         <entry>object, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>transform</entry>
+         <entry>source, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>result</entry>
+         <entry>source, target, global, with reconciliation results</entry>
+        </row>
+        <row>
+         <entry>*</entry>
+         <entry>custom endpoint scripts</entry>
+         <entry>request</entry>
+        </row>
+
        </tbody>
       </tgroup>
 
@@ -2133,12 +2114,14 @@ logger = LoggerFactory.getLogger('logger');
    you to call one from the other on the OpenIDM router.
   </para>
   <para>
-   Scripts called over the <literal>script</literal> endpoint have access to
-   the <literal>"openidm"</literal> and <literal>"context"</literal> objects.
-   The only supported action on the <literal>script</literal> endpoint is
-   <literal>eval</literal>, so scripts can not be launched from this endpoint,
-   but merely evaluated. The last statement that is executed is the value
-   produced by the script, and the expected result of the REST call.
+   The <literal>script</literal> endpoint supports two actions -
+   <literal>eval</literal> and <literal>compile</literal>.
+  </para>
+  <para>
+   The <literal>eval</literal> action evaluates a script, by taking any actions
+   referenced in the script, such as router calls to affect the state of an
+   object. For JavaScript scripts, the last statement that is executed is the
+   value produced by the script, and the expected result of the REST call.
   </para>
   <para>
    The following REST call attempts to evaluate the
@@ -2169,13 +2152,59 @@ logger = LoggerFactory.getLogger('logger');
  "https://localhost:8443/openidm/script?_action=eval"</userinput>
 <computeroutput>
 "Must choose to either purge by expired or number of recons to keep"</computeroutput></screen>
+  <tip>
+   <para>
+    The variables passed into this scripts are namespaced with the
+    <literal>"globals"</literal> map. It is preferable to namespace variables
+    passed into scripts in this way, to avoid collisions with the top-level
+    reserved words for script maps, such as <literal>file</literal>,
+    <literal>source</literal>, and <literal>type</literal>.
+   </para>
+  </tip>
   <para>
-   Note that the variables passed into this script are namespaced with the
-   <literal>"globals"</literal> map. It is preferable to namespace variables
-   passed into scripts in this way, to avoid collisions with the top-level
-   reserved words for script maps, such as <literal>file</literal>,
-   <literal>source</literal>, and <literal>type</literal>.
+   The <literal>compile</literal> action compiles a script, but does not
+   execute it. This action is used primarily by the UI, to validate scripts that
+   are entered in the UI. A successful compilation returns
+   <literal>true</literal>. An unsuccessful compilation returns the reason for
+   the failure.
   </para>
+  <para>
+   The following REST call tests whether a transformation script will compile.
+  </para>
+  <screen>$ <userinput>curl \
+   --cacert self-signed.crt \
+   --header "X-OpenIDM-Username: openidm-admin" \
+   --header "X-OpenIDM-Password: openidm-admin" \
+   --header "Content-Type: application/json" \
+   --request POST \
+   --data '{
+       "type":"text/javascript",
+       "source":"source.mail ? source.mail.toLowerCase() : null"
+   }' \
+   "https://localhost:8443/openidm/script?_action=compile"</userinput>
+<computeroutput>True</computeroutput></screen>
+  <para>
+   If the script is not valid, the action returns an indication of the error,
+   for example:
+  </para>
+  <screen>$ <userinput>curl \
+   --cacert self-signed.crt \
+   --header "X-OpenIDM-Username: openidm-admin" \
+   --header "X-OpenIDM-Password: openidm-admin" \
+   --header "Content-Type: application/json" \
+   --request POST \
+   --data '{
+       "type":"text/javascript",
+       "source":"source.mail ? source.mail.toLowerCase()"
+   }' \
+   "https://localhost:8443/openidm/script?_action=compile"</userinput>
+<computeroutput>{
+    "code": 400,
+    "reason": "Bad Request",
+    "message": "missing : in conditional expression
+        (3864142CB836831FAB8EAB662F566139CDC22BF2#1)
+        in 3864142CB836831FAB8EAB662F566139CDC22BF2
+        at line number 1 at column number 39"
+}</computeroutput></screen>
  </section>
-
 </appendix>

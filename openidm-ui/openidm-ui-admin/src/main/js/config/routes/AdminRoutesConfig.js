@@ -28,10 +28,10 @@ define("config/routes/AdminRoutesConfig", [
 ], function(commonRoutes) {
 
     var obj = {
-        "resourcesView" : {
-            view: "org/forgerock/openidm/ui/admin/ResourcesView",
+        "connectorListView" : {
+            view: "org/forgerock/openidm/ui/admin/connector/ConnectorListView",
             role: "ui-admin",
-            url: "resources/"
+            url: "connectors/"
         },
         "editConnectorView" : {
             view: "org/forgerock/openidm/ui/admin/connector/EditConnectorView",
@@ -46,6 +46,11 @@ define("config/routes/AdminRoutesConfig", [
             role: "ui-admin",
             url: "connectors/add/",
             forceUpdate: true
+        },
+        "managedListView" : {
+            view: "org/forgerock/openidm/ui/admin/managed/ManagedListView",
+            role: "ui-admin",
+            url: "managed/"
         },
         "editManagedView" : {
             view: "org/forgerock/openidm/ui/admin/managed/AddEditManagedView",
@@ -78,6 +83,13 @@ define("config/routes/AdminRoutesConfig", [
             url: "mapping/add/",
             forceUpdate: true
         },
+        "autoAddMappingView" : {
+            view: "org/forgerock/openidm/ui/admin/mapping/AddMappingView",
+            role: "ui-admin",
+            url: /mapping\/add\/(.+?)\/(.+?)$/,
+            pattern: "mapping/add/?/?",
+            forceUpdate: true
+        },
         "mappingListView" : {
             view: "org/forgerock/openidm/ui/admin/mapping/MappingListView",
             role: "ui-admin",
@@ -85,11 +97,11 @@ define("config/routes/AdminRoutesConfig", [
             forceUpdate: true
         },
         "propertiesView" : {
-            view: "org/forgerock/openidm/ui/admin/mapping/PropertiesView",
+            childView: "org/forgerock/openidm/ui/admin/mapping/PropertiesView",
+            view: "org/forgerock/openidm/ui/admin/mapping/MappingBaseView",
             role: "ui-admin",
             url: /^properties\/([^\/]+)\/$/,
-            pattern: "properties/?/",
-            forceUpdate: true
+            pattern: "properties/?/"
         },
         "editMappingProperty" : {
             base: "propertiesView",
@@ -108,73 +120,83 @@ define("config/routes/AdminRoutesConfig", [
             forceUpdate: true
         },
         "behaviorsView" : {
-            view: "org/forgerock/openidm/ui/admin/mapping/BehaviorsView",
+            childView: "org/forgerock/openidm/ui/admin/mapping/BehaviorsView",
+            view: "org/forgerock/openidm/ui/admin/mapping/MappingBaseView",
             role: "ui-admin",
             url: /^behaviors\/(.+)\/$/,
-            pattern: "behaviors/?/",
-            forceUpdate: true
+            pattern: "behaviors/?/"
         },
         "associationView" : {
-            view: "org/forgerock/openidm/ui/admin/mapping/AssociationView",
+            childView: "org/forgerock/openidm/ui/admin/mapping/AssociationView",
+            view: "org/forgerock/openidm/ui/admin/mapping/MappingBaseView",
             role: "ui-admin",
             url: /^association\/(.+)\/$/,
-            pattern: "association/?/",
-            forceUpdate: true
+            pattern: "association/?/"
         },
         "scheduleView" : {
-            view: "org/forgerock/openidm/ui/admin/mapping/ScheduleView",
+            childView: "org/forgerock/openidm/ui/admin/mapping/ScheduleView",
+            view: "org/forgerock/openidm/ui/admin/mapping/MappingBaseView",
             role: "ui-admin",
             url: /^schedule\/(.+)\/$/,
-            pattern: "schedule/?/",
-            forceUpdate: true
+            pattern: "schedule/?/"
         },
         "adminListSystemObjectView" : {
             view: "org/forgerock/openidm/ui/common/resource/ListResourceView",
             role: "ui-admin",
-            url: /^resource\/(system)\/(.+)\/(.+)\/list\/$/, 
+            url: /^resource\/(system)\/(.+)\/(.+)\/list\/$/,
             pattern: "resource/?/?/?/list/"
         },
         "adminEditSystemObjectView" : {
             view: "org/forgerock/openidm/ui/common/resource/EditResourceView",
             role: "ui-admin",
-            url: /^resource\/(system)\/(.+)\/(.+)\/edit\/(.+)$/, 
+            url: /^resource\/(system)\/(.+)\/(.+)\/edit\/(.+)$/,
             pattern: "resource/?/?/?/edit/?",
             forceUpdate: true
         },
         "adminNewSystemObjectView" : {
             view: "org/forgerock/openidm/ui/common/resource/EditResourceView",
             role: "ui-admin",
-            url: /^resource\/(system)\/(.+)\/(.+)\/add\/$/, 
+            url: /^resource\/(system)\/(.+)\/(.+)\/add\/$/,
             pattern: "resource/?/?/?/add/"
         },
         "adminListManagedObjectView" : {
             view: "org/forgerock/openidm/ui/common/resource/ListResourceView",
             role: "ui-admin",
-            url: /^resource\/(managed)\/(.+)\/list\/$/, 
+            url: /^resource\/(managed)\/(.+)\/list\/$/,
             pattern: "resource/?/?/list/"
         },
         "adminEditManagedObjectView" : {
             view: "org/forgerock/openidm/ui/common/resource/EditResourceView",
             role: "ui-admin",
-            url: /^resource\/(managed)\/(.+)\/edit\/(.+)$/, 
+            url: /^resource\/(managed)\/(.+)\/edit\/(.+)$/,
             pattern: "resource/?/?/edit/?",
             forceUpdate: true
         },
         "adminNewManagedObjectView" : {
             view: "org/forgerock/openidm/ui/common/resource/EditResourceView",
             role: "ui-admin",
-            url: /^resource\/(managed)\/(.+)\/add\/$/, 
+            url: /^resource\/(managed)\/(.+)\/add\/$/,
             pattern: "resource/?/?/add/"
         },
         "adminEditRoleEntitlementView" : {
             view: "org/forgerock/openidm/ui/common/resource/EditResourceView",
             role: "ui-admin",
-            url: /^resource\/(managed)\/(role)\/edit\/(.+)\/(.+)$/, 
+            url: /^resource\/(managed)\/(role)\/edit\/(.+)\/(.+)$/,
             pattern: "resource/?/?/edit/?/?"
+        },
+        "processListView" : {
+            view: "org/forgerock/openidm/ui/admin/workflow/ProcessListView",
+            role: "ui-admin",
+            url: "workflow/processes/"
+        },
+        "taskListView" : {
+            view: "org/forgerock/openidm/ui/admin/workflow/TaskListView",
+            role: "ui-admin",
+            url: "workflow/tasks/"
         }
     };
 
-    obj.landingPage = obj.resourcesView;
+    obj.landingPage = obj.connectorListView;
     commonRoutes["default"].role = "ui-admin";
     return obj;
 });
