@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2014 ForgeRock AS. All Rights Reserved
+ * Copyright (c) 2011-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -23,6 +23,22 @@
  */
 
 package org.forgerock.openidm.managed;
+
+import static org.forgerock.json.fluent.JsonValue.json;
+import static org.forgerock.json.fluent.JsonValue.object;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onCreate;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onDelete;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onRead;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onRetrieve;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onStore;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onSync;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onUpdate;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onValidate;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.postCreate;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.postDelete;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.postUpdate;
+import static org.forgerock.openidm.sync.impl.SynchronizationService.ACTION_PARAM_RESOURCE_CONTAINER;
+import static org.forgerock.openidm.sync.impl.SynchronizationService.ACTION_PARAM_RESOURCE_ID;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -59,6 +75,7 @@ import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.ResourceName;
+import org.forgerock.json.resource.Resources;
 import org.forgerock.json.resource.ResultHandler;
 import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.UpdateRequest;
@@ -80,20 +97,6 @@ import org.forgerock.script.ScriptRegistry;
 import org.forgerock.script.exception.ScriptThrownException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onCreate;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onRead;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onUpdate;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onDelete;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.postCreate;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.postUpdate;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.postDelete;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onValidate;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onRetrieve;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onStore;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onSync;
-import static org.forgerock.openidm.sync.impl.SynchronizationService.ACTION_PARAM_RESOURCE_CONTAINER;
-import static org.forgerock.openidm.sync.impl.SynchronizationService.ACTION_PARAM_RESOURCE_ID;
 
 /**
  * Provides access to a set of managed objects of a given type: managed/[type]/{id}.
@@ -164,7 +167,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
     private final ResourceName managedObjectPath;
 
     /** The schema to use to validate the structure and content of the managed object. */
-    private final JsonValue schema;
+    private final ManagedObjectSchema schema;
 
     /** Map of scripts to execute on specific {@link ScriptHook}s. */
     private final Map<ScriptHook, ScriptEntry> scriptHooks = new EnumMap<ScriptHook, ScriptEntry>(ScriptHook.class);
@@ -209,8 +212,9 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             throw new JsonValueException(config.get("name"), "Failed to validate the name");
         }
         this.managedObjectPath = new ResourceName("managed").child(name);
-        // TODO: parse into json-schema object
-        schema = config.get("schema").expect(Map.class);
+        
+        schema = new ManagedObjectSchema(config.get("schema").expect(Map.class));
+        
         for (ScriptHook hook : ScriptHook.values()) {
             if (config.isDefined(hook.name())) {
                 scriptHooks.put(hook, scriptRegistry.takeScript(config.get(hook.name())));
@@ -219,9 +223,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
         for (JsonValue property : config.get("properties").expect(List.class)) {
             properties.add(new ManagedObjectProperty(scriptRegistry, cryptoService, property));
         }
-        enforcePolicies =
-                Boolean.parseBoolean(IdentityServer.getInstance().getProperty(
-                        "openidm.policy.enforcement.enabled", "true"));
+        enforcePolicies = Boolean.parseBoolean(IdentityServer.getInstance().getProperty("openidm.policy.enforcement.enabled", "true"));
         logger.debug("Instantiated managed object set: {}", name);
     }
 
@@ -576,12 +578,8 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             performSyncAction(context, request, _new.getId(), SynchronizationService.SyncServiceAction.notifyCreate,
                     new JsonValue(null), _new.getContent());
 
-            if (ContextUtil.isExternal(context)) {
-                _new = cullPrivateProperties(_new);
-            }
-
             // TODO Check the relative id
-            handler.handleResult(_new);
+            handler.handleResult(prepareResponse(ContextUtil.isExternal(context), _new, request.getFields()));
         } catch (ResourceException e) {
             handler.handleError(e);
         } catch (Exception e) {
@@ -602,8 +600,8 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             execScript(context, onRead, resource.getContent(), null);
             activityLogger.log(context, request.getRequestType(), "read", managedId(resource.getId()).toString(),
                     null, resource.getContent(), Status.SUCCESS);
-
-            handler.handleResult(ContextUtil.isExternal(context) ? cullPrivateProperties(resource) : resource);
+            
+            handler.handleResult(prepareResponse(ContextUtil.isExternal(context), resource, request.getFields()));
         } catch (ResourceException e) {
             handler.handleError(e);
         } catch (Exception e) {
@@ -628,16 +626,12 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             Resource resource = connectionFactory.getConnection().read(context, readRequest);
             Resource _old = decrypt(resource);
 
-            Resource updated = update(context, request, resourceId, request.getRevision(), _old, _new);
+            Resource updatedResource = update(context, request, resourceId, request.getRevision(), _old, _new);
             activityLogger.log(context, request.getRequestType(), "update",
-                    managedId(resource.getId()).toString(), resource.getContent(), updated.getContent(),
+                    managedId(resource.getId()).toString(), resource.getContent(), updatedResource.getContent(),
                     Status.SUCCESS);
 
-            if (ContextUtil.isExternal(context)) {
-                updated = cullPrivateProperties(updated);
-            }
-
-            handler.handleResult(updated);
+            handler.handleResult(prepareResponse(ContextUtil.isExternal(context), updatedResource, request.getFields()));
         } catch (ResourceException e) {
             handler.handleError(e);
         } catch (Exception e) {
@@ -674,12 +668,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             performSyncAction(context, request, resourceId, SynchronizationService.SyncServiceAction.notifyDelete,
                     resource.getContent(), new JsonValue(null));
 
-            // only cull private properties if this is an external call
-            if (ContextUtil.isExternal(context)) {
-                deletedResource = cullPrivateProperties(deletedResource);
-            }
-
-            handler.handleResult(deletedResource);
+            handler.handleResult(prepareResponse(ContextUtil.isExternal(context), deletedResource, request.getFields()));
         } catch (ResourceException e) {
             handler.handleError(e);
         } catch (Exception e) {
@@ -791,10 +780,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
                 retry = false;
                 logger.debug("Patch successful!");
 
-                if (ContextUtil.isExternal(context)) {
-                    patchedResource = cullPrivateProperties(patchedResource);
-                }
-                return patchedResource;
+                return prepareResponse(ContextUtil.isExternal(context), patchedResource, request.getFields());
             } catch (PreconditionFailedException e) {
                 if (forceUpdate) {
                     logger.debug("Unable to update due to revision conflict. Retrying.");
@@ -845,11 +831,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
                         }
                     }
                     results.add(resource.getContent().asMap());
-                    if (ContextUtil.isExternal(context)) {
-                        // If it came over a public interface we have to cull each resulting object
-                        return handler.handleResource(cullPrivateProperties(resource));
-                    }
-                    return handler.handleResource(resource);
+                    return handler.handleResource(prepareResponse(ContextUtil.isExternal(context), resource, request.getFields()));
                 }
 
                 @Override
@@ -958,20 +940,56 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
     public String getTemplate() {
         return name.indexOf('/') == 0 ? name : '/' + name;
     }
+    
 
     /**
-     * Culls properties that are marked private
-     *
-     * @param resource Resource to cull private properties from
-     * @return the supplied Resource with private properties culled
+     * Prepares the response contents by removing the following: any private properties (if the request is 
+     * from an external call), any virtual or relationship properties that are not set to returnByDefault.
+     * 
+     * @param context the current ServerContext
+     * @param resource the Resource to prepare
+     * @param fields a list of fields to return specified in the request
+     * @return the prepared Resource object
      */
-    private Resource cullPrivateProperties(Resource resource) {
-        for (ManagedObjectProperty property : properties) {
-            if (property.isPrivate()) {
-                resource.getContent().remove(property.getName());
+    private Resource prepareResponse(boolean isExternal, Resource resource, List<JsonPointer> fields) {
+        JsonValue fieldsToRemove = schema.getHiddenByDefaultFields().copy();
+        if (fields != null && fields.size() > 0) {
+            for (JsonPointer field : new ArrayList<JsonPointer>(fields)) {
+                if (field.equals(new JsonPointer(SchemaField.FIELD_ALL_RELATIONSHIPS))) {
+                    // Return all relationship fields, so remove them from fieldsToRemove map
+                    for (String key : schema.getRelationshipFields()) {
+                        logger.debug("Allowing field {} to be returned, due to *_ref", key);
+                        fieldsToRemove.remove(key);
+                        fields.add(new JsonPointer(key));
+                    }
+                    fields.remove(field);
+                } else {
+                    // TODO: Do more advanced reference field handling such as checking if the field is a 
+                    // subfield of a reference object
+                    
+                    // Remove the field
+                    logger.debug("Allowing field {} to be returned", field);
+                    fieldsToRemove.remove(field);
+                }
             }
         }
-        return resource;
+        
+        // Remove all relationship and virtual fields that are not returned by default, or explicitly listed
+        for (String key : fieldsToRemove.keys()) {
+            logger.debug("Removing field {} from the response object", key);
+            resource.getContent().remove(key);
+        }
+        
+        // only cull private properties if this is an external call
+        if (isExternal) {
+            for (ManagedObjectProperty property : properties) {
+                if (property.isPrivate()) {
+                    resource.getContent().remove(property.getName());
+                }
+            }
+        }
+        
+        return Resources.filterResource(resource, fields);
     }
     
     /**
@@ -1048,4 +1066,5 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             throw e;
         }
     }
+    
 }
