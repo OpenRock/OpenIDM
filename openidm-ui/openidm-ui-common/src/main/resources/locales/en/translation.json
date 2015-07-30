@@ -21,6 +21,9 @@
             "dayNamesShort" : "Sun. , Mon., Tue., Wed., Thu., Fri., Sat."
         },
         "messages" : {
+            "WorkflowMessages" : {
+              "cancelActiveProcess" : "Workflow Process cancelled."
+            },
             "AuditMessages" : {
               "auditSaveSuccessful": "Audit configurations have been saved."
             },
@@ -109,6 +112,10 @@
                 "objectFiltersSaved": "The object filter script(s) have been saved.",
                 "triggeredByReconSaved": "The triggered by reconciliation script(s) have been saved.",
                 "linkQualifierSaveSuccess": "The link qualifier(s) have been saved."
+            },
+            "settingMessages" : {
+                "saveSelfServiceSuccess": "Self service URL has been updated.",
+                "saveEmailSuccess": "Email configuration has been saved."
             }
         },
         "AppConfiguration" : {
@@ -337,6 +344,38 @@
                 "linkQualifiers": "Link Qualifiers"
             }
         },
+        "taskInstance": {
+            "reassign": "Reassign",
+            "assign": "Assign",
+            "viewAllTasks": "View all Tasks",
+            "dueDate": "Due date",
+            "priority": "Priority",
+            "aboutThisTask": "About this Task",
+            "taskDetail": "Task Detail",
+            "noDueDate": "No due date",
+            "category": "Category",
+            "relatedProcess": "Related Process",
+            "owner": "Owner",
+            "assignee": "Assignee",
+            "subtasks": "Subtasks",
+            "none": "None",
+            "parentTask": "Parent Task",
+            "taskDetailInfo": "The following information has been submitted for completion.",
+            "task": "Task",
+            "assignedSuccess": "Task successfully assigned/reassigned",
+            "assignTask": "Assign Task",
+            "selectUser": "Select User",
+            "nonCanditateWarning": "The user you are attempting to assign does not belong to the list of the task's candidate users. Are you sure you want to assign '__userName__' to this task?"
+        },
+        "processInstance": {
+            "viewAllProcesses": "View all Processes",
+            "process": "Process",
+            "cancelProcess": "Cancel Process",
+            "cancelConfirmation": "Are you sure you want to cancel this Process?",
+            "started": "Started",
+            "startedBy": "Started By",
+            "cancelProcessSuccess": "Process successfully canceled"
+        },
         "managed" : {
             "addManagedTitle" : "Add Managed Object",
             "backToManaged" : "Back to Managed Objects",
@@ -497,6 +536,34 @@
             "addSchedule": "Add Schedule"
         },
         "workflows": {
+            "tasks": {
+                "title": "Workflow Tasks",
+                "newTask": "New Task",
+                "assigned": "Assigned To",
+                "task": "Task",
+                "process": "Process",
+                "assignee": "Assignee",
+                "created": "Created",
+                "due": "Due",
+                "anyone": "Anyone",
+                "unassigned": "Unassigned"
+            },
+            "processes" : {
+                "processInstance" : "Process Instance",
+                "processDefinitions" : "Process Definitions",
+                "created" : "Created",
+                "startedBy" : "Started By",
+                "processes" : "Workflow Processes",
+                "startedByFilter" : "Started By: ",
+                "filterByType" : "Filter by Type: ",
+                "activeProcesses" : "Active",
+                "processDefinitions" : "Definitions",
+                "processesCompleted" : "Completed",
+                "noActiveProcesses" : "No Active Processes",
+                "noCompletedProcesses" : "No Completed Processes",
+                "noProcessesDefinitions" : "No Process Definitions",
+                "cancelProcessDialog" : "Are you sure you wish to cancel this active process?"
+            },
             "sync": "These data properties are sent when the workflow is triggered",
             "nonSync": "Workflow scripts can access these object/properties.",
             "noWorkflows": "No Available Workflows",
@@ -661,6 +728,23 @@
             "managedUserLink": "Managed User Link",
             "moduleType": "Module Type",
             "select": "Make a Selection"
+        },
+        "selfService": {
+            "title": "Self-Service UI",
+            "endUserConfigTitle": "Self-Service UI Features",
+            "urlDesc": "Application for end-users to perform self-service tasks (profile updates, workflow tasks, etc...)",
+            "url": "Relative URL"
+        },
+        "emailConfig": {
+            "title": "Email",
+            "desc": "Configure the outbound email service",
+            "host": "Host",
+            "port": "Port",
+            "username": "Username",
+            "password": "Password",
+            "smtp": "Use SMTP Authentication",
+            "tls": "Use TLS",
+            "from": "Sender Email Address"
         },
         "connector" : {
             "backToConnectorList" : "Back to Connectors",
@@ -953,6 +1037,7 @@
             "backToMapping" : "Back to Mappings",
             "conditionalUpon" : "Conditional Upon:",
             "validLinkQualifierScript" : "Requires a valid Link Qualifier script.",
+            "linkQualifierNotArray" : "Valid Link Qualifier must be an array.",
             "transformationScriptApplied" : "Transformation script applied",
             "attributes": "Attributes",
             "badScript" : "Invalid; a Link Qualifier script must return an array of strings",
@@ -1108,7 +1193,7 @@
     "common" : {
         "form" : {
             "add" : "Add",
-            "userView" : "Data Management View",
+            "userView" : "Self Service",
             "removeAttribute" : "Remove Attribute",
             "ok" : "Okay",
             "list" : "List",
@@ -1136,6 +1221,7 @@
             "accept" : "Accept",
             "reject" : "Reject",
             "createdAt" : "Created at",
+            "created" : "Created",
             "generalDetails" : "General Details",
             "search" : "Search",
             "settings": "Settings",
@@ -1174,7 +1260,7 @@
                 "atLeastOneNumber" : "At least one number",
                 "atLeast8Characters" : "At least 8 characters",
                 "cannotMatchLogin" : "Cannot match login",
-                "confirmationMatchesPassword" : "Confirmation matches password",
+                "confirmationMatchesPassword" : "Passwords do not match",
                 "usernameExists" : "Username already exists",
                 "emailAddressAlreadyExists" : "Email address already exists",
                 "onlyAlphabeticCharacters" : "Only alphabetic characters",
@@ -1224,9 +1310,9 @@
             "adaptiveAuthMethod" : "Adaptive authentication method",
             "SMS" : "SMS",
             "OAuth" : "OAuth",
-            "createNewUser" : "Create New User",            
+            "createNewUser" : "Create New User",
             "password" : "Password",
-            "confirmPassword" : "Confirm Password",
+            "confirmPassword" : "ReType Password",
             "newPassword" : "New password",
             "oldPassword" : "Old password",
             "confirmNewPassword" : "Confirm new password",

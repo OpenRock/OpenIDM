@@ -25,16 +25,45 @@
 /*global define, $, _, Handlebars */
 
 define("org/forgerock/openidm/ui/admin/workflow/ProcessListView", [
-    "org/forgerock/openidm/ui/admin/util/AdminAbstractView"
-], function(AdminAbstractView) {
+    "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
+    "org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView",
+    "org/forgerock/openidm/ui/admin/workflow/ProcessDefinitionsView",
+    "org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView",
+    "org/forgerock/commons/ui/common/main/AbstractCollection"
+], function(AdminAbstractView,
+            ActiveProcessesView,
+            ProcessDefinitionsView,
+            ProcessHistoryView,
+            AbstractCollection) {
     var ProcessListView = AdminAbstractView.extend({
         template: "templates/admin/workflow/ProcessListViewTemplate.html",
         events: {
+            "change #processFilterType" : "filterType"
+        },
+        model : {
 
         },
-        render: function(args, callback) {
-            this.parentRender(_.bind(function(){
+        render: function(args, activeProcessCallback, processDefinitionsCallback, processHistoryCallback) {
+            var processDefinition = {};
 
+            this.parentRender(_.bind(function(){
+                this.model.processDefinitions = new AbstractCollection();
+                this.model.processDefinitions.url =  "/openidm/workflow/processdefinition?_queryId=filtered-query";
+
+                this.model.processDefinitions.getFirstPage().then(function(processDefinitions){
+                    processDefinition = _.chain(processDefinitions.result)
+                        .map(function (pd) {
+                            return _.pick(pd,"name","key");
+                        })
+                        .uniq(function (pdm) {
+                            return pdm.name;
+                        })
+                        .value();
+
+                    ActiveProcessesView.render([processDefinition] , activeProcessCallback);
+                    ProcessDefinitionsView.render([], processDefinitionsCallback);
+                    ProcessHistoryView.render([processDefinition], processHistoryCallback);
+                });
             }, this));
         }
     });

@@ -87,6 +87,7 @@ import org.forgerock.json.resource.ServiceUnavailableException;
 import org.forgerock.json.resource.SingletonResourceProvider;
 import org.forgerock.json.resource.SortKey;
 import org.forgerock.json.resource.UpdateRequest;
+import org.forgerock.openidm.audit.util.NullActivityLogger;
 import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.PropertyAccessor;
@@ -377,6 +378,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
         provider = Pair.of(new ConnectorInfoProviderService(), context);
         provider.getLeft().bindConnectorFacadeFactory(this);
         provider.getLeft().bindConnectorInfoManager(this);
+        provider.getLeft().bindEnhancedConfig(new JSONEnhancedConfig());
         provider.getLeft().activate(context);
 
         File[] configJsons = (new File(root, "/config/")).listFiles(new FilenameFilter() {
@@ -405,10 +407,14 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
             service.bindConnectorInfoProvider(provider.getLeft());
             service.bindRouterRegistry(this);
             service.bindSyncFailureHandlerFactory(this);
+            service.bindEnhancedConfig(new JSONEnhancedConfig());
             service.bindConnectionFactory(Resources.newInternalConnectionFactory(router));
 
+            //set as NullActivityLogger to be the mock logger.
+            service.setActivityLogger(NullActivityLogger.INSTANCE);
+
             // Attempt to activate the provisioner service up to 4 times, using ConnectorFacade#test to
-            // validate proper initializationn.  If the connector info manager is not be initialized, the
+            // validate proper initialization.  If the connector info manager is not be initialized, the
             // test fails because the connector cannot connect to the remote server.  In this test, it 
             // manifests as a timing issue owing to the flexibility in the provisioner service and the 
             // connector info provider supporting the ability for the connector server to come and go, as

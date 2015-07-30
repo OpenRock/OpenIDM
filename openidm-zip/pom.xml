@@ -407,6 +407,10 @@
             <groupId>org.forgerock.commons</groupId>
             <artifactId>script-groovy</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.forgerock.commons</groupId>
+            <artifactId>forgerock-audit-handler-csv</artifactId>
+        </dependency>
 
         <!-- OpenICF -->
         <dependency>
@@ -572,7 +576,7 @@
         <dependency>
             <groupId>org.forgerock.opendj</groupId>
             <artifactId>opendj-ldap-sdk</artifactId>
-            <version>2.6.9</version>
+            <version>2.6.10</version>
         </dependency>
 
         <!-- scriptedazure sample Groovy dependencies -->

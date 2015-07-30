@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2013-2014 ForgeRock AS. All Rights Reserved
+ * Copyright (c) 2013-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -55,6 +55,7 @@ import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.References;
 import org.apache.felix.scr.annotations.Service;
+import org.forgerock.audit.events.AuditEvent;
 import org.forgerock.json.crypto.JsonCrypto;
 import org.forgerock.json.crypto.JsonCryptoException;
 import org.forgerock.json.fluent.JsonValue;
@@ -74,13 +75,14 @@ import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResultHandler;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.RequestHandler;
+import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.ResultHandler;
 import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.ServiceUnavailableException;
 import org.forgerock.json.resource.UpdateRequest;
-import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
+import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.crypto.CryptoService;
@@ -164,6 +166,8 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
     // Public Constants
     public static final String PID = "org.forgerock.openidm.script";
 
+    private ConnectionFactory connectionFactory = null;
+
     /**
      * Setup logging for the {@link ScriptRegistryService}.
      */
@@ -180,7 +184,11 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
     private static final String SOURCE_VISIBILITY = "visibility";
     private static final String SOURCE_TYPE = "type";
     private static final String SOURCE_GLOBALS = "globals";
-    
+
+    /** Enhanced configuration service. */
+    @Reference(policy = ReferencePolicy.DYNAMIC)
+    private EnhancedConfig enhancedConfig;
+
 
     private final ConcurrentMap<String, Object> openidm = new ConcurrentHashMap<String, Object>();
     private static final ConcurrentMap<String, Object> propertiesCache = new ConcurrentHashMap<String, Object>();
@@ -193,7 +201,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
 
     @Activate
     protected void activate(ComponentContext context) throws Exception {
-        JsonValue configuration = JSONEnhancedConfig.newInstance().getConfigurationAsJson(context);
+        JsonValue configuration = enhancedConfig.getConfigurationAsJson(context);
 
         setConfiguration(configuration.required().asMap());
 
@@ -273,7 +281,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
 
     @Modified
     protected void modified(ComponentContext context) {
-        JsonValue configuration = JSONEnhancedConfig.newInstance().getConfigurationAsJson(context);
+        JsonValue configuration = enhancedConfig.getConfigurationAsJson(context);
         setConfiguration(configuration.required().asMap());
         propertiesCache.clear();
         Set<String> keys =
@@ -321,6 +329,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         openidm.put("query", ResourceFunctions.newQueryFunction(connectionFactory));
         openidm.put("delete", ResourceFunctions.newDeleteFunction(connectionFactory));
         openidm.put("action", ResourceFunctions.newActionFunction(connectionFactory));
+        this.connectionFactory = connectionFactory;
         logger.info("Resource functions are enabled");
     }
 
@@ -332,6 +341,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         openidm.remove("query");
         openidm.remove("delete");
         openidm.remove("action");
+        this.connectionFactory = null;
         logger.info("Resource functions are disabled");
     }
 
@@ -703,6 +713,20 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
             throw new ExecutionException(e);
         } catch (ResourceException e) {
             throw new ExecutionException(e);
+        }
+    }
+
+    @Override
+    public void auditScheduledService(final ServerContext context, final AuditEvent auditEvent)
+            throws ExecutionException {
+        try {
+            if (connectionFactory != null) {
+                connectionFactory.getConnection().create(
+                        context, Requests.newCreateRequest("audit/access", auditEvent.getValue()));
+            }
+        } catch (ResourceException e) {
+            logger.error("Unable to audit scheduled service {}", auditEvent.toString());
+            throw new ExecutionException("Unable to audit scheduled service", e);
         }
     }
 

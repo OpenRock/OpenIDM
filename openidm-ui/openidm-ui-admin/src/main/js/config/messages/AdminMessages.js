@@ -163,6 +163,18 @@ define("config/messages/AdminMessages", [
         "linkQualifierSaveSuccess": {
             msg: "config.messages.SyncMessages.linkQualifierSaveSuccess",
             type: "info"
+        },
+        "cancelActiveProcess": {
+            msg: "config.messages.WorkflowMessages.cancelActiveProcess",
+            type: "info"
+        },
+        "selfServiceSaveSuccess": {
+            msg: "config.messages.settingMessages.saveSelfServiceSuccess",
+            type: "info"
+        },
+        "emailConfigSaveSuccess": {
+            msg: "config.messages.settingMessages.saveEmailSuccess",
+            type: "info"
         }
     };
 

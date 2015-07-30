@@ -41,6 +41,7 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
+import org.forgerock.audit.events.AuditEvent;
 import org.forgerock.guava.common.base.Predicate;
 import org.forgerock.guava.common.collect.FluentIterable;
 import org.forgerock.json.fluent.JsonPointer;
@@ -51,13 +52,14 @@ import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.ConnectionFactory;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.ReadRequest;
+import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.ResultHandler;
 import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.SingletonResourceProvider;
 import org.forgerock.json.resource.UpdateRequest;
-import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
+import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.quartz.impl.ExecutionException;
 import org.forgerock.openidm.quartz.impl.ScheduledService;
 import org.forgerock.openidm.sync.ReconAction;
@@ -129,9 +131,13 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
         scriptRegistry = null;
     }
 
+    /** Enhanced configuration service. */
+    @Reference(policy = ReferencePolicy.DYNAMIC)
+    private EnhancedConfig enhancedConfig;
+
     @Activate
     protected void activate(ComponentContext context) {
-        JsonValue config = new JsonValue(new JSONEnhancedConfig().getConfiguration(context));
+        JsonValue config = new JsonValue(enhancedConfig.getConfiguration(context));
         try {
             mappings = new ArrayList<ObjectMapping>();
             initMappings(mappings, config);
@@ -147,7 +153,7 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
 
     @Modified
     protected void modified(ComponentContext context) {
-        JsonValue config = new JsonValue(new JSONEnhancedConfig().getConfiguration(context));
+        JsonValue config = new JsonValue(enhancedConfig.getConfiguration(context));
         ArrayList<ObjectMapping> newMappings = new ArrayList<ObjectMapping>();
         try {
             initMappings(newMappings, config);
@@ -216,7 +222,7 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
      * Local interface to encapsulate the notifyCreate/notifyUpdate/notifyDelete ObjectMapping synchronization
      * across all mappings.
      *
-     * @see #syncAllMappings(org.forgerock.openidm.sync.impl.SynchronizationService.SyncAction, String, String)
+     * @see #syncAllMappings(ServerContext, SyncAction, String, String)
      */
     private interface SyncAction {
         JsonValue sync(ServerContext context, ObjectMapping mapping) throws SynchronizationException;
@@ -361,6 +367,18 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
             throw new ExecutionException(jve);
         } catch (ResourceException re) {
             throw new ExecutionException(re);
+        }
+    }
+
+    @Override
+    public void auditScheduledService(final ServerContext context, final AuditEvent auditEvent)
+            throws ExecutionException {
+        try {
+            connectionFactory.getConnection().create(
+                    context, Requests.newCreateRequest("audit/access", auditEvent.getValue()));
+        } catch (ResourceException e) {
+            logger.error("Unable to audit scheduled service {}", auditEvent.toString());
+            throw new ExecutionException("Unable to audit scheduled service", e);
         }
     }
 

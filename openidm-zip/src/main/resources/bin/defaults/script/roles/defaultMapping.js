@@ -147,66 +147,68 @@ if (typeof oldSource !== 'undefined' && oldSource !== null) {
     var currentAssignments = source.effectiveAssignments; // Assignments from the current source value
     var unassigned = [];
     // Loop through old assignments
-    for (var x = 0; x < oldAssignments.length; x++) {
-        oldAssignment = oldAssignments[x];
-        // Check that this assignment is relevant to this mapping
-        if (assignments.indexOf(oldAssignment.name) > -1) {
-            var assignmentRemoved = false;
-            // Get the Current assignment, may be null if it has been removed/unassigned
-            var currentAssignment = findAssignment(oldAssignment, currentAssignments);
-            if (currentAssignment === null) {
-                // This assignment has been unassigned
-                var onUnassignment = oldAssignment.onUnassignment;
-                // Check if an onUnassignment script is configured
-                if (typeof onUnassignment !== 'undefined' && onUnassignment !== null) {
-                    onUnassignment.attributes = oldAssignment.attributes;
-                    execOnScript(onUnassignment);
+    if (typeof oldAssignments !== 'undefined' && oldAssignments !== null) {
+        for (var x = 0; x < oldAssignments.length; x++) {
+            oldAssignment = oldAssignments[x];
+            // Check that this assignment is relevant to this mapping
+            if (assignments.indexOf(oldAssignment.name) > -1) {
+                var assignmentRemoved = false;
+                // Get the Current assignment, may be null if it has been removed/unassigned
+                var currentAssignment = findAssignment(oldAssignment, currentAssignments);
+                if (currentAssignment === null) {
+                    // This assignment has been unassigned
+                    var onUnassignment = oldAssignment.onUnassignment;
+                    // Check if an onUnassignment script is configured
+                    if (typeof onUnassignment !== 'undefined' && onUnassignment !== null) {
+                        onUnassignment.attributes = oldAssignment.attributes;
+                        execOnScript(onUnassignment);
+                    }
+                    assignmentRemoved = true;
                 }
-                assignmentRemoved = true;
-            }
-            // Get the Old assignment's attributes
-            var oldAttributes = oldAssignment.attributes;
-            // Loop through old attributes and execute the unassignmentOperation on any that were removed or updated
-            for (var i = 0; i < oldAttributes.length; i++) {
-                var oldAttribute = oldAttributes[i];
-                var removedOrUpdated = true;
-                // If the assignment has not been removed, then we need to check if the attribute has been removed or updated.
-                if (!assignmentRemoved && currentAssignment !== null) {
-                    var currentAttributes = currentAssignment.attributes;
-                    // Loop through attributes to check if they have been removed/updated
-                    for (var j = 0; j < currentAttributes.length; j++) {
-                        var currentAttribute = currentAttributes[j];
-                        if (oldAttribute.name == currentAttribute.name) {
-                            if (areAttributesEqual(oldAttribute, currentAttribute)) {
-                                // attribute was found and not updated
-                                removedOrUpdated = false;
+                // Get the Old assignment's attributes
+                var oldAttributes = oldAssignment.attributes;
+                // Loop through old attributes and execute the unassignmentOperation on any that were removed or updated
+                for (var i = 0; i < oldAttributes.length; i++) {
+                    var oldAttribute = oldAttributes[i];
+                    var removedOrUpdated = true;
+                    // If the assignment has not been removed, then we need to check if the attribute has been removed or updated.
+                    if (!assignmentRemoved && currentAssignment !== null) {
+                        var currentAttributes = currentAssignment.attributes;
+                        // Loop through attributes to check if they have been removed/updated
+                        for (var j = 0; j < currentAttributes.length; j++) {
+                            var currentAttribute = currentAttributes[j];
+                            if (oldAttribute.name == currentAttribute.name) {
+                                if (areAttributesEqual(oldAttribute, currentAttribute)) {
+                                    // attribute was found and not updated
+                                    removedOrUpdated = false;
+                                }
+                                break;
                             }
-                            break;
+                        }
+                    }
+                    // Check if the old attribute has been removed
+                    if (removedOrUpdated) {
+                        var unassignmentOperation = oldAttribute.unassignmentOperation;
+                        if (unassignmentOperation == null) {
+                            // Default to replace and use the entire value
+                            unassignmentOperation = defaultUnassignmentOperation;
+                        }
+                        if (typeof unassignmentOperation !== 'undefined' && unassignmentOperation !== null) {
+                            var config = getConfig(unassignmentOperation);
+                            config.attributeName = oldAttribute.name;
+                            config.attributeValue = oldAttribute.value;
+                            var unassignmentResult = openidm.action("script", "eval", config, {});
+                            // Update the target (working copy)
+                            target[oldAttribute.name] = unassignmentResult;
+                            // Update the existingTarget, in order to carry changes over to additional operations that may use the existingTarget
+                            if (typeof existingTarget !== 'undefined' && existingTarget !== null) {
+                                existingTarget[oldAttribute.name] = unassignmentResult;
+                            }
                         }
                     }
                 }
-                // Check if the old attribute has been removed
-                if (removedOrUpdated) {
-                    var unassignmentOperation = oldAttribute.unassignmentOperation;
-                    if (unassignmentOperation == null) {
-                        // Default to replace and use the entire value
-                        unassignmentOperation = defaultUnassignmentOperation;
-                    }
-                    if (typeof unassignmentOperation !== 'undefined' && unassignmentOperation !== null) {
-                        var config = getConfig(unassignmentOperation);
-                        config.attributeName = oldAttribute.name;
-                        config.attributeValue = oldAttribute.value;
-                        var unassignmentResult = openidm.action("script", "eval", config, {});
-                        // Update the target (working copy)
-                        target[oldAttribute.name] = unassignmentResult;
-                        // Update the existingTarget, in order to carry changes over to additional operations that may use the existingTarget
-                        if (typeof existingTarget !== 'undefined' && existingTarget !== null) {
-                            existingTarget[oldAttribute.name] = unassignmentResult;
-                        }
-                    }
-                }
-            }
 
+            }
         }
     }
 }
@@ -215,6 +217,8 @@ if (typeof oldSource !== 'undefined' && oldSource !== null) {
 if (assignments != null) {
     var effectiveAssignments = source.effectiveAssignments;
     if (effectiveAssignments != null) {
+        // Used to carry information across different assignmentOperations
+        var attibutesInfo; attributesInfoMap = {};
         for (var x = 0; x < effectiveAssignments.length; x++) {
             assignment = effectiveAssignments[x];
             // Check that this assignment is relevant to this mapping
@@ -233,18 +237,24 @@ if (assignments != null) {
                         execOnScript(onAssignment);
                     }
 
-                    // Used to carry information across different assignmentOperations
-                    var attributesInfo = {};
                     // Loop through attributes, performing the assignmentOperations
                     for (var i = 0; i < attributes.length; i++) {
                         var attribute = attributes[i];
                         var assignmentOperation = attribute.assignmentOperation;
                         var value = attribute.value;
                         var name = attribute.name;
+                        
+                        attributesInfo = attributesInfoMap[name];
+                        if (typeof attributesInfo === "undefined" || attributesInfo === null) {
+                            // Initialize if it has not already been defined for this attribute
+                            attributesInfo = {};
+                        }
+                        
                         if (assignmentOperation == null) {
                             // Default to replace and use the entire value
                             assignmentOperation = defaultAssignmentOperation;
                         }
+                        
                         // Process the assignmentOperation
                         var config = getConfig(assignmentOperation);
                         config.attributeName = name;
@@ -256,7 +266,7 @@ if (assignments != null) {
                         target[name] = assignmentResult.value;
                         // Update any passed back attributesInfo
                         if (assignmentResult.hasOwnProperty("attributesInfo")) {
-                            attributesInfo = assignmentResult.attributesInfo;
+                            attributesInfoMap[name] = assignmentResult.attributesInfo;
                         }
                     }
                 }

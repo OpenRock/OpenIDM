@@ -2216,7 +2216,7 @@ mysql &gt; <userinput>select * from users;</userinput>
     </para>
     <step>
      <para>
-      Log in to the OpenIDM UI (https://localhost:8443/selfservice) as any one of
+      Log in to the OpenIDM UI (https://localhost:8443/) as any of
       the users that was created in the repository by the previous
       reconciliation operation.
      </para>
@@ -4411,12 +4411,11 @@ $ ./startup.sh -p samples/sample4</screen>
    <primary>Samples</primary>
    <secondary>Sample 5 - Synchronization of two resources</secondary>
   </indexterm>
-
   <para>
    Sample 5 demonstrates the flow of data from one external resource to
    another. The resources are named <literal>LDAP</literal> and
-   <literal>AD</literal> but in the sample, both directory-like resources are
-   simulated with XML files.
+   <literal>AD</literal> but in the sample, both resources are simulated with
+   XML files.
   </para>
   <para>
    You can optionally configure an outbound email service, if you want to
@@ -4428,20 +4427,21 @@ $ ./startup.sh -p samples/sample4</screen>
    <title>Configure Email for the Sample</title>
    <para>
     If you do not configure the email service, the functionality of the sample
-    does not change. However, you might see the following message at the
+    does not change. However, you might see the following message in the
     OpenIDM console when you run a reconciliation operation:
    </para>
    <screen>Email service not configured; report not generated.</screen>
 
    <procedure>
     <para>
-     To configure an email summary, follow these steps:
+     To configure OpenIDM to send a reconciliation summary by email, follow
+     these steps:
     </para>
-
     <step>
      <para>
       Copy the template <filename>external.email.json</filename> file from
-      the <filename>samples/misc</filename> directory:
+      the <filename>samples/misc</filename> directory to the <literal>conf</literal>
+      directory of Sample 5:
      </para>
      <screen>$ cd /path/to/openidm
 $ cp samples/misc/external.email.json samples/sample5/conf
@@ -4728,16 +4728,17 @@ $ ./startup.sh -p samples/sample5b</screen>
    </para>
    <para>
     Log into the OpenIDM UI as the administrative user. On a local system,
-    navigate to <literal>https://localhost:8443/selfservice</literal>. The default
+    navigate to <literal>https://localhost:8443/admin</literal>. The default
     administrative account and password are both <literal>openidm-admin</literal>.
    </para>
    <para>
-    Make a change to the data of an existing user (<literal>DDOE1</literal>).
-    As a result of the implicit synchronization from the managed object
-    repository, that change is reflected almost immediately on the external
-    resources. For sample 5b, you should see the changes in both XML files in
-    the <filename>sample5b/data</filename> directory. Alternatively, you can
-    query the external resources over REST, as described previously.
+    Select Manage &gt; User. Make a change to the data of an existing user
+    (<literal>DDOE1</literal>). As a result of the implicit synchronization
+    from the managed object repository, that change is reflected almost
+    immediately on the external resources. For sample 5b, you should see the
+    changes in both XML files in the <filename>sample5b/data</filename>
+    directory. Alternatively, you can query the external resources over REST,
+    as described previously.
    </para>
    <para>
     The synchronization is successful, across all configured external resources,
@@ -6800,11 +6801,13 @@ Based on the presence of a shared SSO token, any application secured by OpenAM
 
    <para>
     After you complete the steps described in Sample 2b, do one more thing.
-    Navigate to the Self-Service UI at
-    <literal>https://openidm.example.com:8443/selfservice</literal>, and select
-    Users. Select a specific user, such as <literal>bjensen</literal>. Click
-    Change Password and change that password.
+    Navigate to the Admin UI at
+    <literal>https://openidm.example.com:8443/admin</literal>, and select
+    Manage &gt; User. Select a specific user, such as
+    <literal>bjensen</literal>. Click Change Password and change that password.
    </para>
+
+   <!-- Currently broken, per OPENIDM-3560 -->
 
    <para>
     Return to the Admin UI, select Mappings, and select the
