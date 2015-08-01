@@ -20,7 +20,7 @@
   !
   ! CCPL HEADER END
   !
-  !      Copyright 2011-2014 ForgeRock AS
+  !      Copyright 2011-2015 ForgeRock AS
   !    
 -->
 <appendix xml:id='appendix-rest'
@@ -377,13 +377,19 @@
   <title>Updating an Object</title>
   <para>
    An update replaces some or all of the contents of an existing object. Any
-   object can be updated over REST with a PUT request. <emphasis>Managed
-   objects</emphasis> can also be updated with a POST request, using the
-   <literal>patch</literal> action, or with a PATCH request.
+   object can be updated over REST with a PUT request. Managed objects can be
+   updated with a POST request, using the <literal>patch</literal> action.
+   Managed objects and system objects can also be updated with a PATCH request.
   </para>
   <para>
-   To update an object with a <literal>PUT</literal> request, use the
-   <literal>If-Match</literal> header, for example:
+   When you update a managed or system object with a PUT request, you can
+   include the optional <literal>If-Match</literal> conditional header. If no
+   conditional header is specified, a default of <literal>If-Match: "*"</literal>
+   is applied.
+  </para>
+  <para>
+   The following example updates the <literal>"description"</literal> field for
+   Babs Jensen.
   </para>
   <screen>$ <userinput> curl \
  --cacert self-signed.crt \
@@ -436,10 +442,15 @@
    ...
 }</computeroutput></screen>
   <para>
-   To update a managed object with a PATCH request, use the
-   <literal>If-Match</literal> header. A PATCH request can add, remove, replace,
-   or increment an attribute value. A <literal>replace</literal> operation
-   replaces an existing value, or adds a value if no value exists.
+   A PATCH request can add, remove, replace, or increment an attribute value. A
+   <literal>replace</literal> operation replaces an existing value, or adds a
+   value if no value exists.
+  </para>
+  <para>
+   When you update a managed or system object with a PATCH request, you can
+   include the optional <literal>If-Match</literal> conditional header. If no
+   conditional header is specified, a default of <literal>If-Match: "*"</literal>
+   is applied.
   </para>
   <para>
    The following example shows a patch request that updates a multi-valued
@@ -544,13 +555,15 @@
 
  <section xml:id="rest-conditional-operations">
   <title>Conditional Operations</title>
-
-  <para>The REST API fully supports conditional operations through the use of
-  the <literal>ETag</literal>, <literal>If-Match</literal> and
-  <literal>If-None-Match</literal> HTTP headers. The use of HTTP conditional
-  operations is the basis of OpenIDM's optimistic concurrency control system.
-  Clients should make requests conditional in order to prevent inadvertent
-  modification of the wrong version of an object.</para>
+  <para>
+   The REST API supports conditional operations through the use of the
+   <literal>ETag</literal>, <literal>If-Match</literal> and
+   <literal>If-None-Match</literal> HTTP headers. The use of HTTP conditional
+   operations is the basis of OpenIDM's optimistic concurrency control system.
+   Clients should make requests conditional in order to prevent inadvertent
+   modification of the wrong version of an object. If no conditional header is
+   specified, a default of <literal>If-Match: "*"</literal> is applied.
+  </para>
  </section>
 
  <section xml:id="rest-supported-methods">
@@ -708,9 +721,11 @@ ETag: "0"
    <varlistentry>
     <term>POST</term>
     <listitem>
-     <para>The POST method allows arbitrary actions to be performed on managed
-     objects. The <literal>_action</literal> query parameter defines the action
-     to be performed.</para>
+     <para>
+      The POST method enables you to perform arbitrary actions on managed
+      objects. The <literal>_action</literal> query parameter defines the action
+      to be performed.
+     </para>
      <para>The <literal>create</literal> action is used to create a managed
      object. Because POST is neither safe nor idempotent, PUT is the preferred
      method of creating managed objects, and should be used if the client knows
@@ -721,8 +736,10 @@ ETag: "0"
      query parameter to specify the identifier to give the newly created
      object. If an <literal>_id</literal> is not provided, the server selects
      its own identifier.</para>
-     <para>The <literal>patch</literal> action is used to update one or more
-     attributes of a managed object, without replacing the entire object.</para>
+     <para>
+      The <literal>patch</literal> action updates one or more attributes of
+      a managed object, without replacing the entire object.
+     </para>
 
      <para>Example Create Request</para>
      <programlisting language="http">
@@ -805,10 +822,9 @@ Content-Length: 89
    <varlistentry>
     <term>PATCH</term>
     <listitem>
-     <para>Performs a partial modification of a managed object.</para>
-     <para>See the <link xlink:show="new"
-     xlink:href="http://tools.ietf.org/html/draft-pbryan-json-patch-04">JSON
-     Patch Internet-Draft</link> for details.</para>
+     <para>
+      Performs a partial modification of a managed or system object.
+     </para>
      <para>Example Request</para>
      <programlisting language="http">
 PATCH /openidm/managed/user/5752c0fd9509
@@ -1261,8 +1277,13 @@ Content-Length: 89
       </row>
       <row>
        <entry>/openidm/system/<replaceable>system-name</replaceable>/<replaceable>system-object</replaceable>/<replaceable>id</replaceable></entry>
+       <entry>PATCH</entry>
+       <entry>Updates the specified fields of a system object</entry>
+      </row>
+      <row>
+       <entry>/openidm/system/<replaceable>system-name</replaceable>/<replaceable>system-object</replaceable>/<replaceable>id</replaceable></entry>
        <entry>DELETE</entry>
-       <entry>Deletes a system object.</entry>
+       <entry>Deletes a system object</entry>
       </row>
      </tbody>
     </tgroup>
@@ -1281,7 +1302,9 @@ Content-Length: 89
     "message":"The uid attribute is not single value attribute."
 }</screen>
     <para>
-     The <literal>patch</literal> action is not supported on system objects.
+     A <literal>POST</literal> request with a <literal>patch</literal> action is
+     not currently supported on system objects. To patch a system object, you
+     must send a <literal>PATCH</literal> request.
     </para>
    </note>
 
@@ -1529,12 +1552,17 @@ Content-Length: 89
        <row>
         <entry>/openidm/workflow/processinstance?_queryId=query-all-ids</entry>
         <entry>GET</entry>
-        <entry>Lists the available running workflows, by IDs</entry>
+        <entry>Lists the available running workflows, by their ID</entry>
        </row>
        <row>
         <entry>/openidm/workflow/processinstance/<replaceable>id</replaceable></entry>
         <entry>GET</entry>
         <entry>Provides detailed information of a running process instance</entry>
+       </row>
+       <row>
+        <entry>/openidm/workflow/processinstance/history?_queryId=query-all-ids</entry>
+        <entry>GET</entry>
+        <entry>Lists running and completed workflows, by their ID</entry>
        </row>
        <row>
         <entry>/openidm/workflow/processdefinition/<replaceable>id</replaceable>/taskdefinition</entry>
@@ -1717,6 +1745,16 @@ Content-Length: 89
         <replaceable>situation</replaceable>&amp;reconId=<replaceable>id</replaceable></entry>
         <entry>GET</entry>
         <entry>Queries the reconciliation audit log for a specific reconciliation situation</entry>
+       </row>
+       <row>
+        <entry>/openidm/audit/sync</entry>
+        <entry>GET</entry>
+        <entry>Displays the synchronization audit log</entry>
+       </row>
+       <row>
+        <entry>/openidm/audit/sync/<replaceable>id</replaceable></entry>
+        <entry>GET</entry>
+        <entry>Reads a specific synchronization audit log entry</entry>
        </row>
        <row>
         <entry>/openidm/audit/activity</entry>

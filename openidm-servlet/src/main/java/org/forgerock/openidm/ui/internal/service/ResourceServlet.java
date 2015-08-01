@@ -13,6 +13,8 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Portions copyright 2013-2015 ForgeRock AS.
  */
 package org.forgerock.openidm.ui.internal.service;
 
@@ -38,8 +40,9 @@ import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Modified;
 import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
+import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.core.IdentityServer;
 import org.ops4j.pax.web.service.WebContainer;
 import org.osgi.framework.Bundle;
@@ -81,7 +84,11 @@ public final class ResourceServlet extends HttpServlet {
     
     @Reference
     private WebContainer webContainer;
-    
+
+    /**vn comEnhanced configuration service. */
+    @Reference(policy = ReferencePolicy.DYNAMIC)
+    private EnhancedConfig enhancedConfig;
+
     @Activate
     protected void activate(ComponentContext context) throws ServletException, NamespaceException {
         logger.info("Activating resource servlet with configuration {}", context.getProperties());
@@ -105,11 +112,17 @@ public final class ResourceServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse res)
             throws ServletException, IOException {
         logger.debug("GET call on {}", req);
-        
-        String target = req.getPathInfo();
-        if (target == null || "/".equals(target)) {
-            res.sendRedirect(req.getServletPath() + "/index.html");
+
+        // the request pathInfo is always null for root contexts
+        String target = ("/".equals(contextRoot))
+                ? req.getServletPath()
+                : req.getPathInfo();
+        if (target == null || "".equals(target)) {
+            res.sendRedirect(req.getServletPath() + "/");
         } else {
+            if ("/".equals(target)) {
+                target = "/index.html";
+            }
             target = prependSlash(target);
 
             File extFile = null;
@@ -129,7 +142,7 @@ public final class ResourceServlet extends HttpServlet {
                     break;
                 }
             }
-            
+
             // Look in the bundle rather than the servlet context, as we're using shared servlet contexts
             URL url = null;
             if (extFile != null && extFile.exists()) {
@@ -159,7 +172,7 @@ public final class ResourceServlet extends HttpServlet {
      * @throws NamespaceException
      */
     private void init(ComponentContext context) throws ServletException, NamespaceException {
-        JsonValue config = new JSONEnhancedConfig().getConfigurationAsJson(context);
+        JsonValue config = enhancedConfig.getConfigurationAsJson(context);
         
         if (!config.get(CONFIG_ENABLED).isNull() && Boolean.FALSE.equals(config.get(CONFIG_ENABLED).asBoolean())) {
             logger.info("UI is disabled - not registering UI servlet");

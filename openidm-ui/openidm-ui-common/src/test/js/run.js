@@ -22,57 +22,84 @@
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
 
-/*global $, require, QUnit */
+/*global define, QUnit */
 
-require.config({
-    paths: {
-        sinon: "../test/libs/sinon-1.12.2",
-        text: "../test/text"
-    },
-    shim: {
-        sinon: {
-            exports: "sinon"
-        }
-    }
-});
 
-require([
+define([
+    "jquery",
+    "underscore",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/EventManager",
     "sinon",
-    "../test/tests/mocks/systemInit",
     "../test/tests/common",
     "../test/tests/specific"
-], function (constants, eventManager, sinon, systemInit, commonTests, specificTests) {
+], function ($, _, constants, eventManager, sinon, commonTests, specificTests) {
 
-    var server = sinon.fakeServer.create();
-    server.autoRespond = true;
-    systemInit(server);
+    $.doTimeout = function (name, time, func) {
+        func(); // run the function immediately rather than delayed.
+    };
 
-    sinon.stub(eventManager, "sendEvent", function (eventId, event) {
+    return function (server) {
+        eventManager.registerListener(constants.EVENT_APP_INTIALIZED, function () {
+            QUnit.testStart(function (testDetails) {
 
-        // the normal behavior for sendEvent:
-        $(document).trigger(eventId, event);
+                console.log("Starting " + testDetails.module + ":" + testDetails.name + "("+ testDetails.testNumber +")");
 
-        // special extended behavior for our stub:
-        if (eventId === constants.EVENT_APP_INTIALIZED) {
-            eventManager.sendEvent.restore();
-            // delayed testing start gives the app time to stablize during startup
+                // every state needs to be reset at the starat of each test
+                var vm = require("org/forgerock/commons/ui/common/main/ViewManager"),
+                    lqu = require("org/forgerock/openidm/ui/admin/util/LinkQualifierUtils"),
+                    connectorDelegate = require("org/forgerock/openidm/ui/admin/delegates/ConnectorDelegate"),
+                    configDelegate = require("org/forgerock/openidm/ui/common/delegates/ConfigDelegate");
+
+                connectorDelegate.deleteCurrentConnectorsCache();
+                lqu.model.linkQualifier = [];
+                configDelegate.clearDelegateCache();
+
+                server.responses = _.filter(server.responses, function (resp) {
+                    return  typeof resp.url === "object" && (
+                                resp.url.test('locales/en/translation.json') ||
+                                resp.url.test('libs/less-1.5.1-min.js')
+                            ) ||
+                            typeof resp.url === "string" && (
+                                resp.url === '/openidm/config/ui/themeconfig'
+                            );
+                });
+
+                vm.currentView = null;
+                vm.currentDialog = null;
+                vm.currentViewArgs = null;
+                vm.currentDialogArgs = null;
+
+                localStorage.clear();
+                sessionStorage.clear();
+
+                require("org/forgerock/commons/ui/common/main/Configuration").baseTemplate = null;
+            });
+
+            QUnit.testDone(function () {
+                // various widgets which get added outside of the fixture and need to be cleaned up
+                $(".modal-backdrop").remove();
+                //$(".modal").remove();
+                $(".ui-autocomplete").remove();
+                $(".ui-helper-hidden-accessible").remove();
+                $("body").removeClass("modal-open");
+            });
+
+            QUnit.done(function () {
+                localStorage.clear();
+                sessionStorage.clear();
+                Backbone.history.stop();
+                window.location.hash = "";
+            });
+
             _.delay(function () {
-
                 QUnit.start();
 
                 commonTests.executeAll(server);
                 specificTests.executeAll(server);
+            }, 500);
 
-                QUnit.done(function () {
-                    Backbone.history.stop();
-                    window.location.hash = "";
-                });
-
-            }, 100);
-        }
-
-    });
+        });
+    };
 
 });

@@ -1,6 +1,6 @@
 OpenIDM Sample Projects and Sample Resources
 ====================================
-Copyright (c) 2012-2014 ForgeRock AS
+Copyright (c) 2012-2015 ForgeRock AS
 This work is licensed under a Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported License.
 See http://creativecommons.org/licenses/by-nc-nd/3.0/
 
@@ -14,6 +14,9 @@ more information.
 Sample Projects
 ---------------
 Below are the sample projects included in OpenIDM to show various features of OpenIDM.
+
+### Getting Started
+An XML-CSV sample for the Getting Started Guide
 
 ### Sample1
 A XML file connector sample.
@@ -33,8 +36,8 @@ A OpenDJ connector sample with sync of LDAP Groups.
 ### Sample3
 A ScriptSQL connector with mySQL.
 
-### Sample4
-A CSV connector sample.
+### Getting-Started
+Designed for the Getting Started Guide. Based on the original Sample 4.
 
 ### Sample5
 Attribute flow: LDAP -> OpenIDM -> AD with simulating xml resources

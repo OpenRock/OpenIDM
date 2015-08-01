@@ -192,7 +192,7 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`auditactivity` (
   `activity` VARCHAR(24) NULL ,
   `message` TEXT NULL ,
   `subjectid` VARCHAR(511) NULL ,
-  `subjectrev` VARCHAR(38) NULL ,
+  `subjectrev` VARCHAR(255) NULL ,
   `requester` TEXT NULL ,
   `approver` TEXT NULL ,
   `subjectbefore` MEDIUMTEXT NULL ,
@@ -296,11 +296,11 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`uinotification` (
   PRIMARY KEY (`objectid`) );
 
 INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`) 
-SELECT 'openidm-admin', '0', 'openidm-admin', 'openidm-admin,openidm-authorized'
+SELECT 'openidm-admin', '0', 'openidm-admin', '["openidm-admin","openidm-authorized"]' 
 WHERE NOT EXISTS (SELECT * FROM `openidm`.`internaluser` WHERE `objectid` = 'openidm-admin');
 
 INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`) 
-SELECT 'anonymous', '0', 'anonymous', 'openidm-reg'
+SELECT 'anonymous', '0', 'anonymous', '["openidm-reg"]'
 WHERE NOT EXISTS (SELECT * FROM `openidm`.`internaluser` WHERE `objectid` = 'anonymous');
 
     

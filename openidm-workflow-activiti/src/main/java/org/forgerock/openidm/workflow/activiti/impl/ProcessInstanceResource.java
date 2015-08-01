@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  * 
- * Copyright © 2012-2014 ForgeRock Inc. All rights reserved.
+ * Copyright © 2012-2015 ForgeRock AS. All rights reserved.
  * 
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -23,7 +23,20 @@
  */
 package org.forgerock.openidm.workflow.activiti.impl;
 
+import org.activiti.bpmn.model.BpmnModel;
+import org.activiti.engine.ActivitiException;
+import org.activiti.engine.RuntimeService;
+import org.activiti.engine.history.HistoricTaskInstance;
+import org.activiti.engine.history.HistoricTaskInstanceQuery;
+import org.activiti.engine.impl.RepositoryServiceImpl;
+import org.activiti.engine.impl.bpmn.diagram.ProcessDiagramGenerator;
+import org.activiti.engine.impl.persistence.entity.ExecutionEntity;
+import org.activiti.engine.impl.persistence.entity.HistoricTaskInstanceEntity;
+import org.activiti.engine.impl.persistence.entity.ProcessDefinitionEntity;
 import org.forgerock.openidm.workflow.activiti.ActivitiConstants;
+
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -41,30 +54,41 @@ import org.forgerock.json.fluent.JsonValue;
 import org.forgerock.json.resource.*;
 import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.openidm.workflow.activiti.impl.mixin.HistoricProcessInstanceMixIn;
+import org.forgerock.openidm.workflow.activiti.impl.mixin.HistoricTaskInstanceEntityMixIn;
+import org.forgerock.util.Function;
+import org.forgerock.util.encode.Base64;
+import org.forgerock.util.promise.NeverThrowsException;
 
 /**
  * Resource implementation of ProcessInstance related Activiti operations
+ * for both currently running processes and historic processes.
  */
 public class ProcessInstanceResource implements CollectionResourceProvider {
 
-    private final static ObjectMapper mapper;
-    private ProcessEngine processEngine;
-    private PersistenceConfig persistenceConfig;
+    private final static ObjectMapper MAPPER;
+    private final ProcessEngine processEngine;
+    private final Function<ProcessEngine, HistoricProcessInstanceQuery, NeverThrowsException> queryFunction;
 
     static {
-        mapper = new ObjectMapper();
-        mapper.getSerializationConfig().addMixInAnnotations(HistoricProcessInstanceEntity.class, HistoricProcessInstanceMixIn.class);
-        mapper.configure(SerializationConfig.Feature.FAIL_ON_EMPTY_BEANS, false);
-        mapper.configure(SerializationConfig.Feature.SORT_PROPERTIES_ALPHABETICALLY, true);
+        MAPPER = new ObjectMapper();
+        MAPPER.getSerializationConfig().addMixInAnnotations(HistoricProcessInstanceEntity.class, HistoricProcessInstanceMixIn.class);
+        MAPPER.getSerializationConfig().addMixInAnnotations(HistoricTaskInstanceEntity.class, HistoricTaskInstanceEntityMixIn.class);
+        MAPPER.configure(SerializationConfig.Feature.FAIL_ON_EMPTY_BEANS, false);
+        MAPPER.configure(SerializationConfig.Feature.SORT_PROPERTIES_ALPHABETICALLY, true);
     }
 
-    public ProcessInstanceResource(ProcessEngine processEngine, PersistenceConfig config) {
+    /**
+     * Create a new ProcessInstanceResource.
+     *
+     * @param processEngine Activiti engine used for this resource
+     * @param queryFunction a Function to provide a the properly-configured HistoricProcessInstanceQuery as appropriate
+     *                      for the type of query issued by this CollectionResourceProvider; allows this class to
+     *                      support both present and historic queries
+     */
+    public ProcessInstanceResource(ProcessEngine processEngine, Function<ProcessEngine, HistoricProcessInstanceQuery,
+            NeverThrowsException> queryFunction) {
         this.processEngine = processEngine;
-        this.persistenceConfig = config;
-    }
-
-    public void setProcessEngine(ProcessEngine processEngine) {
-        this.processEngine = processEngine;
+        this.queryFunction = queryFunction;
     }
 
     @Override
@@ -118,7 +142,7 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
             Authentication.setAuthenticatedUserId(context.asContext(SecurityContext.class).getAuthenticationId());
             HistoricProcessInstance process = processEngine.getHistoryService().createHistoricProcessInstanceQuery().processInstanceId(resourceId).singleResult();
             if (process != null) {
-                Map value = mapper.convertValue(process, HashMap.class);
+                Map value = MAPPER.convertValue(process, HashMap.class);
                 Resource r = new Resource(process.getId(), null, new JsonValue(value));
                 processEngine.getRuntimeService().deleteProcessInstance(resourceId, "Deleted by Openidm");
                 handler.handleResult(r);
@@ -141,25 +165,24 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
     public void queryCollection(ServerContext context, QueryRequest request, QueryResultHandler handler) {
         try {
             Authentication.setAuthenticatedUserId(context.asContext(SecurityContext.class).getAuthenticationId());
+            final HistoricProcessInstanceQuery query = queryFunction.apply(processEngine);
             if (ActivitiConstants.QUERY_ALL_IDS.equals(request.getQueryId())) {
-                HistoricProcessInstanceQuery query = processEngine.getHistoryService().createHistoricProcessInstanceQuery();
-                query = query.unfinished();
-                List<HistoricProcessInstance> list = query.list();
-                for (HistoricProcessInstance i : list) {
-                    Map value = mapper.convertValue(i, HashMap.class);
+                for (HistoricProcessInstance i : query.list()) {
+                    Map<String, Object> value = MAPPER.convertValue(i, Map.class);
+                    // TODO OPENIDM-3603 add relationship support
+                    value.put(ActivitiConstants.ACTIVITI_PROCESSDEFINITIONRESOURCENAME, getProcessDefName(i));
                     Resource r = new Resource(i.getId(), null, new JsonValue(value));
                     handler.handleResource(r);
                 }
                 handler.handleResult(new QueryResult());
             } else if (ActivitiConstants.QUERY_FILTERED.equals(request.getQueryId())) {
-                HistoricProcessInstanceQuery query = processEngine.getHistoryService().createHistoricProcessInstanceQuery();
                 setProcessInstanceParams(query, request);
-                query = query.unfinished();
-                List<HistoricProcessInstance> list = query.list();
-                for (HistoricProcessInstance processinstance : list) {
-                    Map value = mapper.convertValue(processinstance, HashMap.class);
-                    Resource r = new Resource(processinstance.getId(), null, new JsonValue(value));
-                    handler.handleResource(r);
+                setSortKeys(query, request);
+                for (HistoricProcessInstance processinstance : query.list()) {
+                    Map<String, Object> value = MAPPER.convertValue(processinstance, Map.class);
+                    // TODO OPENIDM-3603 add relationship support
+                    value.put(ActivitiConstants.ACTIVITI_PROCESSDEFINITIONRESOURCENAME, getProcessDefName(processinstance));
+                    handler.handleResource(new Resource(processinstance.getId(), null, new JsonValue(value)));
                 }
                 handler.handleResult(new QueryResult());
             } else {
@@ -176,16 +199,66 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
             Authentication.setAuthenticatedUserId(context.asContext(SecurityContext.class).getAuthenticationId());
             HistoricProcessInstance instance =
                     processEngine.getHistoryService().createHistoricProcessInstanceQuery().processInstanceId(resourceId).singleResult();
+
             if (instance == null) {
                 handler.handleError(new NotFoundException());
             } else {
-                Map value = mapper.convertValue(instance, HashMap.class);
-                Resource r = new Resource(instance.getId(), null, new JsonValue(value));
-                handler.handleResult(r);
+                JsonValue content = new JsonValue(MAPPER.convertValue(instance, Map.class));
+                // TODO OPENIDM-3603 add relationship support
+                content.put(ActivitiConstants.ACTIVITI_PROCESSDEFINITIONRESOURCENAME, getProcessDefName(instance));
+                content.put("tasks", getTasksForProcess(instance.getId()));
+
+                // diagram support
+                if (request.getFields().contains(ActivitiConstants.ACTIVITI_DIAGRAM)) {
+                    final RuntimeService runtimeService = processEngine.getRuntimeService();
+                    final RepositoryServiceImpl repositoryService =
+                            (RepositoryServiceImpl) processEngine.getRepositoryService();
+                    final ExecutionEntity executionEntity = (ExecutionEntity) runtimeService
+                            .createProcessInstanceQuery()
+                            .processInstanceId(resourceId)
+                            .singleResult();
+                    if (executionEntity == null) {
+                        throw new ActivitiObjectNotFoundException(
+                                "Process instance with id" + resourceId + " could not be found", ProcessInstance.class);
+                    }
+
+                    final ProcessDefinitionEntity def =
+                            (ProcessDefinitionEntity) repositoryService.getDeployedProcessDefinition(
+                                    executionEntity.getProcessDefinitionId());
+                    if (def == null || !def.isGraphicalNotationDefined()) {
+                        throw new ActivitiException(
+                                "Process instance with id " + resourceId + " has no graphic description");
+                    }
+
+                    final BpmnModel model = repositoryService.getBpmnModel(def.getId());
+                    try (final InputStream is = ProcessDiagramGenerator.generateDiagram(model, "png",
+                            runtimeService.getActiveActivityIds(resourceId))) {
+                        final byte[] data = new byte[is.available()];
+                        is.read(data);
+                        content.put(ActivitiConstants.ACTIVITI_DIAGRAM, Base64.encode(data));
+                    }
+                }
+
+                handler.handleResult(new Resource(instance.getId(), null, content));
             }
         } catch (Exception ex) {
             handler.handleError(new InternalServerErrorException(ex.getMessage(), ex));
         }
+    }
+
+    /**
+     * Retrieves all tasks associated with a processId.
+     *
+     * @param processId process instance id
+     * @return Map containing all tasks associated with the processId
+     */
+    private List<Map<String, Object>> getTasksForProcess(String processId) {
+        HistoricTaskInstanceQuery query = processEngine.getHistoryService().createHistoricTaskInstanceQuery();
+        List<Map<String, Object>> tasks = new ArrayList<>();
+        for (HistoricTaskInstance taskInstance : query.processInstanceId(processId).list()) {
+            tasks.add(MAPPER.convertValue(taskInstance, Map.class));
+        }
+        return tasks;
     }
 
     @Override
@@ -194,23 +267,48 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
     }
 
     /**
-     * Process the query parameters of the request and set it on the
-     * ProcessInstanceQuery
+     * Process the query parameters of the request and set it on the ProcessInstanceQuery.
      *
      * @param query Query to update
      * @param request incoming request
      */
     private void setProcessInstanceParams(HistoricProcessInstanceQuery query, QueryRequest request) {
-        String processDefinitionId = ActivitiUtil.getParamFromRequest(request, ActivitiConstants.ACTIVITI_PROCESSDEFINITIONID);
-        query = processDefinitionId == null ? query : query.processDefinitionId(processDefinitionId);
-        String processDefinitionKey = ActivitiUtil.getParamFromRequest(request, ActivitiConstants.ACTIVITI_PROCESSDEFINITIONKEY);
-        query = processDefinitionKey == null ? query : query.processDefinitionKey(processDefinitionKey);
-        String processInstanceBusinessKey = ActivitiUtil.getParamFromRequest(request, ActivitiConstants.ACTIVITI_PROCESSINSTANCEBUSINESSKEY);
-        query = processInstanceBusinessKey == null ? query : query.processInstanceBusinessKey(processInstanceBusinessKey);
-        String processInstanceId = ActivitiUtil.getParamFromRequest(request, ActivitiConstants.ACTIVITI_PROCESSINSTANCEID);
-        query = processInstanceId == null ? query : query.processInstanceId(processInstanceId);
-        String superProcessInstanceId = ActivitiUtil.getParamFromRequest(request, ActivitiConstants.ACTIVITI_SUPERPROCESSINSTANCEID);
-        query = superProcessInstanceId == null ? query : query.superProcessInstanceId(superProcessInstanceId);
+
+        for (Map.Entry<String, String> param : request.getAdditionalParameters().entrySet()) {
+            switch (param.getKey()) {
+                case ActivitiConstants.ACTIVITI_PROCESSDEFINITIONID:
+                    query.processDefinitionId(param.getValue());
+                    break;
+                case ActivitiConstants.ACTIVITI_PROCESSDEFINITIONKEY:
+                    query.processDefinitionKey(param.getValue());
+                    break;
+                case ActivitiConstants.ACTIVITI_PROCESSINSTANCEBUSINESSKEY:
+                    query.processInstanceBusinessKey(param.getValue());
+                    break;
+                case ActivitiConstants.ACTIVITI_PROCESSINSTANCEID:
+                    query.processInstanceId(param.getValue());
+                    break;
+                case ActivitiConstants.ACTIVITI_SUPERPROCESSINSTANCEID:
+                    query.superProcessInstanceId(param.getValue());
+                    break;
+                case ActivitiConstants.ACTIVITI_FINISHED:
+                    if (Boolean.parseBoolean(param.getValue())) {
+                        query.finished();
+                    }
+                    break;
+                case ActivitiConstants.ACTIVITI_UNFINISHED:
+                    if (Boolean.parseBoolean(param.getValue())) {
+                        query.unfinished();
+                    }
+                    break;
+                case ActivitiConstants.ACTIVITI_INVOLVEDUSERID:
+                    query.involvedUser(param.getValue());
+                    break;
+                case ActivitiConstants.ACTIVITI_STARTUSERID:
+                    query.startedBy(param.getValue());
+                    break;
+            }
+        }
 
         Map<String, String> wfParams = ActivitiUtil.fetchVarParams(request);
         Iterator<Map.Entry<String, String>> itWf = wfParams.entrySet().iterator();
@@ -218,5 +316,56 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
             Map.Entry<String, String> e = itWf.next();
             query.variableValueEquals(e.getKey(), e.getValue());
         }
+    }
+
+    /**
+     *  Sets what the result set should be filtered by.
+     *
+     * @param query HisotricProcessInstanceQuery that needs to be modified for filtering
+     * @param request incoming request
+     * @throws NotSupportedException
+     */
+    private void setSortKeys(HistoricProcessInstanceQuery query, QueryRequest request) throws NotSupportedException {
+        for (SortKey key : request.getSortKeys()) {
+            if (key.getField() != null && !key.getField().isEmpty()) {
+                switch (key.getField().toString().substring(1)) { // remove leading JsonPointer slash
+                    case ActivitiConstants.ACTIVITI_PROCESSINSTANCEID:
+                        query.orderByProcessInstanceId();
+                        break;
+                    case ActivitiConstants.ACTIVITI_PROCESSDEFINITIONID:
+                        query.orderByProcessDefinitionId();
+                        break;
+                    case ActivitiConstants.ACTIVITI_PROCESSINSTANCEBUSINESSKEY:
+                        query.orderByProcessInstanceBusinessKey();
+                        break;
+                    case ActivitiConstants.ACTIVITI_STARTTIME:
+                        query.orderByProcessInstanceStartTime();
+                        break;
+                    case ActivitiConstants.ACTIVITI_ENDTIME:
+                        query.orderByProcessInstanceEndTime();
+                        break;
+                    case ActivitiConstants.ACTIVITI_DURATIONINMILLIS:
+                        query.orderByProcessInstanceDuration();
+                        break;
+                    case ActivitiConstants.ACTIVITI_TENANTID:
+                        query.orderByTenantId();
+                        break;
+                    default:
+                        throw new NotSupportedException("Sort key: " + key.getField().toString().substring(1) + " is not valid");
+                }
+                query = key.isAscendingOrder() ? query.asc() : query.desc();
+            }
+        }
+
+    }
+
+    /**
+     * Returns the name of the process instance definition.
+     *
+     * @param process HistoricProcessInstance of a process definition.
+     * @return String name of teh process definition.
+     */
+    private String getProcessDefName(HistoricProcessInstance process) {
+        return processEngine.getRepositoryService().getProcessDefinition(process.getProcessDefinitionId()).getName();
     }
 }

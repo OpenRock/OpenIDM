@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2013 ForgeRock AS. All Rights Reserved
+ * Copyright (c) 2013-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -24,6 +24,7 @@
 
 package org.forgerock.openidm.workflow.activiti;
 
+import org.forgerock.json.fluent.JsonPointer;
 import org.forgerock.json.resource.Resource;
 import org.forgerock.openidm.core.ServerConstants;
 
@@ -96,4 +97,14 @@ public class ActivitiConstants {
     public static final String ENUM_VALUES = "values";
     public static final String DATE_PATTERN = "datePattern";
     public static final String ACTIVITI_FORMGENERATIONTEMPLATE = "formGenerationTemplate";
+    public static final String ACTIVITI_CLAIMTIME = "claimTime";
+    public static final String ACTIVITI_INVOLVEDUSERID = "involvedUserId";
+    public static final String ACTIVITI_PROCESSVARIABLES = "processVariables";
+    public static final String ACTIVITI_TENANTID = "tenantId";
+    public static final String ACTIVITI_UNASSIGNED = "unassigned";
+    public static final String ACTIVITI_FINISHED = "finished";
+    public static final String ACTIVITI_UNFINISHED = "unfinished";
+    public static final String ACTIVITI_PROCESSFINISHED = "processFinished";
+    public static final String ACTIVITI_PROCESSUNFINISHED = "processUnfinished";
+    public static final JsonPointer ACTIVITI_DIAGRAM = new JsonPointer("/diagram");
 }

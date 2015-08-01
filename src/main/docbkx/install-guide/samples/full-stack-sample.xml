@@ -37,6 +37,7 @@
  </indexterm>
 
  <para>
+We used various methods to isolate four samples.
   This sample demonstrates the integration of three ForgeRock products: OpenIDM,
   OpenDJ, and OpenAM. With this sample, you can see how you can use OpenAM for
   authentication, for users maintained with OpenIDM, based on a data store of
@@ -531,14 +532,16 @@ $ ./startup.sh -p samples/fullStack</screen>
 
    <para>
     After you complete the steps described in Sample 2b, do one more thing.
-    Navigate to the Data Management UI at
-    <literal>https://openidm.example.com:8443/openidmui</literal>, and select
-    Users. Select a specific user, such as <literal>bjensen</literal>. Click
-    Change Password and change that password.
+    Navigate to the Admin UI at
+    <literal>https://openidm.example.com:8443/selfservice</literal>, and select
+    Manage &gt; User. Select a specific user, such as
+    <literal>bjensen</literal>. Click Change Password and change that password.
    </para>
 
+  <!-- TODO: Change Password button missing. update based on OPENIDM-3560 -->
+
    <para>
-    Return to the Admin UI, select Mappings, and select the
+    Now select Configure &gt; Mappings, and select the
     managedUser_systemLdapAccounts mapping. Click Reconcile Now to propegate the
     password you just changed to OpenDJ. You are now ready for the next section.
    </para>
@@ -558,7 +561,7 @@ $ ./startup.sh -p samples/fullStack</screen>
     <literal>https://openam.example.com:8443/openam</literal>. Log in with the
     administrative account, which by default is <literal>amadmin</literal>.
     Navigate to Access Control &gt; Realm &gt; Subjects &gt; User. You should
-    see the same users as you see in the OpenIDM Data Management UI.
+    see the same users as you see in the OpenIDM Self-Service UI.
    </para>
 
    <mediaobject xml:id="openam-user-list">
@@ -589,7 +592,7 @@ $ ./startup.sh -p samples/fullStack</screen>
    <para>
     Login as user <literal>bjensen</literal>, with the password that you just
     changed in OpenIDM. If successful, you should now be logged into the
-    <emphasis>OpenIDM</emphasis> Data Management View screen, as user
+    <emphasis>OpenIDM</emphasis> Self-Service UI screen, as user
     <literal>bjensen</literal>.
    </para>
  </section>

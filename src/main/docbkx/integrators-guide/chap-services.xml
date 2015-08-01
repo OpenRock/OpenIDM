@@ -397,19 +397,19 @@ Stopping OpenIDM (2343)</screen>
    <listitem>
     <para>
      <literal>"type"</literal> specifies the type of the information source.
-     Javascript (<literal>"type" : "text/javascript"</literal>) and Groovy
+     JavaScript (<literal>"type" : "text/javascript"</literal>) and Groovy
      (<literal>"type" : "groovy"</literal>) are supported.
     </para>
    </listitem>
    <listitem>
     <para>
-     <literal>"file"</literal> specifies the path to the Javascript or Groovy
+     <literal>"file"</literal> specifies the path to the JavaScript or Groovy
      file, if you do not provide a <literal>"source"</literal> parameter.
     </para>
    </listitem>
    <listitem>
     <para>
-     <literal>"source"</literal> specifies the actual Javascript or Groovy
+     <literal>"source"</literal> specifies the actual JavaScript or Groovy
      script, if you have not provided a <literal>"file"</literal> parameter.
     </para>
    </listitem>
@@ -759,10 +759,9 @@ OpenIDM ready
    </para>
    <step>
     <para>
-     If you have not already done so, install and set up OpenIDM, as
-     described in the following chapter: <link xlink:show="new"
-     xlink:role="http://docbook.org/xlink/role/olink"
-     xlink:href="integrators-guide#chap-install"><citetitle>Installing OpenIDM
+     If you have not yet installed OpenIDM, follow the procedure described in
+     <link xlink:show="new" xlink:role="http://docbook.org/xlink/role/olink"
+     xlink:href="install-guide#chap-install"><citetitle>Installing OpenIDM
      Services</citetitle></link>.
     </para>
    </step>

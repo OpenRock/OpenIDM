@@ -56,7 +56,7 @@ import org.forgerock.json.fluent.JsonValueException;
 import org.forgerock.openidm.servletregistration.RegisteredFilter;
 import org.forgerock.openidm.servletregistration.ServletRegistration;
 import org.forgerock.openidm.servletregistration.ServletFilterRegistrator;
-import org.forgerock.util.promise.Function;
+import org.forgerock.util.Function;
 import org.ops4j.pax.web.service.WebContainer;
 import org.osgi.framework.BundleContext;
 import org.osgi.service.component.ComponentContext;
@@ -83,7 +83,7 @@ public class ServletRegistrationSingleton implements ServletRegistration {
 
     private static final String[] DEFAULT_SERVLET_NAME = new String[] { "OpenIDM REST" };
 
-    private static final String[] DEFAULT_SERVLET_URL_PATTERNS = new String[] { "/openidm/*", "/openidmui/*" };
+    private static final String[] DEFAULT_SERVLET_URL_PATTERNS = new String[] { "/openidm/*", "/selfservice/*" };
 
     // Context of this scr component
     private BundleContext bundleContext;

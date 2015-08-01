@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright © 2012-2014 ForgeRock Inc. All rights reserved.
+ * Copyright © 2012-2015 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -53,7 +53,6 @@ import org.forgerock.json.fluent.JsonValue;
 import org.forgerock.json.resource.*;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.config.enhanced.InvalidException;
-import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.crypto.CryptoService;
@@ -156,6 +155,10 @@ public class ActivitiServiceImpl implements RequestHandler {
 
     @Reference(policy = ReferencePolicy.STATIC, target="(service.pid=org.forgerock.openidm.internal)")
     ConnectionFactory connectionFactory;
+
+    /** Enhanced configuration service. */
+    @Reference(policy = ReferencePolicy.DYNAMIC)
+    private EnhancedConfig enhancedConfig;
 
     private final OpenIDMExpressionManager expressionManager = new OpenIDMExpressionManager();
     private final SharedIdentityService identityService = new SharedIdentityService();
@@ -337,11 +340,11 @@ public class ActivitiServiceImpl implements RequestHandler {
                                 java.util.logging.Logger.getLogger(ActivitiServiceImpl.class.getName()).log(Level.SEVERE, null, ex);
                             }
                         }
-                        activitiResource = new ActivitiResource(processEngine, persistenceConfig);
+                        activitiResource = new ActivitiResource(processEngine);
                         logger.debug("Activiti ProcessEngine is enabled");
                         break;
                     case local: //ProcessEngine is connected by @Reference
-                        activitiResource = new ActivitiResource(processEngine, persistenceConfig);
+                        activitiResource = new ActivitiResource(processEngine);
                         break;
 //                    case remote: //fetch remote connection parameters
 //                        activitiResource = new HttpRemoteJsonResource(url, username, password);
@@ -405,7 +408,6 @@ public class ActivitiServiceImpl implements RequestHandler {
      * @param compContext
      */
     private void readConfiguration(ComponentContext compContext) {
-        EnhancedConfig enhancedConfig = new JSONEnhancedConfig();
         JsonValue config = enhancedConfig.getConfigurationAsJson(compContext);
         if (!config.isNull()) {
             enabled = config.get(CONFIG_ENABLED).defaultTo(true).asBoolean();

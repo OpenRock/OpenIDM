@@ -569,8 +569,9 @@
    supported on the <literal>/config</literal> endpoint.
   </para>
   <para>
-   The following example modifies the <filename>router.json</filename> file to
-   remove all filters, effectively bypassing any policy validation.
+   The following example modifies the configuration of the scheduler service
+   to increase the maximum number of threads that are available for the
+   concurrent execution of scheduled tasks.
   </para>
   
   <screen><userinput>$ curl \
@@ -580,26 +581,22 @@
  --header "Content-Type: application/json" \
  --request PUT \
  --data '{
-   "filters" : [
-     {
-       "onRequest" : {
-         "type" : "text/javascript",
-         "file" : "bin/defaults/script/router-authz.js"
-       }
-     }
-   ]
-   }' \
- "https://localhost:8443/openidm/config/router"</userinput>
-<computeroutput>{
-  "filters": [
-    {
-      "onRequest": {
-        "file": "bin/defaults/script/router-authz.js",
-        "type": "text/javascript"
-      }
+    "threadPool": {
+        "threadCount": "20"
+    },
+    "scheduler": {
+        "executePersistentSchedules": "&amp;{openidm.scheduler.execute.persistent.schedules}"
     }
-  ]
-} </computeroutput></screen>
+}' \
+ "https://localhost:8443/openidm/config/scheduler"</userinput>
+<computeroutput>{
+ "threadPool": {
+ "threadCount": "20"
+ },
+ "scheduler": {
+ "executePersistentSchedules": "&amp;{openidm.scheduler.execute.persistent.schedules}"
+ }
+ }</computeroutput></screen>
 
   <para>
    For more information about using the REST API to update objects, see the
@@ -835,7 +832,10 @@ openidm.US.ldap.port=1389</programlisting>
  </section>
  
  </section>
-  
+
+ <!-- TODO may change context in the custom endpoint config file,
+ depending on OPENIDM-3394 -->
+
   <section xml:id="adding-custom-endpoints">
    <title>Adding Custom Endpoints</title>
     
@@ -890,19 +890,42 @@ openidm.US.ldap.port=1389</programlisting>
    </para>
 
    <para>
+    The endpoint configuration file may include a <literal>context</literal>
+    property that specifies the route to the endpoint.
+   </para>
+
+   <para>
     The cited scripts include defined <literal>request</literal> and
     <literal>context</literal> global variables.
    </para>
 
+   <!-- Delete after OPENIDM-3394 is resolved -->
+
+   <note>
+     <para>
+      This section uses the term <literal>context</literal> in two different
+      ways.
+     </para>
+      <para>
+       In an endpoint configuration file, the <literal>context</literal>
+       property specifies the route to an endpoint. For more information, see
+       <xref linkend="adding-custom-endpoints-structure" />.
+      </para>
+      <para>
+       In scripts, including the scripts found in the
+       <filename>samples/customendpoint/script</filename> directory,
+       <literal>context</literal> is a variable, described in more detail
+       in <xref linkend="custom-endpoint-scripts" />,
+      </para>
+   </note>
+
    <section xml:id="adding-custom-endpoints-structure">
-    <title>The Components of an Endpoint Configuration File</title>
+    <title>The Components of a Custom Endpoint Configuration File</title>
 
     <para>
-     The sample custom endpoint configuration
+     The sample custom endpoint configuration file
      (<filename>/path/to/openidm/samples/customendpoint/conf/endpoint-echo.json</filename>)
-     depicts a typical endpoint, configured to use a Groovy script that is
-     specified in the <filename>script/echo.groovy</filename> file. The
-     structure of the sample configuration is as follows:
+     depicts a typical endpoint, the contents of which are shown here:
     </para>
     
      <programlisting language="javascript">{
@@ -912,207 +935,380 @@ openidm.US.ldap.port=1389</programlisting>
   "_type" : "text/javascript"
 }    </programlisting>
 
+    <para>
+     The following list describes each property in typical custom endpoint
+     configuration files:
+    </para>
+
+    <variablelist>
+     <varlistentry>
+      <term><literal>"type"</literal></term>
+      <listitem>
+       <para>
+        string, required
+       </para>
+       <para>
+        A comment that specifies the type of script to be executed. The following
+        types are supported: <literal>"text/javascript"</literal> and
+        <literal>"groovy"</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><literal>"file"</literal> or <literal>"source"</literal></term>
+      <listitem>
+       <para>
+        Either a path to a script file, or an actual script, inline.
+       </para>
+       <para>
+        The script files associated with this sample,
+        <filename>echo.js</filename> and <filename>echo.groovy</filename>,
+        support requests using all ForgeRock RESTful CRUD operations: CREATE,
+        READ, UPDATE, DELETE, PATCH, ACTION, and QUERY.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term><literal>context</literal></term>
+      <listitem>
+       <para>
+        Requests are dispatched, routed, handled, processed, and more, in a
+        <literal>context</literal>.
+       </para>
+       <para>
+        You can also include a <literal>context</literal> property in an
+        endpoint configuration file.
+       </para>
+       <para>
+        As the <literal>context</literal> is not included in the default
+        <filename>endpoint-echo.json</filename> file, OpenIDM takes the
+        name of the endpoint from the name of the file. In this case, the
+        endpoint is <literal>endpoint/echo</literal>.
+       </para>
+
+       <para>
+        With a <literal>context</literal>, the endpoint configuration file
+        includes the route to the endpoint. For an example, see the
+        <filename>endpoint-linkedView.json</filename> file in the
+        <filename>/path/to/openidm/conf/</filename> directory.
+        The code shown here identifies the route as
+        <literal>endpoint/linkedView/*</literal>.
+       </para>
+
+       <programlisting language="javascript">{
+        "context": "endpoint/linkedView/*",
+        "type" : "text/javascript",
+        "source" : "require('linkedView').fetch(request.resourceName);"
+        }</programlisting>
+
+       <para>
+        In this case, the <literal>endpoint/linkedview/*</literal> route matches
+        the following patterns:
+       </para>
+
+       <screen>endpoint/linkedView/managed/user/bjensen
+endpoint/linkedView/system/ldap/account/bjensen</screen>
+
+       <para>
+        However, it does not work with the following patterns:
+       </para>
+
+       <screen>endpoint/linkedView/
+endpoint/linkedView</screen>
+
+       <para>
+        To specify that endpoint, you would need to either remove the
+        <literal>context</literal> or include it as follows:
+       </para>
+
+       <screen>"context": "endpoint/linkedView"</screen>
+
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </section>
+
+    <section xml:id="custom-endpoint-scripts">
+     <title>The Components of a Custom Endpoint Script File</title>
+
      <para>
-      The <literal>"_file"</literal> and <literal>"_type"</literal> properties
-      are comments, which you can change to accommodate an endpoint written in
-      JavaScript.
+      The custom endpoint script files in the
+      <filename>samples/customendpoint/script</filename> directory can
+      provide insight into ForgeRock RESTful CRUD operations: CREATE, READ,
+      UPDATE, DELETE, PATCH, ACTION, and QUERY.
      </para>
 
      <para>
-      If appropriate, you can also include a <literal>context</literal> property
-      in this file. The following example shows how the
-      <literal>context</literal> is used to display routing to an endpoint.
+      Examine the <literal>request</literal> options in each of these files.
+      The <literal>request</literal> object represents the framework-level
+      CREST request, as described in the
+      <link xlink:show="new" xlink:role="http://docbook.org/xlink/role/olink"
+            xlink:href="integrators-guide#appendix-rest"><citetitle>REST API
+       Reference</citetitle></link>.
      </para>
 
-     <programlisting language="javascript">
-  "context" : "endpoint/echo",
+     <para>
+      Each CREST request is associated with a <literal>method</literal>, which
+      may be <literal>create</literal>, <literal>read</literal>,
+      <literal>update</literal>, <literal>delete</literal>,
+      <literal>patch</literal>, <literal>action</literal> or
+      <literal>query</literal>.
+     </para>
+
+     <para>
+      Each <literal>method</literal> is associated with different sets of
+      properties. Details for each property are included after the
+      excerpts from the <filename>echo.js</filename> and
+      <filename>echo.groovy</filename> files.
+     </para>
+
+     <para>
+      As an example, look at the following <literal>create</literal> excerpt
+      from the <filename>echo.js</filename> file:
+     </para>
+     <programlisting language="javascript"> if (request.method === "create") {
+      return {
+      method: "create",
+      resourceName: request.resourceName,
+      newResourceId: request.newResourceId,
+      parameters: request.additionalParameters,
+      content: request.content,
+      context: context.current
+      };
      </programlisting>
-
      <para>
-      The endpoint configuration can specify the route on which the endpoint is
-      available. For an example, look at the
-      <filename>conf/endpoint-linkedView.json</filename> file. The code shown
-      declares the route on which the endpoint is available.
+      For contrast, examine the following <literal>query</literal> excerpt from
+      the <filename>echo.groovy</filename> file:
      </para>
-
-     <programlisting language="javascript">
-{
-  "context": "endpoint/linkedView/*",
-  "type" : "text/javascript",
-  "source" : "require('linkedView').fetch(request.resourceName);"
-}
+     <programlisting language="groovy">} else if (request instanceof QueryRequest) {
+      // query results must be returned as a list of maps
+      return [
+      [
+      method: "query",
+      resourceName: request.resourceName,
+      pagedResultsCookie: request.pagedResultsCookie,
+      pagedResultsOffset: request.pagedResultsOffset,
+      pageSize: request.pageSize,
+      queryExpression: request.queryExpression,
+      queryId: request.queryId,
+      queryFilter: request.queryFilter.toString(),
+      parameters: request.additionalParameters,
+      context: context
+      ]
      </programlisting>
-
      <para>
-      The following list describes each property in the custom endpoint
-      configuration file:
+      Depending on the request <literal>method</literal>, the associated request
+      object may include the following properties:
      </para>
-
      <variablelist>
+      <varlistentry>
+       <term><literal>resourceName</literal></term>
+       <listitem>
+        <para>The local identifier, without the <literal>endpoint/</literal>
+         prefix, such as <literal>echo</literal>.</para>
+       </listitem>
+      </varlistentry>
+      <varlistentry>
+       <term><literal>newResourceId</literal></term>
+       <listitem>
+        <para>
+         An identifier associated with a new resource, associated with
+         the <literal>create</literal> method.
+        </para>
+       </listitem>
+      </varlistentry>
+      <varlistentry>
+       <term><literal>revision</literal></term>
+       <listitem>
+        <para>
+         The revision level associated with the method used, relative to
+         a <literal>newResourceId</literal>.
+        </para>
+       </listitem>
+      </varlistentry>
+      <varlistentry>
+       <term><literal>parameters</literal></term>
+       <listitem>
+        <para>The sample code returns request parameters from an HTTP GET
+         with <literal>?param=x</literal>, as
+         <literal>"parameters":{"param":"x"}</literal>.</para>
+       </listitem>
+      </varlistentry>
+      <varlistentry>
+       <term><literal>content</literal></term>
+       <listitem>
+        <para>
+         Content based on the latest version of the object, using
+         <literal>getObject</literal>.
+        </para>
+       </listitem>
+      </varlistentry>
+<!--  Saving temporarily, pending resolution of OPENIDM-3394.
+Removed per CR-7197.http://openidm.forgerock.org/doc/bootstrap/integrators-guide/index.html#ui-custom-template
+      <varlistentry>
+       <term><literal>context</literal></term>
+       <listitem>
+        <para>
+         Based on a JSON object that contains nested attributes. The object
+         with the attributes, defines the request, based on ForgeRock REST
+         <link xlink:show="new"
+               xlink:href="integrators-guide#rest-supported-operations"
+               xlink:role="http://docbook.org/xlink/role/olink"><citetitle>
+          Supported Operations</citetitle></link>. For more information, see
+         <xref linkend="adding-custom-endpoints-context-components" />.
+        </para>
+       </listitem>
+      </varlistentry>     -->
+     </variablelist>
+
+     <para>
+      A <literal>query</literal> request in both files includes additional
+      parameters. For more information on the following parameters:
+      <literal>queryId</literal>, <literal>queryFilter</literal>, and
+      <literal>queryExpression</literal>, see the Appendix on
+      <link xlink:show="new" xlink:role="http://docbook.org/xlink/role/olink"
+            xlink:href="integrators-guide#rest-supported-query">
+       <citetitle>Querying Resources</citetitle></link>. For more information
+      on these paging parameters, <literal>pagedResultsCookie</literal>,
+      <literal>pagedResultsOffset</literal>, and <literal>pageSize</literal>,
+      see the following section on
+      <link xlink:show="new" xlink:role="http://docbook.org/xlink/role/olink"
+            xlink:href="integrators-guide#paging-query-results">
+       <citetitle>Paging Query Results</citetitle></link>.
+     </para>
+
+     <section xml:id="adding-custom-endpoints-context-components">
+      <title>More on the <literal>context</literal> in a Custom Endpoint Script</title>
+
+      <para>
+       The <literal>context</literal> property includes detail that varies
+       depending on the context type:
+      </para>
+
+      <variablelist>
        <varlistentry>
-         <term><literal>"type"</literal></term>
-         <listitem>
-           <para>
-            string, required
-           </para>
-           <para>
-            Specifies the type of script to be executed. Supported types include
-            <literal>"text/javascript"</literal> and <literal>"groovy"</literal>.
-           </para>
-         </listitem>
-       </varlistentry>
-       <varlistentry>
-         <term><literal>"file"</literal> or <literal>"source"</literal></term>
-         <listitem>
-           <para>
-            The actual script, inline, or a path to the file that
-            contains the script. The script files associated with this sample,
-            <filename>echo.js</filename> and <filename>echo.groovy</filename>,
-            support requests using all ForgeRock RESTful CRUD operations
-            (including PATCH, ACTION, and QUERY).
-           </para>
-         </listitem>
-       </varlistentry>
-       <varlistentry>
-        <term><literal>context</literal></term>
+        <term><literal>security</literal></term>
         <listitem>
          <para>
-          Requests are dispatched, routed, handled, processed, and more, in a
-          <literal>context</literal>.
+          Provides authentication / authorization data.
          </para>
         </listitem>
        </varlistentry>
-     </variablelist>
+       <varlistentry>
+        <term><literal>http</literal></term>
+        <listitem>
+         <para>
+          Provides data from the HTTP request.
+         </para>
+        </listitem>
+       </varlistentry>
+       <varlistentry>
+        <term>
+         <literal>router</literal>
+        </term>
+        <listitem>
+         <para>
+          Provides data on where the information is sent.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
 
-    </section>
+      <para>
+       JavaScript and Groovy access these context structures in different ways.
+       The term shown is the JavaScript access method; the definition includes
+       the Groovy access method.
+      </para>
 
-    <section xml:id="adding-custom-endpoints-context-components">
-     <title>Context Component Access Methods</title>
+      <variablelist>
+       <varlistentry>
+        <term><literal>context.current</literal></term>
+        <listitem>
+         <para>
+          In Groovy, known as <literal>context</literal>
+         </para>
+         <para>
+          The current context in which a script or a script-hook handles the
+          request.
+         </para>
+        </listitem>
+       </varlistentry>
+       <varlistentry>
+        <term>
+         <literal>context.http</literal>
+        </term>
+        <listitem>
+         <para>
+          In Groovy, known as one of the following:
+          <simplelist>
+           <member>
+            <literal>
+             context.asContext(org.forgerock.json.resource.servlet.HttpContext.class)
+            </literal>
+           </member>
+           <member>
+            <literal>
+             context.getContext("http")
+            </literal>
+           </member>
+          </simplelist>
+         </para>
+         <para>
+          The HTTP context.
+         </para>
+        </listitem>
+       </varlistentry>
+       <varlistentry>
+        <term><literal>context.security</literal></term>
+        <listitem>
+         <para>
+          In Groovy, known as one of the following:
+          <simplelist>
+           <member>
+            <literal>
+             context.asContext(org.forgerock.json.resource.SecurityContext.class)
+            </literal>
+           </member>
+           <member>
+            <literal>
+             context.getContext("security")
+            </literal>
+           </member>
+          </simplelist>
+         </para>
+         <para>
+          The security context.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
 
-     <para>
-      For both JavaScript and Groovy, the context consists of a chain of
-      structures that provide different levels of detail. The detail varies
-      depending on the context type:
-     </para>
-
-     <variablelist>
-      <varlistentry>
-       <term><literal>security</literal></term>
-       <listitem>
-        <para>
-         Provides authentication / authorization data.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term><literal>http</literal></term>
-       <listitem>
-        <para>
-         Provides data from the HTTP request.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>
-        <literal>router</literal>
-       </term>
-       <listitem>
-        <para>
-         Provides data on where the information is sent.
-        </para>
-       </listitem>
-      </varlistentry>
-     </variablelist>
-
-     <para>
-      JavaScript and Groovy access these context structures in different ways.
-      The term shown is the JavaScript access method; the definition includes
-      the Groovy access method.
-     </para>
-
-     <variablelist>
-      <varlistentry>
-       <term><literal>context.current</literal></term>
-       <listitem>
-        <para>
-         In Groovy, known simply as <literal>context</literal>
-        </para>
-        <para>
-         The current context in which the request is handled by a script or a
-         script-hook.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>
-        <literal>context.http</literal>
-       </term>
-       <listitem>
-        <para>
-         In Groovy, known as one of the following:
-         <simplelist>
-          <member>
-           <literal>
-            context.asContext(org.forgerock.json.resource.servlet.HttpContext.class)
-           </literal>
-          </member>
-          <member>
-           <literal>
-            context.getContext("http")
-           </literal>
-          </member>
-         </simplelist>
-        </para>
-        <para>
-         The HTTP context.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term><literal>context.security</literal></term>
-       <listitem>
-        <para>
-         In Groovy, known as one of the following:
-         <simplelist>
-          <member>
-           <literal>
-            context.asContext(org.forgerock.json.resource.SecurityContext.class)
-           </literal>
-          </member>
-          <member>
-           <literal>
-            context.getContext("security")
-           </literal>
-          </member>
-         </simplelist>
-        </para>
-        <para>
-         The security context.
-        </para>
-       </listitem>
-      </varlistentry>
-     </variablelist>
-    </section>
+     </section>
 
     <section xml:id="adding-custom-endpoints-request">
-     <title>Custom Endpoints and <literal>request</literal> Objects</title>
+     <title>Custom Endpoint Scripts and <literal>request</literal> Objects</title>
+     <para>
+      With a custom endpoint, you can configure OpenIDM to accept different REST
+      requests.
+     </para>
      <para>
       The endpoint configuration file specifies a script (either inline with the
-      <literal>"source"</literal> property, or in a referenced file with the
-      <literal>"file"</literal> property). The script is invoked with a global
-      <literal>request</literal> variable in its scope.
+      <literal>"source"</literal> property, or in a separate file identified
+      with the <literal>"file"</literal> property). The script is invoked with
+      a global <literal>request</literal> variable in its scope.
      </para>
      <para>
       All processes within OpenIDM are initiated with a request. Requests can
-      come either from the REST API, as shown in the <link xlink:show="new"
+      come either from the REST API, as shown in the
+      <link xlink:show="new"
       xlink:role="http://docbook.org/xlink/role/olink"
       xlink:href="integrators-guide#appendix-rest"><citetitle>REST API
       Reference</citetitle></link>) or internally, from a script, using the
-      <literal>openidm</literal> router object, as defined in the
+      <literal>router</literal> object, as defined in the
       <link xlink:show="new" xlink:role="http://docbook.org/xlink/role/olink"
-      xlink:href="integrators-guide#appendix-router"><citetitle>Router Service
-      Reference</citetitle></link>.
-      Regardless of how the process is initiated, the details of the request are
+            xlink:href="integrators-guide#appendix-router"><citetitle>Router Service
+       Reference</citetitle></link>.
+      Regardless of what initiates the process, the details of the request are
       represented in the same way - within an object named <literal>request</literal>.
      </para>
      <para>
@@ -1128,167 +1324,97 @@ openidm.US.ldap.port=1389</programlisting>
       Consider the following REST request:
      </para>
      <screen><userinput>$ curl \
- --cacert self-signed.crt \
- --header "Content-Type: application/json" \
- --header "X-OpenIDM-Username: openidm-admin" \
- --header "X-OpenIDM-Password: openidm-admin" \
- --request POST \
- --data { "name": "bob"} \
- "https://localhost:8443/openidm/endpoint/test?_action=myAction"</userinput></screen>
+      --cacert self-signed.crt \
+      --header "Content-Type: application/json" \
+      --header "X-OpenIDM-Username: openidm-admin" \
+      --header "X-OpenIDM-Password: openidm-admin" \
+      --request POST \
+      --data { "name": "bob"} \
+      "https://localhost:8443/openidm/endpoint/test?_action=myAction"</userinput></screen>
      <para>
       This request includes the string <literal>'{ "name": "bob"}'</literal>
       as the HTTP post body. OpenIDM expects this to be a JSON string, and will
       deserialize it into an object. The object is accessed using
       <literal>request.content</literal>.
      </para>
-     <para>
-      Depending on the type of <literal>request</literal>,
-      the associated content may include the following
-      properties:
-     </para>
-     <variablelist>
-      <varlistentry>
-       <term><literal>method</literal></term>
-       <listitem>
-        <para>The requested operation, which may be <literal>create</literal>,
-         <literal>read</literal>, <literal>update</literal>,
-         <literal>delete</literal>, <literal>patch</literal>,
-         <literal>query</literal> or <literal>action</literal>.</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term><literal>resourceName</literal></term>
-       <listitem>
-         <para>The local identifier, without the <literal>endpoint/</literal>
-         prefix, such as <literal>echo</literal>.</para>
-       </listitem>
-      </varlistentry>
-
-      <varlistentry>
-       <term><literal>newResourceId</literal></term>
-       <listitem>
-        <para>
-         An identifier associated with a new resource, associated with
-         the <literal>create</literal> method.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term><literal>additionalParameters</literal></term>
-       <listitem>
-        <para>The sample code returns request parameters from an HTTP GET
-         with <literal>?param=x</literal>, as
-         <literal>"params":{"param":"x"}</literal>.</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term><literal>revision</literal></term>
-       <listitem>
-        <para>
-         The revision level associated with the method used, relative to
-         a <literal>newResourceId</literal>.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term><literal>content</literal></term>
-       <listitem>
-        <para>
-         Content based on the latest version of the object, using
-         <literal>getObject</literal>.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term><literal>context</literal></term>
-       <listitem>
-        <para>
-         Based on a JSON object that contains nested attributes. The object
-         with the attributes, defines the request, based on ForgeRock REST
-         <link xlink:show="new"
-         xlink:href="integrators-guide#rest-supported-operations"
-         xlink:role="http://docbook.org/xlink/role/olink"><citetitle>
-         Supported Operations</citetitle></link>.
-        </para>
-       </listitem>
-      </varlistentry>
-
-     </variablelist>
 
     </section>
 
-   <section xml:id="adding-custom-endpoints-chains">
-    <title>Custom Endpoints, Contexts, and Chains</title>
-
-    <para>
-     Custom endpoints include contexts that may be wrapped in various layers,
-     analogous to the way network packets can be wrapped at ascending network
-     levels.
-    </para>
-
-    <para>
-     As an example, start with a request such as the following:
-    </para>
-
-    <screen>GET https://localhost:8443/openidm/endpoint/echo?queryId=query-all-ids&amp;_para=foo</screen>
-
-    <para>
-     A request at an endpoint starts with a root context, associated with a
-     specific context ID, and the
-     <literal>org.forgerock.json.resource.RootContext</literal> context.
-    </para>
-
-    <para>
-     The root context is wrapped in the security context that holds the
-     authentication and authorization detail for the request. The associated
-     class is <literal>org.forgerock.json.resource.SecurityContext</literal>,
-     with an <literal>authenticationId</literal> user name such as
-     <literal>openidm-admin</literal>, and associated roles such as
-     <literal>openidm-authorized</literal>.
-    </para>
-
-    <para>
-     That security context is further wrapped by the HTTP context, with the
-     target URI. The class is
-     <literal>org.forgerock.json.resource.HttpContext</literal>, and it is
-     associated with the normal parameters of a REST call, including a user
-     agent, authorization token, and method.
-    </para>
-
-    <para>
-     The HTTP context is then further wrapped by one or more server / router
-     context(s). That class is
-     <literal>org.forgerock.json.resource.RouterContext</literal>,
-     with an endpoint URI. You may see several layers of server and router
-     contexts.
-    </para>
-
-   </section>
-
-    <section xml:id="adding-custom-endpoints-more">
-     <title>Additional Custom Endpoint Parameters</title>
+    <section xml:id="adding-custom-endpoints-chains">
+     <title>Custom Endpoint Scripts, Contexts, and Chains</title>
 
      <para>
-      A couple of additional parameters are shown with the
-      <literal>query</literal> request method. You can review how this works
-      in the following section of the OpenIDM Installation Guide:
-      <link xlink:show="new"
-      xlink:role="http://docbook.org/xlink/role/olink"
-      xlink:href="install-guide#more-sample2c"><citetitle>Sample 2c -
-      Synchronizing LDAP Group Membership</citetitle></link>.
+      Custom endpoints include contexts that may be wrapped in different layers,
+      analogous to the way network packets can be wrapped at ascending network
+      levels.
      </para>
-    
+
+     <para>
+      As an example, start with a request such as the following:
+     </para>
+
+     <screen>GET https://localhost:8443/openidm/endpoint/echo?queryId=query-all-ids&amp;_para=foo</screen>
+
+     <para>
+      A request at an endpoint starts with a root context, associated with a
+      specific context ID, and the
+      <literal>org.forgerock.json.resource.RootContext</literal> context.
+     </para>
+
+     <para>
+      The root context is wrapped in the security context that holds the
+      authentication and authorization detail for the request. The associated
+      class is <literal>org.forgerock.json.resource.SecurityContext</literal>,
+      with an <literal>authenticationId</literal> user name such as
+      <literal>openidm-admin</literal>, and associated roles such as
+      <literal>openidm-authorized</literal>.
+     </para>
+
+     <para>
+      That security context is further wrapped by the HTTP context, with the
+      target URI. The class is
+      <literal>org.forgerock.json.resource.HttpContext</literal>, and it is
+      associated with the normal parameters of a REST call, including a user
+      agent, authorization token, and method.
+     </para>
+
+     <para>
+      The HTTP context is then further wrapped by one or more server / router
+      context(s). That class is
+      <literal>org.forgerock.json.resource.RouterContext</literal>,
+      with an endpoint URI. You may see several layers of server and router
+      contexts.
+     </para>
+
+    </section>
+
+    <section xml:id="adding-custom-endpoints-more">
+     <title>Additional Custom Endpoint Script Parameters</title>
+
+     <para>
+      The <literal>query</literal> request method includes two additional
+      parameters. You can review how this works in the following section of the
+      OpenIDM Installation Guide:
+      <link xlink:show="new"
+            xlink:role="http://docbook.org/xlink/role/olink"
+            xlink:href="install-guide#more-sample2c"><citetitle>Sample 2c -
+       Synchronizing LDAP Group Membership</citetitle></link>.
+     </para>
+
      <para>
       The final statement in the script is the return value. In the following
       example, there is no <literal>return</literal> keyword, and the value of
       the last statement (<literal>x</literal>) is returned.
      </para>
-    
+
      <programlisting language="javascript">var x = "Sample return";
 functioncall();
 x   </programlisting>
 
+     </section>
     </section>
+
+   </section>
 
    <section xml:id="adding-custom-endpoints-example">
      <title>Custom Endpoint Example</title>
@@ -1389,68 +1515,345 @@ x   </programlisting>
     <citetitle>Authorization</citetitle></link> section.</para>
 
    </section>
-  </section>
 
-  <section xml:id="config-default-directories">
-   <title>Default and Custom Configuration Directories</title>
-
+  <section xml:id="script-config">
+   <title>Setting the Script Configuration</title>
    <para>
-    You can set up custom configuration files in directories as
-    defined in the <filename>openidm/conf/script.json</filename> file.
+    The script configuration file (<filename>conf/script.json</filename>)
+    enables you to modify the parameters that are used when compiling,
+    debugging, and running JavaScript and Groovy scripts.
    </para>
-
    <para>
-    The following portion of the <filename>script.json</filename> file
-    points to sources in installation and project directories. As implied in the
-    section on
-    <link xlink:href="integrators-guide#startup-configuration" xlink:show="new"
-    xlink:role="http://docbook.org/xlink/role/olink">
-     <citetitle>Specifying the OpenIDM Startup Configuration</citetitle>
-    </link>, the <literal>launcher.project.location</literal> is the directory
-    cited if you start OpenIDM with a specific project directory.</para>
-
-   <programlisting>...
+    The default <filename>script.json</filename> file includes the following
+    parameters:
+   </para>
+   <variablelist>
+    <varlistentry>
+     <term>properties</term>
+     <listitem>
+      <para>
+       Any custom properties that should be provided to the script engine.
+      </para>
+     </listitem>
+    </varlistentry>
+    <varlistentry>
+     <term>ECMAScript</term>
+     <listitem>
+      <para>
+       Specifies JavaScript debug and compile options. JavaScript is an
+       ECMAScript language.
+      </para>
+      <itemizedlist>
+    <!-- Removing this reference until OPENIDM-3546 is resolved
+        <listitem>
+         <para>
+          <literal>javascript.debug</literal> - see
+          <link xlink:role="http://docbook.org/xlink/role/olink" xlink:show="new"
+          xlink:href="integrators-guide#debugging-scripts">Debugging JavaScripts</link>.
+         </para>
+        </listitem> -->
+       <listitem>
+        <para>
+         <literal>javascript.recompile.minimumInterval</literal> - minimum time
+         after which a script can be recompiled.
+        </para>
+       </listitem>
+      </itemizedlist>
+     </listitem>
+    </varlistentry>
+    <varlistentry>
+     <term>Groovy</term>
+     <listitem>
+      <para>
+       Specifies compilation and debugging options related to Groovy scripts.
+       Many of these options are commented out in the default script
+       configuration file. Remove the comments to set these properties.
+      </para>
+      <itemizedlist>
+       <listitem>
+        <para>
+         <literal>groovy.warnings</literal> - the log level for Groovy scripts.
+         Possible values are <literal>none</literal>, <literal>likely</literal>,
+         <literal>possible</literal> and <literal>paranoia</literal>.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.source.encoding</literal> - the encoding format for
+         Groovy scripts. The value set in the default file is
+         <literal>UTF-8</literal>. Possible values include
+         <literal>US-ASCII</literal>.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.target.directory</literal> - the directory to which
+         compiled Groovy classes will be output. The default directory is
+         <filename><replaceable>install-dir</replaceable>/classes</filename>.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.target.bytecode</literal> - the bytecode version that
+         is used to compile Groovy scripts. The default version is
+         <literal>1.5</literal>.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.classpath</literal> - the directory in which the
+         compiler should look for compiled classes. The default classpath is
+         <filename><replaceable>install-dir</replaceable>/lib</filename>.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.output.verbose</literal> - specifies the verbosity of
+         stack traces. Boolean, <literal>true</literal> or
+         <literal>false</literal>.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.output.debug</literal> - specifies whether debugging
+         messages are output. Boolean, <literal>true</literal> or
+         <literal>false</literal>.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.errors.tolerance</literal> - sets the number of
+         non-fatal errors that can occur before a compilation is aborted. The
+         default is <literal>10</literal> errors.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.script.extension</literal> - specifies the file
+         extension for Groovy scripts. The default is <literal>.groovy</literal>.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.script.base</literal> - defines the base class for
+         Groovy scripts. By default any class extends
+         <literal>groovy.lang.Script</literal>.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.recompile</literal> - indicates whether scripts can be
+         recompiled. Boolean, <literal>true</literal> or
+         <literal>false</literal>, with default <literal>true</literal>.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.recompile.minimumInterval</literal> - sets the minimum
+         time between which Groovy scripts can be recompiled. The default
+         interval is <literal>100</literal>, in milliseconds.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.target.indy</literal> - specifies whether a <link
+         xlink:show="new"
+         xlink:href="http://docs.groovy-lang.org/latest/html/documentation/invokedynamic-support.html">Groovy
+         indy test</link> can be used. Boolean, <literal>true</literal> or
+         <literal>false</literal>, with default <literal>true</literal>.
+        </para>
+       </listitem>
+       <listitem>
+        <para>
+         <literal>groovy.disabled.global.ast.transformations</literal> -
+         specifies a list of disabled Abstract Syntax Transformations (ASTs).
+        </para>
+       </listitem>
+      </itemizedlist>
+     </listitem>
+    </varlistentry>
+    <varlistentry>
+     <term>sources</term>
+     <listitem>
+      <para>
+       Specifies the locations in which OpenIDM expects to find JavaScript and
+       Groovy scripts that are referenced in the configuration.
+      </para>
+      <para>
+       The following excerpt of the <filename>script.json</filename> file shows
+       the default locations.
+      </para>
+      <programlisting>...
 "sources" : {
-  "default" : {
-    "directory" : "&amp;{launcher.install.location}/bin/defaults/script"
-  },
-  "install" : {
-    "directory" : "&amp;{launcher.install.location}"
-  },
-  "project" : {
-    "directory" : "&amp;{launcher.project.location}"
-  },
-  "project-script" : {
-    "directory" : "&amp;{launcher.project.location}/script"
-  }
+    "default" : {
+        "directory" : "&amp;{launcher.install.location}/bin/defaults/script"
+    },
+    "install" : {
+        "directory" : "&amp;{launcher.install.location}"
+    },
+    "project" : {
+        "directory" : "&amp;{launcher.project.location}"
+    },
+    "project-script" : {
+        "directory" : "&amp;{launcher.project.location}/script"
+    }
 ...</programlisting>
-
-   <para>
-    For example, if you start OpenIDM from the <filename>/path/to/openidm</filename>
-    directory with the following command:
-   </para>
-   <screen>$ ./startup.sh -p /path/to/openidm/customconfig
-   </screen>
-   <para>
-    The <literal>launcher.project.location</literal> directory would be
-    <filename>/path/to/openidm/customconfig</filename>.
-   </para>
-   <para>
-    The <filename>script.json</filename> file also refers to a
-    <literal>launcher.install.location</literal> directory, which is
-    <filename>/path/to/openidm</filename>.
-   </para>
-
-   <para>Thus, based on the way the <filename>script.json</filename> file
-    is configured for <literal>project</literal>
-    and <literal>project-script</literal>, you can add custom
-    configuration and script files to the
-    <filename>/path/to/openidm/customconfig</filename> and the
-    <filename>/path/to/openidm/customconfig/script</filename> directories.
-   </para>
-
+      <note>
+       <para>
+        The order in which locations are listed in the
+        <literal>"sources"</literal> property is important. Scripts are loaded
+        from the <emphasis>bottom up</emphasis> in this list, that is, scripts
+        found in the last location on the list are loaded first.
+       </para>
+      </note>
+     </listitem>
+    </varlistentry>
+   </variablelist>
   </section>
 
+ <section xml:id="script-call">
+  <title>Calling A Script From a Configuration File</title>
+  <para>
+   You can call a script from within a configuration file by providing the
+   script source, or by referencing a file that contains the script source.
+   For example:
+  </para>
+
+  <programlisting language="javascript">{
+    "type" : "text/javascript",
+    "source": <replaceable>string</replaceable>
+} </programlisting>
+
+  <para>or</para>
+
+  <programlisting language="javascript">{
+    "type" : "text/javascript",
+    "file" : <replaceable>file location</replaceable>
+} </programlisting>
+
+  <variablelist>
+   <varlistentry>
+    <term>type</term>
+    <listitem>
+     <para>string, required</para>
+     <para>
+      Specifies the type of script to be executed. Supported types include
+      <literal>"text/javascript"</literal> and <literal>"groovy"</literal>.
+     </para>
+    </listitem>
+   </varlistentry>
+   <varlistentry>
+    <term>source</term>
+    <listitem>
+     <para>
+      string, required if <literal>file</literal> is not specified
+     </para>
+     <para>
+      Specifies the source code of the script to be executed.
+     </para>
+    </listitem>
+   </varlistentry>
+   <varlistentry>
+    <term>file</term>
+    <listitem>
+     <para>
+      string, required if <literal>source</literal> is not specified
+     </para>
+     <para>
+      Specifies the file containing the source code of the script to execute.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+  <para>
+   The following sample excerpts from configuration files indicate how scripts
+   can be called.
+  </para>
+  <para>
+   The following example (included in the <filename>sync.json</filename> file)
+   returns <literal>true</literal> if the <literal>employeeType</literal> is
+   equal to <literal>external</literal>, otherwise returns
+   <literal>false</literal>. This script can be useful during reconciliation to
+   establish whether a target object should be included in the reconciliation
+   process, or should be ignored.
+  </para>
+  <programlisting language="javascript">"validTarget": {
+    "type" : "text/javascript",
+    "source": "target.employeeType == 'external'"
+}  </programlisting>
+  <para>
+   The following example (included in the <filename>sync.json</filename> file)
+   sets the <literal>__PASSWORD__</literal> attribute to
+   <literal>defaultpwd</literal> when OpenIDM creates a target object.
+  </para>
+  <programlisting language="javascript">"onCreate" : {
+    "type" : "text/javascript",
+    "source": "target.__PASSWORD__ = 'defaultpwd'"
+} </programlisting>
+  <para>
+   The following example (included in the <filename>router.json</filename>
+   file) shows a trigger to create Solaris home directories using a script. The
+   script is located in the file,
+   <filename><replaceable>project-dir</replaceable>/script/createUnixHomeDir.js</filename>.
+  </para>
+  <programlisting language="javascript">{
+    "filters" : [ {
+        "pattern" : "^system/solaris/account$",
+        "methods" : [ "create" ],
+        "onResponse" : {
+            "type" : "text/javascript",
+            "file" : "script/createUnixHomeDir.js"
+        }
+    } ]
+} </programlisting>
+  <para>
+   Often, script files are reused in different contexts. You can pass
+   variables to your scripts to provide these contextual details at runtime.
+   You pass variables to the scripts that are referenced in configuration
+   files by declaring the variable name in the script reference.
+  </para>
+  <para>
+   The following example of a scheduled task configuration calls a script
+   named <literal>triggerEmailNotification.js</literal>. The example sets the
+   sender and recipient of the email in the schedule configuration, rather
+   than in the script itself.
+  </para>
+  <programlisting language="javascript">{
+    "enabled" : true,
+    "type" : "cron",
+    "schedule" : "0 0/1 * * * ?",
+    "invokeService" : "script",
+    "invokeContext" : {
+        "script": {
+            "type" : "text/javascript",
+            "file" : "script/triggerEmailNotification.js",
+            "fromSender" : "admin@example.com",
+            "toEmail" : "user@example.com"
+        }
+    }
+} </programlisting>
+  <para>
+   In general, you should namespace variables passed into scripts with the
+   <literal>"globals"</literal> map. Passing variables in this way prevents
+   collisions with the top-level reserved words for script maps, such as
+   <literal>file</literal>, <literal>source</literal>, and
+   <literal>type</literal>. The following example uses the
+   <literal>"globals"</literal> map to namespace the variables passed in the
+   previous example.
+  </para>
+  <programlisting language="javascript">"script": {
+    "type" : "text/javascript",
+    "file" : "script/triggerEmailNotification.js",
+    "globals" : {
+        "fromSender" : "admin@example.com",
+        "toEmail" : "user@example.com"
+    }
+} </programlisting>
+  <para>
+   Script variables are not necessarily simple <literal>key:value</literal>
+   pairs. A script variable can be any arbitrarily complex JSON object.
+  </para>
+ </section>
 <!-- Add this when OrientDB is supported in production
   <section xml:id="orientdb-perf">
       <title>Tuning the Performance of the OrientDB Repository</title>

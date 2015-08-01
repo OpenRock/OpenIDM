@@ -33,7 +33,7 @@
             <directory>${project.build.directory}/bar-files</directory>
             <outputDirectory>/openidm</outputDirectory>
         </fileSet>
-        
+
         <fileSet>
             <directory>${basedir}/src/main/resources</directory>
             <outputDirectory>/openidm</outputDirectory>
@@ -47,8 +47,8 @@
                 <exclude>${exclude.google.provisioner}</exclude>
                 <exclude>${exclude.salesforce.provisioner}</exclude>
 
-                <!-- 
-                    These particular workflow files are instead bundled as .bar files; 
+                <!--
+                    These particular workflow files are instead bundled as .bar files;
                     as raw files they are excluded. See zip-workflow-files in openidm-zip/pom.xml
                  -->
                 <exclude>**/usecase/workflow/certificationRoles*</exclude>
@@ -98,6 +98,35 @@
              <exclude>**/*</exclude>
             </excludes>
             <outputDirectory>/openidm/logs</outputDirectory>
+        </fileSet>
+        <!-- Setup getting-started sample (replaces Sample4) -->
+        <fileSet>
+            <directory>${basedir}/src/main/resources/samples/internal-common</directory>
+            <includes>
+                <include>**</include>
+            </includes>
+            <excludes>
+                <exclude>conf/authentication.json</exclude>
+                <exclude>data/Example.ldif</exclude>
+                <exclude>data/xmlConnectorData.xml</exclude>
+                <exclude>data/resource-schema-extension.xsd</exclude>
+            </excludes>
+            <outputDirectory>/openidm/samples/getting-started</outputDirectory>
+        </fileSet>
+        <fileSet>
+            <directory>${basedir}/src/main/resources/samples/provisioners</directory>
+            <includes>
+                <include>provisioner.openicf-csv.json</include>
+            </includes>
+            <outputDirectory>/openidm/samples/getting-started/conf</outputDirectory>
+        </fileSet>
+        <fileSet>
+            <directory>${basedir}/src/main/resources</directory>
+            <includes>
+                <include>conf/**</include>
+                <include>script/**</include>
+            </includes>
+            <outputDirectory>/openidm/samples/getting-started</outputDirectory>
         </fileSet>
         <!-- Setup Sample1  -->
         <fileSet>
@@ -291,34 +320,6 @@
             </includes>
             <outputDirectory>/openidm/samples/scriptedazure</outputDirectory>
         </fileSet>
-        <!-- Setup Sample4  -->
-        <fileSet>
-            <directory>${basedir}/src/main/resources/samples/internal-common</directory>
-            <includes>
-                <include>**</include>
-            </includes>
-            <excludes>
-                <exclude>conf/authentication.json</exclude>
-                <exclude>data/Example.ldif</exclude>
-            </excludes>
-            <outputDirectory>/openidm/samples/sample4</outputDirectory>
-        </fileSet>
-        <fileSet>
-            <directory>${basedir}/src/main/resources/samples/provisioners</directory>
-            <includes>
-                <include>provisioner.openicf-csv.json</include>
-                <include>provisioner.openicf-xml.json</include>
-            </includes>
-            <outputDirectory>/openidm/samples/sample4/conf</outputDirectory>
-        </fileSet>
-        <fileSet>
-            <directory>${basedir}/src/main/resources</directory>
-            <includes>
-                <include>conf/**</include>
-                <include>script/**</include>
-            </includes>
-            <outputDirectory>/openidm/samples/sample4</outputDirectory>
-        </fileSet>
         <!-- Setup Sample5  -->
         <fileSet>
             <directory>${basedir}/src/main/resources/samples/internal-common</directory>
@@ -377,7 +378,7 @@
                 <include>provisioner.openicf-ldap.json</include>
             </includes>
             <outputDirectory>/openidm/samples/sample6/conf</outputDirectory>
-        </fileSet>        
+        </fileSet>
         <fileSet>
             <directory>${basedir}/src/main/resources</directory>
             <includes>
@@ -890,34 +891,42 @@
             </includes>
             <outputDirectory>/openidm/samples/roles/provrole/</outputDirectory>
         </fileSet>
-        <!-- Roles and Multi-account linking (linkqualifiers) -->
-        <fileSet>
-            <directory>${basedir}/src/main/resources/samples/internal-common</directory>
-            <includes>
-                <include>**</include>
-            </includes>
-            <excludes>
-                <exclude>data/*.xsd</exclude>
-                <exclude>data/*.xml</exclude>
-            </excludes>
-            <outputDirectory>/openidm/samples/roles/linkqualrole/</outputDirectory>
-        </fileSet>
-        <fileSet>
-            <directory>${basedir}/src/main/resources/samples/provisioners</directory>
-            <includes>
-                <include>provisioner.openicf-ldap.json</include>
-            </includes>
-            <outputDirectory>/openidm/samples/roles/linkqualrole/conf</outputDirectory>
-        </fileSet>
-        <fileSet>
-            <directory>${basedir}/src/main/resources</directory>
-            <includes>
-                <include>conf/**</include>
-                <include>script/**</include>
-            </includes>
-            <outputDirectory>/openidm/samples/roles/linkqualrole/</outputDirectory>
-        </fileSet>
-    </fileSets>
+    <!-- Setup link qualifier samples  -->
+    <fileSet>
+        <directory>${basedir}/src/main/resources/samples/multiaccountlinking</directory>
+        <includes>
+            <include>README.md</include>
+            <include>conf/sync.json</include>
+        </includes>
+        <outputDirectory>/openidm/samples/multiaccountlinking/</outputDirectory>
+    </fileSet>
+    <fileSet>
+        <directory>${basedir}/src/main/resources/samples/internal-common</directory>
+        <includes>
+            <include>**</include>
+        </includes>
+        <excludes>
+            <exclude>data/*.xsd</exclude>
+            <exclude>data/*.xml</exclude>
+        </excludes>
+        <outputDirectory>/openidm/samples/multiaccountlinking/</outputDirectory>
+    </fileSet>
+    <fileSet>
+        <directory>${basedir}/src/main/resources/samples/provisioners</directory>
+        <includes>
+            <include>provisioner.openicf-ldap.json</include>
+        </includes>
+        <outputDirectory>/openidm/samples/multiaccountlinking/conf</outputDirectory>
+    </fileSet>
+    <fileSet>
+        <directory>${basedir}/src/main/resources</directory>
+        <includes>
+            <include>conf/**</include>
+            <include>script/**</include>
+        </includes>
+        <outputDirectory>/openidm/samples/multiaccountlinking/</outputDirectory>
+    </fileSet>
+  </fileSets>
     <!-- sample6 -->
     <files>
         <file>
@@ -1011,7 +1020,7 @@
             <unpack>true</unpack>
             <fileMode>644</fileMode>
             <directoryMode>755</directoryMode>
-            <outputDirectory>/openidm/ui/default/enduser</outputDirectory>
+            <outputDirectory>/openidm/ui/default/selfservice</outputDirectory>
             <includes>
                 <include>org.forgerock.openidm:openidm-ui-enduser</include>
             </includes>

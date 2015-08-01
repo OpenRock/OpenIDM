@@ -266,7 +266,7 @@ userPassword: password</programlisting>
      </para>
      <para>
       Find a link to the OpenDJ download page at <link xlink:show="new"
-      xlink:href="http://forgerock.com/download-stack/" />.
+      xlink:href="https://forgerock.org/downloads/" />.
       </para>
      </step>
      <step>
@@ -454,7 +454,7 @@ $ ./startup.sh -p samples/sample2</screen>
       the Data Management View link.
      </para>
      <para>
-      This link opens the Data Management UI. If you did not change your
+      This link opens the Self-Service UI. If you did not change your
       password in the first step, you are prompted to change your password
       again. You can bypass this by clicking X to close the password
       prompt window.
@@ -803,7 +803,7 @@ $ ./startup.sh -p samples/sample2b</screen>
       Data Management View in the pop-up menu that appears.
      </para>
      <para>
-      This link opens the Data Management UI. If you did not change your
+      This link opens the Self-Service UI. If you did not change your
       password in the first step, you are prompted to change your password
       again. You can bypass this by clicking X to close the password prompt
       window.
@@ -873,7 +873,7 @@ $ ./startup.sh -p samples/sample2b</screen>
      </para>
      <para>
       To test that the implicit reconciliation has been successful, look at
-      <literal>fdoe</literal>'s record in the Data Management UI. At the
+      <literal>fdoe</literal>'s record in the Self-Service UI. At the
       bottom of the user profile, the Linked Systems panel indicates the
       external resource to which this user entry is mapped.
      </para>
@@ -1212,7 +1212,7 @@ $ ./startup.sh -p samples/sample2c</screen>
       click the Data Management View link.
      </para>
      <para>
-      This link opens the Data Management UI. If you did not change your
+      This link opens the Self-Service UI. If you did not change your
       password in the first step, you are prompted to change your password
       again. You can bypass this by clicking X to close the password prompt
       window.
@@ -1271,7 +1271,7 @@ $ ./startup.sh -p samples/sample2c</screen>
       group to the <literal>openidm2</literal> group.
      </para>
      <para>
-      In the current default version of the Data Management UI, only specific
+      In the current default version of the Self-Service UI, only specific
       properties of a managed object can be edited. It is therefore not possible
       to update John Doe's <literal>ldapGroups</literal> property using the UI.
      </para>
@@ -1336,7 +1336,7 @@ $ ./startup.sh -p samples/sample2c</screen>
     <step>
      <para>
       You can verify this change by reloading John Doe's user profile in the
-      Data Management UI, and looking at the value of his
+      Self-Service UI, and looking at the value of his
       <literal>ldapGroups</literal> property in the Linked Systems panel.
      </para>
      <para>
@@ -1367,14 +1367,16 @@ $ ./startup.sh -p samples/sample2c</screen>
   
   <section xml:id="external-ldap-config-2d">
    <title>External LDAP Configuration</title>
-   <para>Configure the LDAP server as for sample 2,
-   <xref linkend="external-ldap-config-2" />. The LDAP user must have write
-   access to create users from OpenIDM on the LDAP server.</para>
-   
-   <para>In addition, two LDAP Groups should be created, which can be found in 
-   the LDIF file: <filename>openidm/samples/sample2d/data/Example.ldif</filename> 
-   (if they have not already been added through sample 2c):</para>
-   
+   <para>
+    Configure the LDAP server as for sample 2,
+    <xref linkend="external-ldap-config-2" />. The LDAP user must have write
+    access to create users from OpenIDM on the LDAP server.
+   </para>
+   <para>
+    In addition, two LDAP Groups should be created, which can be found in the
+    LDIF file: <filename>openidm/samples/sample2d/data/Example.ldif</filename>
+    (if they have not already been added through sample 2c):
+   </para>
    <programlisting language="ldif">
 dn: ou=Groups,dc=example,dc=com
 ou: Groups
@@ -1389,7 +1391,6 @@ objectClass: top
 
 dn: cn=openidm2,ou=Groups,dc=example,dc=com
 uniqueMember: uid=bjensen,ou=People,dc=example,dc=com
-uniqueMember: uid=jdoe,ou=People,dc=example,dc=com
 cn: openidm2
 objectClass: groupOfUniqueNames
 objectClass: top
@@ -1958,7 +1959,7 @@ mysql &gt; <userinput>select * from users;</userinput>
           appears.
          </para>
          <para>
-          This opens the Data Management UI. If you did not change your password
+          This opens the Self-Service UI. If you did not change your password
           in the first step, you are prompted to change your password again.
           You can bypass this by simply clicking X to close the password prompt
           window.
@@ -2169,7 +2170,7 @@ mysql &gt; <userinput>select * from users;</userinput>
     run a similar query, to retrieve the following set of records in the
     database. You must URL-encode the space character between the date and time
     in the <literal>"pagedResultsCookie"</literal> value, with
-    <literal>%20</literal>, as shown in the following example:
+    <literal>+</literal>, as shown in the following example:
    </para>
    <informalexample><?dbfo pgwide="1"?>
    <screen><userinput>$ curl \
@@ -2177,7 +2178,7 @@ mysql &gt; <userinput>select * from users;</userinput>
  --header "X-OpenIDM-Username: openidm-admin" \
  --header "X-OpenIDM-Password: openidm-admin" \
  --request GET \
- "https://localhost:8443/openidm/system/scriptedsql/account?_queryId=query-all-ids&amp;_pageSize=2&amp;_sortKeys=timestamp,id&amp;_pagedResultsCookie2014-09-10%2012:18:46.0,2"</userinput>
+ "https://localhost:8443/openidm/system/scriptedsql/account?_queryId=query-all-ids&amp;_pageSize=2&amp;_sortKeys=timestamp,id&amp;_pagedResultsCookie2014-09-10+12:18:46.0,2"</userinput>
 <computeroutput>{
   "remainingPagedResults": -1,
   "pagedResultsCookie": "2014-09-10 12:18:46.0,4",
@@ -2215,7 +2216,7 @@ mysql &gt; <userinput>select * from users;</userinput>
     </para>
     <step>
      <para>
-      Log in to the OpenIDM UI (https://localhost:8443/openidmui) as any one of
+      Log in to the OpenIDM UI (https://localhost:8443/) as any of
       the users that was created in the repository by the previous
       reconciliation operation.
      </para>
@@ -2334,11 +2335,8 @@ mysql &gt; <userinput>select * from users;</userinput>
    <procedure>
     <step>
      <para>
-      Download and extract the OpenDJ zip archive.
-     </para>
-     <para>
-      Find a link to the OpenDJ download page from the <link xlink:show="new"
-      xlink:href="http://forgerock.com/download-stack/" />.
+      Download and extract the OpenDJ zip archive from <link xlink:show="new"
+      xlink:href="https://forgerock.org/downloads/" />.
      </para>
     </step>
     <step>
@@ -2811,11 +2809,8 @@ $ ./startup.sh -p samples/scriptedrest2dj/</userinput></screen>
    <procedure>
     <step>
      <para>
-      Download and extract the OpenDJ zip archive.
-     </para>
-     <para>
-      Find a link to the OpenDJ download page from the <link xlink:show="new"
-                                                             xlink:href="http://forgerock.com/download-stack/" />.
+      Download and extract the OpenDJ zip archive from <link xlink:show="new"
+      xlink:href="https://forgerock.org/downloads/" />.
      </para>
     </step>
     <step>
@@ -3783,8 +3778,8 @@ $ <userinput>cp samples/provisioners/provisioner.openicf.connectorinfoprovider.j
       this sample directory, to the machine on which the connector server is
       installed.
      </para>
-     <screen>C:\><userinput>dir openidm\powershell2AD\tools</userinput>
-<computeroutput>Directory of C:\openidm\powershell2AD\tools
+     <screen>C:\><userinput>dir openidm\samples\powershell2AD\tools</userinput>
+<computeroutput>Directory of C:\openidm\samples\powershell2AD\tools
 
 11/27/2014  12:53 PM    &lt;DIR>          .
 11/27/2014  12:53 PM    &lt;DIR>          ..
@@ -3932,7 +3927,7 @@ $ ./startup.sh</screen>
       "account"
     ],
     "config": "config/provisioner.openicf/adpowershell",
-    "enabled": true,
+    "enabled": true,                              ypo
     "name": "adpowershell"
   }
 ]</computeroutput> </screen>
@@ -4329,11 +4324,15 @@ $ ./startup.sh</screen>
  </section>
 
  <section xml:id="more-sample4">
-  <title>Sample 4 - CSV to XML File</title>
-  <indexterm>
-   <primary>Samples</primary>
-   <secondary>Sample 4 - CSV file</secondary>
-  </indexterm>
+  <title>Sample 4 - Deleted</title>
+
+  <para>
+   The functionality of this sample is now included in the following guide:
+   <link xlink:show="new" xlink:role="http://docbook.org/xlink/role/olink"
+         xlink:href="getting-started#getting-started-guide">Getting Started
+    With OpenIDM</link>.
+  </para>
+  <!--
 
   <para>Sample 4 works with two databases, a comma-separated value file
    and an XML file. There is no need to include any external
@@ -4348,8 +4347,8 @@ $ ./startup.sh</screen>
   <section xml:id="install-sample4">
    <title>Install the Sample</title>
 
-   <para>No external configuration is required for this sample. Prepare 
-   OpenIDM as described in <xref linkend="preparing-openidm"/>, then start up 
+   <para>No external configuration is required for this sample. Prepare
+   OpenIDM as described in <xref linkend="preparing-openidm"/>, then start up
    OpenIDM with the configuration of sample 4.</para>
 
    <screen>$ cd /path/to/openidm
@@ -4365,7 +4364,7 @@ $ ./startup.sh -p samples/sample4</screen>
    </para>
 
    <para>
-    Review the current contents of the database in the
+    Review the current contents sof the database in the
     <filename>sample4/data/xmlConnectorData.xml</filename> file. For comparison
     purposes, make a copy of the file in a temporary directory with a command
     like:
@@ -4380,13 +4379,13 @@ $ ./startup.sh -p samples/sample4</screen>
    </para>
 
    <screen>$ curl \
- --cacert self-signed.crt \
- --header "X-OpenIDM-Username: openidm-admin" \
- --header "X-OpenIDM-Password: openidm-admin" \
- --header "Content-Type: application/json" \
- --request POST \
+ -cacert self-signed.crt \
+ -header "X-OpenIDM-Username: openidm-admin" \
+ -header "X-OpenIDM-Password: openidm-admin" \
+ -header "Content-Type: application/json" \
+ -request POST \
  "https://localhost:8443/openidm/recon?_action=recon&amp;mapping=csv_xmlfile&amp;waitForCompletion=true"</screen>
- 
+
    <para>Check the results of reconciliation. Review the updated contents
     of the <filename>sample4/data/xmlConnectorData.xml</filename> file.</para>
 
@@ -4403,7 +4402,7 @@ $ ./startup.sh -p samples/sample4</screen>
    </para>
 
 
-  </section>
+  </section>          -->
  </section>
 
  <section xml:id="more-sample5">
@@ -4412,12 +4411,11 @@ $ ./startup.sh -p samples/sample4</screen>
    <primary>Samples</primary>
    <secondary>Sample 5 - Synchronization of two resources</secondary>
   </indexterm>
-
   <para>
    Sample 5 demonstrates the flow of data from one external resource to
    another. The resources are named <literal>LDAP</literal> and
-   <literal>AD</literal> but in the sample, both directory-like resources are
-   simulated with XML files.
+   <literal>AD</literal> but in the sample, both resources are simulated with
+   XML files.
   </para>
   <para>
    You can optionally configure an outbound email service, if you want to
@@ -4429,20 +4427,21 @@ $ ./startup.sh -p samples/sample4</screen>
    <title>Configure Email for the Sample</title>
    <para>
     If you do not configure the email service, the functionality of the sample
-    does not change. However, you might see the following message at the
+    does not change. However, you might see the following message in the
     OpenIDM console when you run a reconciliation operation:
    </para>
    <screen>Email service not configured; report not generated.</screen>
 
    <procedure>
     <para>
-     To configure an email summary, follow these steps:
+     To configure OpenIDM to send a reconciliation summary by email, follow
+     these steps:
     </para>
-
     <step>
      <para>
       Copy the template <filename>external.email.json</filename> file from
-      the <filename>samples/misc</filename> directory:
+      the <filename>samples/misc</filename> directory to the <literal>conf</literal>
+      directory of Sample 5:
      </para>
      <screen>$ cd /path/to/openidm
 $ cp samples/misc/external.email.json samples/sample5/conf
@@ -4465,7 +4464,7 @@ $ cp samples/misc/external.email.json samples/sample5/conf
       addresses of your choice:
      </para>
      <programlisting language="javascript">
-var params = {
+var email = {
       //UPDATE THESE VALUES
       from : "openidm@example.com",
       to : "youremail@example.com",
@@ -4474,7 +4473,7 @@ var params = {
       type : "text/html"
 },
 template,
-     </programlisting>
+...  </programlisting>
     </step>
    </procedure>
   </section>
@@ -4729,16 +4728,17 @@ $ ./startup.sh -p samples/sample5b</screen>
    </para>
    <para>
     Log into the OpenIDM UI as the administrative user. On a local system,
-    navigate to <literal>https://localhost:8443/openidmui</literal>. The default
+    navigate to <literal>https://localhost:8443/admin</literal>. The default
     administrative account and password are both <literal>openidm-admin</literal>.
    </para>
    <para>
-    Make a change to the data of an existing user (<literal>DDOE1</literal>).
-    As a result of the implicit synchronization from the managed object
-    repository, that change is reflected almost immediately on the external
-    resources. For sample 5b, you should see the changes in both XML files in
-    the <filename>sample5b/data</filename> directory. Alternatively, you can
-    query the external resources over REST, as described previously.
+    Select Manage &gt; User. Make a change to the data of an existing user
+    (<literal>DDOE1</literal>). As a result of the implicit synchronization
+    from the managed object repository, that change is reflected almost
+    immediately on the external resources. For sample 5b, you should see the
+    changes in both XML files in the <filename>sample5b/data</filename>
+    directory. Alternatively, you can query the external resources over REST,
+    as described previously.
    </para>
    <para>
     The synchronization is successful, across all configured external resources,
@@ -4917,11 +4917,8 @@ $ sudo mv xml_LDAP_Data.xml xml_LDAP_Data.xml.bak</screen>
      <procedure>
      <step>
       <para>
-       Download and extract the OpenDJ zip archive.
-      </para>
-      <para>
-       Find a link to the OpenDJ download page from the <link xlink:show="new"
-       xlink:href="http://forgerock.com/download-stack/" />.
+       Download and extract the OpenDJ zip archive from <link xlink:show="new"
+       xlink:href="https://forgerock.org/downloads/" />.
       </para>
      </step>
      <step>
@@ -5291,11 +5288,13 @@ $ ./startup.sh -p samples/sample6</screen>
    <section xml:id="run-sample6-live-sync">
     <title>Using LiveSync</title>
 
-    <para>You can start reconciliation by using a scheduled configuration or
-     by using the REST interface directly. However, to use LiveSync, you must
-     configure a schedule. When LiveSync is active, the default schedule in the
-     <filename>schedule-activeSynchroniser_systemAdAccount.json</filename>
-     configuration file runs LiveSync every 15 seconds.
+    <para>
+     You can trigger a reconciliation operation by configuring a schedule, or by
+     launching the operation directly over the REST interface. You can also
+     launch a LiveSync operation over REST, but LiveSync requires a configured
+     schedule to poll for changes. When this sample's default LiveSync schedule
+     (<filename>schedule-activeSynchroniser_systemAdAccount.json</filename>) is
+     enabled, a LiveSync operation is launched every 15 seconds.
     </para>
 
     <para>
@@ -5304,9 +5303,9 @@ $ ./startup.sh -p samples/sample6</screen>
     </para>
 
     <para>
-     LiveSync is disabled by default. To activate LiveSync, change the
-     value of the <literal>"enabled"</literal> property
-     from <literal>false</literal> to <literal>true</literal>.
+     The LiveSync schedule is disabled by default. To activate LiveSync, change
+     the value of the <literal>"enabled"</literal> property from
+     <literal>false</literal> to <literal>true</literal>.
     </para>
 
     <programlisting language="javascript">{
@@ -6170,7 +6169,7 @@ $ ./ldapmodify \
    <para>
     You should still be able to access the OpenIDM UI
     in the "normal" way. In this case, you would point a browser to
-    <literal>https://openidm.example.com:8443/openidmui</literal>.
+    <literal>https://openidm.example.com:8443/selfservice</literal>.
    </para>
 
    <para>
@@ -6802,11 +6801,13 @@ Based on the presence of a shared SSO token, any application secured by OpenAM
 
    <para>
     After you complete the steps described in Sample 2b, do one more thing.
-    Navigate to the Data Management UI at
-    <literal>https://openidm.example.com:8443/openidmui</literal>, and select
-    Users. Select a specific user, such as <literal>bjensen</literal>. Click
-    Change Password and change that password.
+    Navigate to the Admin UI at
+    <literal>https://openidm.example.com:8443/admin</literal>, and select
+    Manage &gt; User. Select a specific user, such as
+    <literal>bjensen</literal>. Click Change Password and change that password.
    </para>
+
+   <!-- Currently broken, per OPENIDM-3560 -->
 
    <para>
     Return to the Admin UI, select Mappings, and select the
@@ -6829,7 +6830,7 @@ Based on the presence of a shared SSO token, any application secured by OpenAM
     <literal>https://openam.example.com:8443/openam</literal>. Log in with the
     administrative account, which by default is <literal>amadmin</literal>.
     Navigate to Access Control &gt; Realm &gt; Subjects &gt; User. You should
-    see the same users as you see in the OpenIDM Data Management UI.
+    see the same users as you see in the OpenIDM Self-Service UI.
    </para>
 
    <mediaobject xml:id="openam-user-list">
@@ -6860,7 +6861,7 @@ Based on the presence of a shared SSO token, any application secured by OpenAM
    <para>
     Login as user <literal>bjensen</literal>, with the password that you just
     changed in OpenIDM. If successful, you should now be logged into the
-    <emphasis>OpenIDM</emphasis> Data Management View screen, as user
+    <emphasis>OpenIDM</emphasis> Self-Service UI screen, as user
     <literal>bjensen</literal>.
    </para>
   </section>
@@ -7133,9 +7134,9 @@ $ ./startup.sh -p samples/audit-sample</screen>
   <note>
    <para>
     The Google Apps Connector, and this corresponding sample, are provided only
-    with <link xlink:show="new"
-    xlink:href="http://www.forgerock.com/download-stack/">OpenIDM
-    Enterprise</link>.
+    with the <link xlink:show="new"
+    xlink:href="https://backstage.forgerock.com">OpenIDM
+    Enterprise build</link>.
    </para>
   </note>
   <para>
@@ -7579,9 +7580,8 @@ OpenIDM version "3.1.0" (revision: 0) null null
   <note>
    <para>
     The Salesforce Connector, and this corresponding sample, are provided only
-    with <link xlink:show="new"
-    xlink:href="http://www.forgerock.com/download-stack/">OpenIDM
-    Enterprise</link>.
+    with the <link xlink:show="new"
+    xlink:href="https://backstage.forgerock.com">OpenIDM Enterprise build</link>.
    </para>
   </note>
   <para>
@@ -7890,7 +7890,7 @@ $ ./startup.sh -p samples/salesforce-connector</screen>
       appears, click the Data Management View link.
      </para>
      <para>
-      This link opens the Data Management UI. If you did not change your
+      This link opens the Self-Service UI. If you did not change your
       password in the first step, you are prompted to change your password
       again. You can bypass this by clicking X to close the password prompt
       window.
@@ -7951,7 +7951,7 @@ $ ./startup.sh -p samples/salesforce-connector</screen>
      </para>
      <para>
       To test that the implicit synchronization has been successful, look at
-      Babs Jensen's record in the Data Management UI. At the bottom of the
+      Babs Jensen's record in the Self-Service UI. At the bottom of the
       user profile, the Linked Systems panel indicates Babs Jensen's record in
       the Salesforce data store. Note the changed Username.
      </para>
@@ -7986,7 +7986,7 @@ $ ./startup.sh -p samples/salesforce-connector</screen>
      </para>
      <para>
 <link xlink:show="new"
-      xlink:href="https://login.salesforce.com/services/oauth2/authorize?response_type=code&amp;client_id=CLIENT_ID&amp;redirect_uri=https://localhost:8443/admin/oauth.html&amp;scope=id%20api%20refresh_token" />
+      xlink:href="https://login.salesforce.com/services/oauth2/authorize?response_type=code&amp;client_id=CLIENT_ID&amp;redirect_uri=https://localhost:8443/admin/oauth.html&amp;scope=id+api+refresh_token" />
      </para>
     </step>
     <step>

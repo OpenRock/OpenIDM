@@ -4,7 +4,7 @@
         "securityQuestions" : false,
         "siteIdentification" : false,
         "lang" : "en",
-        "passwordResetLink": "",
+        "passwordResetLink" : "",
         "roles" : {
             "openidm-admin" : "Administrator",
             "openidm-authorized" : "User",
@@ -30,6 +30,29 @@
                 "iconPath" : "images/notifications/error.png"
             }
         },
-        "defaultNotificationType" : "info"
+        "defaultNotificationType" : "info",
+        "dashboard" : {
+            "widgets" : [
+                {
+                    "type" : "workflow"
+                },
+                {
+                    "type" : "quickStart",
+                    "size" : "medium",
+                    "cards" : [
+                        {
+                            "name" : "dashboard.viewProfile",
+                            "icon" : "fa-user",
+                            "href" : "index.html#profile/"
+                        },
+                        {
+                            "name" : "dashboard.changePassword",
+                            "icon" : "fa-lock",
+                            "href" : "index.html#profile/change_security_data/"
+                        }
+                    ]
+                }
+            ]
+        }
     }
 }

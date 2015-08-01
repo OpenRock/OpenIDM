@@ -25,14 +25,17 @@
 /*global require, define, QUnit, $ */
 
 define([
-    "./mocks/adminInit",
     "./managedobjects/managedObjectsTest",
     "./resources/resourceTest",
     "./mapping/addMappingTest",
     "./mapping/reconTests",
     "./mapping/propertyMappingTest",
-    "./mapping/correlationTest"
-], function (adminInit, moTest, resourceTest, addMappingTest, reconTests, propertyMappingTest, correlationTest) {
+    "./mapping/correlationTest",
+    "./mapping/linkQualifierTest",
+    "./connector/editConnectorTest",
+    "./connector/addConnectorTest",
+    "./resourceData/editResourceViewTest"
+], function (moTest, resourceTest, addMappingTest, reconTests, propertyMappingTest, correlationTest, linkQualifierTest, editConnectorTest, addConnectorTest, editResourceViewTest) {
 
     return {
         executeAll: function (server) {
@@ -40,13 +43,16 @@ define([
                 $(".bootstrap-dialog").remove();
             });
 
-            adminInit(server);
             addMappingTest.executeAll(server);
             resourceTest.executeAll(server);
             reconTests.executeAll(server);
             correlationTest.executeAll(server);
+            linkQualifierTest.executeAll(server);
             moTest.executeAll(server);
             propertyMappingTest.executeAll(server);
+            editConnectorTest.executeAll(server);
+            addConnectorTest.executeAll(server);
+            editResourceViewTest.executeAll(server);
         }
     };
 });

@@ -168,7 +168,6 @@ public class HealthService
         "org.forgerock.commons.i18n-slf4j",
         "org.forgerock.commons.json-crypto",
         "org.forgerock.commons.json-fluent",
-        "org.forgerock.commons.json-patch",
         "org.forgerock.commons.json-resource",
         "org.forgerock.commons.json-resource-servlet",
         "org.forgerock.commons.json-schema",
@@ -233,6 +232,7 @@ public class HealthService
             "org.forgerock.openidm.bootrepo.(orientdb|jdbc)",
             "org.forgerock.openidm.cluster",
             "org.forgerock.openidm.config.enhanced",
+            "org.forgerock.openidm.config.manage",
             "org.forgerock.openidm.crypto",
             "org.forgerock.openidm.external.rest",
             "org.forgerock.openidm.internal",
@@ -497,8 +497,8 @@ public class HealthService
         ServiceReference[] refs = null;
         try {
             refs = context.getBundleContext().getAllServiceReferences(null, null);
-        } catch (InvalidSyntaxException e) {
-            // Since we are not passing a filter this should not happen
+        } catch (Exception e) {
+            // Bundles and context may be in flux during shutdown
             logger.debug("Unexpected failure in getting service references", e);
         }
 
@@ -506,12 +506,14 @@ public class HealthService
         // required services.  Required services can be expressed as a regex,
         // for example: "org.forgerock.openidm.bootrepo.(orientdb|jdbc)"
         List<String> missingServices = new ArrayList<String>(requiredServices);
-        for (String req : requiredServices) {
-            for (ServiceReference ref : refs){
-                String pid = (String)ref.getProperty(Constants.SERVICE_PID);
-                if (pid !=null && pid.matches(req)) {
-                    missingServices.remove(req);
-                    break;
+        if (refs != null && refs.length > 0) {
+            for (String req : requiredServices) {
+                for (ServiceReference ref : refs) {
+                    String pid = (String) ref.getProperty(Constants.SERVICE_PID);
+                    if (pid != null && pid.matches(req)) {
+                        missingServices.remove(req);
+                        break;
+                    }
                 }
             }
         }
@@ -621,9 +623,9 @@ public class HealthService
         case Bundle.STOPPING:
             return "STOPPING";
         case Bundle.UNINSTALLED:
-            return "UNINSTALLED ";
+            return "UNINSTALLED";
         }
-        return "UNKNDWN";
+        return "UNKNOWN";
     }
 
     /**
@@ -696,8 +698,8 @@ public class HealthService
 
         protected boolean isSameState(AppState compareState, String compareShortDesc) {
             return state == compareState
-                    && ((shortDesc == null && compareShortDesc == null) || shortDesc
-                            .equals(compareShortDesc));
+                    && ((shortDesc == null && compareShortDesc == null)
+                        || (shortDesc != null && shortDesc.equals(compareShortDesc)));
         }
 
         protected JsonValue toJsonValue() {

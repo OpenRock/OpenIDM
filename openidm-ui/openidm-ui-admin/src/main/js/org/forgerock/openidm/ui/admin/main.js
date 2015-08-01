@@ -1,7 +1,7 @@
 /**
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2014 ForgeRock AS. All rights reserved.
+ * Copyright (c) 2015 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -27,79 +27,101 @@
 
 define("org/forgerock/openidm/ui/admin/main", [
 
+    "./components/Footer",
+
     "./delegates/ConnectorDelegate",
     "./delegates/SyncDelegate",
-    "./delegates/BrowserStorageDelegate",
     "./delegates/ExternalAccessDelegate",
-    "./delegates/SearchDelegate",
     "./delegates/ReconDelegate",
     "./delegates/SecurityDelegate",
     "./delegates/WorkflowDelegate",
     "./delegates/ScriptDelegate",
     "./delegates/SiteConfigurationDelegate",
 
-    "./ResourcesView",
     "./MapResourceView",
-    
-    "./connector/AddEditConnectorView",
+
+    "./connector/AbstractConnectorView",
+    "./connector/EditConnectorView",
+    "./connector/AddConnectorView",
     "./connector/ConnectorTypeAbstractView",
     "./connector/ConnectorTypeView",
     "./connector/ConnectorRegistry",
+    "./connector/ConnectorListView",
 
     "./managed/AddEditManagedView",
+    "./managed/ManagedListView",
 
     "./util/ConnectorUtils",
     "./util/LinkQualifierUtils",
-    "./util/ScriptEditor",
     "./util/ScriptList",
     "./util/ScriptDialog",
     "./util/AutoCompleteUtils",
     "./util/Scheduler",
-    "./util/MappingUtils",
     "./util/ReconDetailsView",
     "./util/QueryFilterUtils",
     "./util/AutoCompleteUtils",
     "./util/SaveChangesView",
     "./util/FilterEvaluator",
+    "./util/BackgridUtils",
 
     "./objectTypes/ObjectTypesDialog",
 
-    "./authentication/AuthenticationView",
+    "./mapping/AssociationView",
+    "./mapping/association/AssociationRuleView",
+    "./mapping/association/DataAssociationManagementView",
+    "./mapping/association/IndividualRecordValidationView",
+    "./mapping/association/ReconciliationQueryFiltersView",
+    "./mapping/association/correlationQuery/CorrelationQueryBuilderView",
+    "./mapping/association/correlationQuery/CorrelationQueryDialog",
+    "./mapping/association/dataAssociationManagement/ChangeAssociationDialog",
+    "./mapping/association/dataAssociationManagement/TestSyncDialog",
 
+    "./mapping/BehaviorsView",
+    "./mapping/behaviors/SingleRecordReconciliationGridView",
+    "./mapping/behaviors/SingleRecordReconciliationView",
+    "./mapping/behaviors/ReconciliationScriptView",
+    "./mapping/behaviors/SituationalEventScriptsView",
+    "./mapping/behaviors/PoliciesDialogView",
+    "./mapping/behaviors/PoliciesView",
+
+    "./mapping/PropertiesView",
+    "./mapping/properties/LinkQualifiersView",
+    "./mapping/properties/AttributesGridView",
+    "./mapping/properties/RoleEntitlementsView",
+    "./mapping/properties/AddPropertyMappingDialog",
+    "./mapping/properties/EditPropertyMappingDialog",
+
+    "./mapping/ScheduleView",
+    "./mapping/scheduling/SchedulerView",
+    "./mapping/scheduling/LiveSyncView",
+
+    "./mapping/MappingBaseView",
     "./mapping/AddMappingView",
     "./mapping/MappingListView",
-    "./mapping/MappingBaseView",
-    "./mapping/PropertiesView",
-    "./mapping/AddPropertyMappingDialog",
-    "./mapping/EditPropertyMappingDialog",
-    "./mapping/MappingRoleEntitlementsView",
 
-    "./sync/SyncView",
-    "./sync/SituationPolicyView",
-    "./sync/SituationPolicyDialogView",
-    "./sync/CorrelationView",
-    "./sync/AnalysisView",
-    "./sync/ObjectFiltersView",
-    "./sync/SituationalScriptsView",
-    "./sync/ReconScriptsView",
-    "./sync/ReconQueriesView",
-    "./sync/QueryFilterEditor",
-    "./sync/LinkQualifierFilterEditor",
-    "./sync/CorrelationQueryBuilderView",
-    "./sync/CorrelationQueryDialog",
-    "./sync/CorrelationQueryView",
-    "./sync/ChangeAssociationDialog",
-    "./sync/TestSyncView",
-    "./sync/TestSyncGridView",
-    "./sync/ScheduleView",
+    "./mapping/util/MappingUtils",
+    "./mapping/util/MappingScriptsView",
+    "./mapping/util/QueryFilterEditor",
+    "./mapping/util/LinkQualifierFilterEditor",
 
     "./login/LoginView",
     
     "./settings/SettingsView",
-    
+    "./settings/AuthenticationView",
+    "./settings/AuditView",
+    "./settings/EmailConfigView",
+    "./settings/SelfServiceView",
+
     "./role/EditRoleView",
     "./role/RoleUsersView",
     "./role/RoleEntitlementsListView",
-    "./role/RoleEntitlementsEditView"
+    "./role/RoleEntitlementsEditView",
 
+    "./workflow/ActiveProcessesView",
+    "./workflow/ProcessDefinitionsView",
+    "./workflow/ProcessListView",
+    "./workflow/ProcessInstanceView",
+    "./workflow/ProcessHistoryView",
+    "./workflow/TaskListView",
+    "./workflow/TaskInstanceView"
 ]);

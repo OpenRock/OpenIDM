@@ -94,7 +94,7 @@ openidm.update("config/custom/mylookuptable", mymap)
 openidm.update("repo/custom/mylookuptable", mymap)</programlisting>
 
   <para>
-   For managed objects, you can partially update an object with the
+   You can apply a partial update to a managed or system object by using the
    <literal>patch()</literal> function.
   </para>
 
@@ -339,7 +339,7 @@ var results = openidm.query("system/ScriptedSQL/account", params)</programlistin
  --cacert self-signed.crt \
  --header "X-OpenIDM-Username: openidm-admin" \
  --header "X-OpenIDM-Password: openidm-admin" \
- --request GET
+ --request GET \
  'https://localhost:8443/openidm/managed/user?_queryFilter=userName+eq+"Smith"'</userinput></screen>
    <para>
     Note the use of double-quotes around the search term:
@@ -368,9 +368,7 @@ var results = openidm.query("system/ScriptedSQL/account", params)</programlistin
     building blocks shown in this section. In these expressions the simplest
     <replaceable>json-pointer</replaceable> is a field of the JSON resource,
     such as <literal>userName</literal> or <literal>id</literal>. A json-pointer
-    can, however, point to nested elements as described in the
-    <link xlink:show="new" xlink:href="http://tools.ietf.org/html/rfc6901">JSON
-    Pointer RFC</link>.
+    can, however, point to nested elements.
    </para>
    <varlistentry>
     <term>Comparison expressions</term>

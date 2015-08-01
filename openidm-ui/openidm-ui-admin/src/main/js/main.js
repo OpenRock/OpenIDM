@@ -30,6 +30,11 @@ require.config({
         i18next: "libs/i18next-1.7.3-min",
         i18nGrid: "libs/i18n/grid.locale-en",
         backbone: "libs/backbone-1.1.2-min",
+        "backbone.paginator": "libs/backbone.paginator.min-2.0.2-min",
+        "backbone-relational": "libs/backbone-relational-0.9.0-min",
+        "backgrid": "libs/backgrid.min-0.3.5-min",
+        "backgrid-filter": "libs/backgrid-filter.min-0.3.5-min",
+        "backgrid-paginator": "libs/backgrid-paginator.min-0.3.5-min",
         underscore: "libs/lodash-2.4.1-min",
         js2form: "libs/js2form-2.0",
         form2js: "libs/form2js-2.0",
@@ -42,16 +47,19 @@ require.config({
         xdate: "libs/xdate-0.8-min",
         doTimeout: "libs/jquery.ba-dotimeout-1.0-min",
         handlebars: "libs/handlebars-1.3.0-min",
-        bootstrap: "libs/bootstrap.min",
-        "bootstrap-dialog": "libs/bootstrap-dialog.min",
         "bootstrap-tabdrop": "libs/bootstrap-tabdrop-1.0",
-        placeholder: "libs/jquery.placeholder",
+        bootstrap: "libs/bootstrap-3.3.4-custom",
+        "bootstrap-dialog": "libs/bootstrap-dialog-1.34.4-min",
+        placeholder: "libs/jquery.placeholder-2.0.8",
         selectize : "libs/selectize-0.12.1-min",
+        d3 : "libs/d3-3.5.5-min",
         moment: "libs/moment-2.8.1-min",
         AuthnDelegate: "org/forgerock/openidm/ui/common/delegates/AuthnDelegate",
         jsonEditor: "libs/jsoneditor-0.7.9-min",
+        UserDelegate: "org/forgerock/openidm/ui/common/util/UserDelegate",
         ThemeManager: "org/forgerock/openidm/ui/common/util/ThemeManager",
-        "ldapjs-filter": "libs/ldapjs-filter-2253-min"
+        "ldapjs-filter": "libs/ldapjs-filter-2253-min",
+        faiconpicker: "libs/fontawesome-iconpicker-1.0.0-min"
     },
 
     shim: {
@@ -61,6 +69,19 @@ require.config({
         backbone: {
             deps: ["underscore"],
             exports: "Backbone"
+        },
+        "backbone.paginator": {
+            deps: ["backbone"]
+        },
+        "backgrid": {
+            deps: ["jquery", "underscore", "backbone"],
+            exports: "Backgrid"
+        },
+        "backgrid-filter": {
+            deps: ["backgrid"]
+        },
+        "backgrid-paginator": {
+            deps: ["backgrid", "backbone.paginator"]
         },
         js2form: {
             exports: "js2form"
@@ -109,6 +130,9 @@ require.config({
         },
         selectize: {
             deps: ["jquery"]
+        },
+        d3: {
+            exports: "d3"
         },
         bootstrap: {
             deps: ["jquery"]

@@ -1,21 +1,6 @@
 /*
   Clean up CSS
 */
-.resourcesContainer {
-  margin-bottom:25px;
-
-  .btn-toolbar,  {
-    border-bottom: none;
-    padding-bottom: 0px;
-    margin-bottom: 0px;
-    margin-top: 0px;
-  }
-
-  .ui-jqgrid {
-    margin: auto;
-    margin-top: 10px;
-  }
-}
 
 .checkboxList ol {
   padding-left:20px;
@@ -41,7 +26,6 @@
   text-decoration:underline;
 }
 
-
 /*
   Messages
 */
@@ -65,72 +49,44 @@
   background-image:none;
 }
 
-/*
-  manager search
-*/
-
-.manager-search .selectize-input .fa,
-.manager-search .selectize-control .selectize-dropdown .fa {
-  margin-right:5px;
-}
-
-.selectize-control .selectize-dropdown .manager-fullname {
-  display:block;
-}
-
-.selectize-control .selectize-dropdown .manager-title {
-  display:block;
-}
-
-.manager-search .selectize-input .caption,
-.selectize-control .selectize-dropdown .caption {
-  font-size: 12px;
-  opacity: 0.5;
-}
-
 
 /*
-  Reports Details
+Dialog Catch
 */
 
-#reportsHolder {
-  margin-bottom:30px;
-
-  .table tbody tr td {
-    padding:15px;
-  }
-
-  .table tbody tr:hover {
-    background-color:#f3f3f3;
-  }
-}
-
-#reportsHolder .panel {
-  margin-bottom:0px;
-}
-
-#reportsHolder thead tr{
-  text-transform: uppercase;
+.dialogInner .modal-header {
+  padding-bottom:15px;
 }
 
 /*
-  Graph Display
+  Password Change
 */
+#dialogs .modal-header {
+  height: 50px;
+  margin-bottom: 15px;
+  border:none;
+}
 
+#dialogs .modal-title {
+  float:left;
+  font-weight: 600;
+  font-size:16px;
+}
 
-#reportsGraphBody {
-  overflow:hidden;
-  .node circle {
-    fill: #fff;
-    stroke: @base-theme-color;
-    stroke-width: 3px;
-  }
+#dialogs .modal-content .dialogCloseCross {
+  float:right;
+}
 
-  .node text { font: 12px; }
+#dialogs .modal-content .dialogCloseCross a {
+  color: rgb(42, 47, 50);
+  opacity: .4;
+}
 
-  .link {
-    fill: none;
-    stroke: #2a2f32;
-    stroke-width: 2px;
-  }
+#dialogs .modal-content .dialogCloseCross a:hover {
+  opacity: .8;
+}
+
+#changeSecuirtyDataDialog .well,
+#mandatoryPasswordChangeDialog .well {
+  margin-left:45px;
 }

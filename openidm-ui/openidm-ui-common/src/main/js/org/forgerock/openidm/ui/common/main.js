@@ -31,6 +31,7 @@ define("org/forgerock/openidm/ui/common/main", [
     "./resource/EditResourceView",
     "./resource/GenericEditResourceView",
     "./resource/ResourceEditViewRegistry",
+    "./resource/ResourceCollectionArrayView",
     
     "./delegates/ConfigDelegate",
     "./delegates/InternalUserDelegate",
@@ -44,5 +45,32 @@ define("org/forgerock/openidm/ui/common/main", [
     
     "./util/Constants",
     "./util/AMLoginUtils",
-    "./util/JSONEditorSetupUtils"
+    "./util/JSONEditorSetupUtils",
+    
+    "./dashboard/DashboardWidgetLoader",
+    "./dashboard/widgets/MemoryUsageWidget",
+    "./dashboard/widgets/ReconProcessesWidget",
+    "./dashboard/widgets/CPUUsageWidget",
+
+    "./notifications/NotificationDelegate",
+    "./notifications/NotificationsView",
+    "./notifications/NotificationViewHelper",
+
+    "./workflow/FormManager",
+    "./workflow/WorkflowDelegate",
+
+    "./workflow/tasks/TaskDetailsView",
+    "./workflow/tasks/AbstractTaskForm",
+    "./workflow/tasks/customview/ApplicationAcceptanceTask",
+    "./workflow/tasks/TasksMenuView",
+    "./workflow/tasks/TasksDashboard",
+    "./workflow/tasks/TemplateTaskForm",
+
+    "./workflow/processes/AbstractProcessForm",
+    "./workflow/processes/StartProcessDashboardView",
+    "./workflow/processes/StartProcessView",
+    "./workflow/processes/TemplateStartProcessForm",
+    "./workflow/processes/customview/SendNotificationProcess",
+
+    "./linkedView/LinkedView"
 ]);

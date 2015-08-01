@@ -397,18 +397,6 @@
             <version>${slf4j.version}</version>
         </dependency>
 
-        <!-- Eclipse JSDT -->
-        <dependency>
-            <groupId>org.eclipse.wst.jsdt.debug</groupId>
-            <artifactId>rhino.debugger</artifactId>
-            <version>1.0.300.v201109150503</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.wst.jsdt.debug</groupId>
-            <artifactId>transport</artifactId>
-            <version>1.0.100.v201109150330</version>
-        </dependency>
-
         <!-- ForgeRock commons -->
         <dependency>
             <groupId>org.forgerock.commons</groupId>
@@ -423,6 +411,10 @@
         <dependency>
             <groupId>org.forgerock.commons</groupId>
             <artifactId>script-groovy</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.forgerock.commons</groupId>
+            <artifactId>forgerock-audit-handler-csv</artifactId>
         </dependency>
 
         <!-- OpenICF -->
@@ -589,7 +581,7 @@
         <dependency>
             <groupId>org.forgerock.opendj</groupId>
             <artifactId>opendj-ldap-sdk</artifactId>
-            <version>2.6.9</version>
+            <version>2.6.10</version>
         </dependency>
 
         <!-- scriptedazure sample Groovy dependencies -->

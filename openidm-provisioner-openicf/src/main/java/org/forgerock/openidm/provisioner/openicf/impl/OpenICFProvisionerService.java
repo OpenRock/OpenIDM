@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -109,14 +110,13 @@ import org.forgerock.openidm.audit.util.ActivityLogger;
 import org.forgerock.openidm.audit.util.NullActivityLogger;
 import org.forgerock.openidm.audit.util.RouterActivityLogger;
 import org.forgerock.openidm.audit.util.Status;
+import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.config.enhanced.InvalidException;
-import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.crypto.CryptoService;
 import org.forgerock.openidm.provisioner.ProvisionerService;
 import org.forgerock.openidm.provisioner.SimpleSystemIdentifier;
 import org.forgerock.openidm.provisioner.SystemIdentifier;
-import org.forgerock.openidm.provisioner.impl.SystemObjectSetService;
 import org.forgerock.openidm.provisioner.openicf.ConnectorInfoProvider;
 import org.forgerock.openidm.provisioner.openicf.ConnectorReference;
 import org.forgerock.openidm.provisioner.openicf.OperationHelper;
@@ -323,6 +323,12 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
     protected SyncFailureHandlerFactory syncFailureHandlerFactory = null;
 
     /**
+     * Enhanced configuration service.
+     */
+    @Reference(policy = ReferencePolicy.DYNAMIC)
+    private EnhancedConfig enhancedConfig;
+
+    /**
      * Reference to the ThreadSafe {@code ConnectorFacade} instance.
      */
     private final AtomicReference<ConnectorFacade> connectorFacade =
@@ -332,7 +338,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
     protected void activate(ComponentContext context) {
         try {
             factoryPid = (String)context.getProperties().get("config.factory-pid");
-            jsonConfiguration = JSONEnhancedConfig.newInstance().getConfigurationAsJson(context);
+            jsonConfiguration = enhancedConfig.getConfigurationAsJson(context);
             systemIdentifier = new SimpleSystemIdentifier(jsonConfiguration);
 
             if (!jsonConfiguration.get("enabled").defaultTo(true).asBoolean()) {
@@ -446,11 +452,11 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
             connectorInfoProvider.addConnectorFacadeCallback(connectorReference, connectorFacadeCallback);
 
             routeEntry = routerRegistry.addRoute(RouteBuilder.newBuilder()
-                    .withTemplate("/system/" + systemIdentifier.getName())
+                    .withTemplate(ProvisionerService.ROUTER_PREFIX + "/" + systemIdentifier.getName())
                     .withSingletonResourceProvider(this)
                     .buildNext()
                     .withModeStartsWith()
-                    .withTemplate("/system/" + systemIdentifier.getName() + ObjectClassRequestHandler.OBJECTCLASS_TEMPLATE)
+                    .withTemplate(ProvisionerService.ROUTER_PREFIX + "/" + systemIdentifier.getName() + ObjectClassRequestHandler.OBJECTCLASS_TEMPLATE)
                     .withRequestHandler(new ObjectClassRequestHandler())
                     .seal());
 
@@ -603,7 +609,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
             // log the ConnectorException
             logger.debug(message, exception);
             try {
-                connectorExceptionActivityLogger.log(context, request.getRequestType(), message, resourceId,
+                connectorExceptionActivityLogger.log(context, request, message, resourceId,
                         before, after, Status.FAILURE);
             } catch (ResourceException e) {
                 // this means the ActivityLogger couldn't log request; log to error log
@@ -1298,7 +1304,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
         private void handleLiveSync(ServerContext context, ActionRequest request, ResultHandler<JsonValue> handler)
                 throws ResourceException {
             final ActionRequest forwardRequest =
-                    Requests.newActionRequest(SystemObjectSetService.ROUTER_PREFIX, request.getAction())
+                    Requests.newActionRequest(ProvisionerService.ROUTER_PREFIX, request.getAction())
                             .setAdditionalParameter("source", getSource(objectClass));
 
             // forward request to be handled in SystemObjectSetService#actionInstance
@@ -1333,7 +1339,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                         AttributeUtil.filterUid(createAttributes), operationOptions);
 
                 Resource resource = getCurrentResource(facade, uid, null);
-                activityLogger.log(context, RequestType.CREATE, "message", getSource(objectClass, uid.getUidValue()), null, resource.getContent(), Status.SUCCESS);
+                activityLogger.log(context, request, "message", getSource(objectClass, uid.getUidValue()), null, resource.getContent(), Status.SUCCESS);
                 handler.handleResult(resource);
             } catch (ResourceException e) {
                 handler.handleError(e);
@@ -1374,7 +1380,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 if (null != uid.getRevision()) {
                     result.put(Resource.FIELD_CONTENT_REVISION, uid.getRevision());
                 }
-                activityLogger.log(context, RequestType.DELETE, "message", getSource(objectClass, uid.getUidValue()), before.getContent(), null, Status.SUCCESS);
+                activityLogger.log(context, request, "message", getSource(objectClass, uid.getUidValue()), before.getContent(), null, Status.SUCCESS);
                 handler.handleResult(new Resource(uid.getUidValue(), uid.getRevision(), result));
             } catch (ResourceException e) {
                 handler.handleError(e);
@@ -1390,7 +1396,68 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
         @Override
         public void patchInstance(ServerContext context, String resourceId, PatchRequest request,
                 ResultHandler<Resource> handler) {
-            handler.handleError(new NotSupportedException("Patch operations are not supported"));
+            JsonValue beforeValue = null;
+            try {
+                final ConnectorFacade facade = getConnectorFacade0(handler, UpdateApiOp.class);
+                if (null == facade) {
+                    // getConnectorFacade0 already handles error when returning null
+                    return;
+                }
+
+                final Uid _uid = request.getRevision() != null
+                        ? new Uid(resourceId, request.getRevision())
+                        : new Uid(resourceId);
+
+                // read resource before update for logging
+                Resource before = getCurrentResource(facade, _uid, null);
+                beforeValue = before.getContent();
+                
+                final Set<Attribute> patchedAttributes =
+                        objectClassInfoHelper.getPatchAttributes(request, beforeValue, cryptoService);
+                
+                Set<String> patchedAttributeNames = new HashSet<String>(patchedAttributes.size());
+                for (Attribute attribute : patchedAttributes) {
+                    patchedAttributeNames.add(attribute.getName());
+                }
+
+                OperationOptions operationOptions;
+                OperationOptionsBuilder operationOptionsBuilder = operations.get(UpdateApiOp.class)
+                        .build(jsonConfiguration, objectClassInfoHelper);
+
+                final String reauthPassword = getReauthPassword(context);
+
+                // if reauth and updating attribute requiring user credentials
+                if (runAsUser(patchedAttributeNames, reauthPassword)) {
+                    // get username attribute
+                    final List<String> usernameAttrs =
+                            jsonConfiguration.get(ConnectorUtil.OPENICF_CONFIGURATION_PROPERTIES)
+                                    .get(ACCOUNT_USERNAME_ATTRIBUTES)
+                                    .asList(String.class);
+                    final String username = beforeValue.get(usernameAttrs.get(0)).asString();
+
+                    if (StringUtils.isNotBlank(username)) {
+                        operationOptionsBuilder.setRunAsUser(username)
+                                .setRunWithPassword(new GuardedString(reauthPassword.toCharArray()));
+                    }
+                }
+
+                operationOptions = operationOptionsBuilder.build();
+
+                Uid uid = facade.update(objectClassInfoHelper.getObjectClass(), _uid,
+                        AttributeUtil.filterUid(patchedAttributes), operationOptions);
+
+                Resource resource = getCurrentResource(facade, uid, null);
+                activityLogger.log(context, request, "message", getSource(objectClass, uid.getUidValue()), beforeValue, resource.getContent(), Status.SUCCESS);
+                handler.handleResult(resource);
+            } catch (ResourceException e) {
+                handler.handleError(e);
+            } catch (ConnectorException e) {
+                handleConnectorException(context, request, e, getSource(objectClass), resourceId, beforeValue, null, handler, activityLogger);
+            } catch (JsonValueException e) {
+                handler.handleError(new BadRequestException(e.getMessage(), e));
+            } catch (Exception e) {
+                handler.handleError(new InternalServerErrorException(e.getMessage(), e));
+            }
         }
 
         @Override
@@ -1467,7 +1534,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                                 }
                             }
                         }, operationOptionsBuilder.build());
-                activityLogger.log(context, request.getRequestType(),
+                activityLogger.log(context, request,
                         "query: " + request.getQueryId()
                         + ", queryExpression: " + request.getQueryExpression()
                         + ", queryFilter: " + (request.getQueryFilter() != null ? request.getQueryFilter().toString() : null)
@@ -1509,7 +1576,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
 
                 if (null != connectorObject) {
                     Resource resource = objectClassInfoHelper.build(connectorObject, cryptoService);
-                    activityLogger.log(context, RequestType.READ, "message", getSource(objectClass, uid.getUidValue()), resource.getContent(), resource.getContent(), Status.SUCCESS);
+                    activityLogger.log(context, request, "message", getSource(objectClass, uid.getUidValue()), resource.getContent(), resource.getContent(), Status.SUCCESS);
                     handler.handleResult(resource);
                 } else {
                     final String matchedUri = context.containsContext(RouterContext.class)
@@ -1531,6 +1598,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
         @Override
         public void updateInstance(ServerContext context, String resourceId, UpdateRequest request,
                 ResultHandler<Resource> handler) {
+            JsonValue content = request.getContent();
             try {
                 final ConnectorFacade facade = getConnectorFacade0(handler, UpdateApiOp.class);
                 if (null == facade) {
@@ -1557,14 +1625,14 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
 
                 final String reauthPassword = getReauthPassword(context);
 
-                // if reauth and updating attribute requiring user credentials
-                if (runAsUser(request, reauthPassword)) {
+                // if reauth and updating attributes requiring user credentials
+                if (runAsUser(content.asMap().keySet(), reauthPassword)) {
                     // get username attribute
                     final List<String> usernameAttrs =
                             jsonConfiguration.get(ConnectorUtil.OPENICF_CONFIGURATION_PROPERTIES)
                                     .get(ACCOUNT_USERNAME_ATTRIBUTES)
                                     .asList(String.class);
-                    final String username = request.getContent().get(usernameAttrs.get(0)).asString();
+                    final String username = content.get(usernameAttrs.get(0)).asString();
 
                     if (StringUtils.isNotBlank(username)) {
                         operationOptionsBuilder.setRunAsUser(username)
@@ -1578,12 +1646,12 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                         AttributeUtil.filterUid(replaceAttributes), operationOptions);
 
                 Resource resource = getCurrentResource(facade, uid, null);
-                activityLogger.log(context, RequestType.UPDATE, "message", getSource(objectClass, uid.getUidValue()), before.getContent(), resource.getContent(), Status.SUCCESS);
+                activityLogger.log(context, request, "message", getSource(objectClass, uid.getUidValue()), before.getContent(), resource.getContent(), Status.SUCCESS);
                 handler.handleResult(resource);
             } catch (ResourceException e) {
                 handler.handleError(e);
             } catch (ConnectorException e) {
-                handleConnectorException(context, request, e, getSource(objectClass), resourceId, request.getContent(), null, handler, activityLogger);
+                handleConnectorException(context, request, e, getSource(objectClass), resourceId, content, null, handler, activityLogger);
             } catch (JsonValueException e) {
                 handler.handleError(new BadRequestException(e.getMessage(), e));
             } catch (Exception e) {
@@ -1603,8 +1671,14 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
             }
         }
 
-        // check if updating an attribute that requires user credentials
-        private boolean runAsUser(UpdateRequest request, String reauthPassword) {
+        /**
+         * Checks if any of the supplied attributes require re-authentication to update.
+         * 
+         * @param attributes the attributes being updated
+         * @param reauthPassword the re-authentication password
+         * @return true if a password is re-authentication is required, false otherwise.
+         */
+        private boolean runAsUser(Set<String> attributes, String reauthPassword) {
             final JsonValue properties = objectClassInfoHelper.getProperties();
             final Predicate<String> attributesToRunAsUser = new Predicate<String>() {
                 @Override
@@ -1615,7 +1689,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
             };
 
             return StringUtils.isNotEmpty(reauthPassword)
-                    && FluentIterable.from(request.getContent().asMap().keySet()).filter(attributesToRunAsUser).iterator().hasNext();
+                    && FluentIterable.from(attributes).filter(attributesToRunAsUser).iterator().hasNext();
         }
 
         private Resource getCurrentResource(final ConnectorFacade facade, final Uid uid, final List<JsonPointer> fields)
@@ -2234,7 +2308,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                                                             .setContent(content);
                                                     connectionFactory.getConnection().action(routerContext, onCreateRequest);
 
-                                                    activityLogger.log(routerContext, RequestType.ACTION,
+                                                    activityLogger.log(routerContext, onCreateRequest,
                                                                     "sync-create", onCreateRequest.getResourceName(),
                                                                     deltaObject, deltaObject, Status.SUCCESS);
                                                     break;
@@ -2254,7 +2328,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                                                             .setContent(content);
                                                     connectionFactory.getConnection().action(routerContext, onUpdateRequest);
 
-                                                    activityLogger.log(routerContext, RequestType.ACTION,
+                                                    activityLogger.log(routerContext, onUpdateRequest,
                                                             "sync-update", onUpdateRequest.getResourceName(),
                                                             deltaObject, deltaObject, Status.SUCCESS);
                                                     break;
@@ -2269,7 +2343,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                                                             .setContent(content);
                                                     connectionFactory.getConnection().action(routerContext, onDeleteRequest);
 
-                                                    activityLogger.log(routerContext, RequestType.ACTION,
+                                                    activityLogger.log(routerContext, onDeleteRequest,
                                                             "sync-delete", onDeleteRequest.getResourceName(),
                                                             null, null, Status.SUCCESS);
                                                     break;
@@ -2342,5 +2416,13 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
             throw new InternalServerErrorException("Failed to get OperationOptionsBuilder: " + e.getMessage(), e);
         }
         return stage;
+    }
+
+    /**
+     * Package level setter to allow unit tests to set the logger.
+     * @param activityLogger
+     */
+    void setActivityLogger(ActivityLogger activityLogger) {
+        this.activityLogger = activityLogger;
     }
 }

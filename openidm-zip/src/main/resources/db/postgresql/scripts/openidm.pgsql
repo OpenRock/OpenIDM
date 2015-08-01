@@ -187,7 +187,7 @@ CREATE TABLE openidm.auditactivity (
   activity VARCHAR(24) DEFAULT NULL,
   message TEXT,
   subjectid VARCHAR(511) DEFAULT NULL,
-  subjectrev VARCHAR(38) DEFAULT NULL,
+  subjectrev VARCHAR(255) DEFAULT NULL,
   requester TEXT,
   approver TEXT,
   subjectbefore TEXT,
@@ -350,8 +350,8 @@ CREATE INDEX idx_clusterobjectproperties_prop ON openidm.clusterobjectproperties
 -- Data for table openidm.internaluser
 -- -----------------------------------------------------
 START TRANSACTION;
-INSERT INTO openidm.internaluser (objectid, rev, pwd, roles) VALUES ('openidm-admin', '0', 'openidm-admin', 'openidm-admin,openidm-authorized');
-INSERT INTO openidm.internaluser (objectid, rev, pwd, roles) VALUES ('anonymous', '0', 'anonymous', 'openidm-reg');
+INSERT INTO openidm.internaluser (objectid, rev, pwd, roles) VALUES ('openidm-admin', '0', 'openidm-admin', '["openidm-admin","openidm-authorized"]');
+INSERT INTO openidm.internaluser (objectid, rev, pwd, roles) VALUES ('anonymous', '0', 'anonymous', '["openidm-reg"]');
 
 COMMIT;
 

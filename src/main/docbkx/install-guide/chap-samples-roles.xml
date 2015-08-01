@@ -974,10 +974,10 @@ isMemberOf: cn=openidm,ou=Groups,dc=example,dc=com</computeroutput>
     </step>
     <step>
      <para>
-      Select the Events tab. If desired, you can add custom Javascript or
-      Groovy scripts. Since this sample works with default
+      Select the Events tab. You can add custom JavaScript or Groovy scripts
+      here. Because this sample works with the default
       <literal>onAssignment</literal> and <literal>onUnassignment</literal>
-      scripts, no changes are required here.
+      scripts, no changes are required in this case.
      </para>
      <mediaobject>
       <alt>Assignment and Unassignment Scripts</alt>
@@ -1050,7 +1050,7 @@ isMemberOf: cn=openidm,ou=Groups,dc=example,dc=com</computeroutput>
       entries for both users <literal>bjensen</literal> and <literal>jdoe</literal>.
      </para>
      <para>
-      To review these entries, navigate to the Data Management UI. From the Admin
+      To review these entries, navigate to the Self-Service UI. From the Admin
       UI, select the <literal>openidm-admin</literal> link in the upper-right
       corner of the page, and select Data Management View. When you see the
       Dashboard window, select Users in the top navigation bar, and select one

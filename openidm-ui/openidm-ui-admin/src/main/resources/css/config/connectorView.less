@@ -1,3 +1,11 @@
+#connectorDetailsTab,
+#syncTab,
+#objectTypesTab {
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+}
+
 /*
   LDAP Connector Specific CSS
 */
@@ -12,10 +20,6 @@
   top:2px;
 }
 
-.btn .fa {
-  margin-left:5px;
-}
-
 /*
   General Connector
 */
@@ -25,7 +29,11 @@
   border: none;
 }
 
-#connectorDetails .panel-default.panel-collapse {
+.has-border.has-border {
+  border:1px solid #ddd;
+}
+
+.edit-connector-details .panel-default.panel-collapse {
   border-bottom: 1px solid #eee;
 }
 
@@ -39,7 +47,7 @@
 }
 
 .radio-group-holder {
-  width:300px;
+  width:320px;
   margin-left:auto;
   margin-right:auto;
 
@@ -47,6 +55,18 @@
 
 .group-details {
   margin-bottom:15px;
+}
+
+.connector-container .tab-content {
+  margin-bottom:20px;
+}
+
+/*
+  Object Type Tab
+*/
+
+#objectTypesTab table td:last-child button {
+  padding: 6px 3px;
 }
 
 /*
@@ -101,4 +121,17 @@
 
 #genericConnectorBody h3 {
   display:none;
+}
+
+/*
+  Alerts
+*/
+
+#connectorErrorMessage,
+#connectorWarningMessage {
+  margin-top:10px;
+}
+
+#syncTab .panel-default.panel-collapse:last-child {
+  border-bottom: 1px solid #eee;
 }

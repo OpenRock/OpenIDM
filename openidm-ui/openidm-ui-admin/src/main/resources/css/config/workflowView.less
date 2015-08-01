@@ -1,0 +1,206 @@
+
+.tasks-container {
+  .selectize-control {
+    width: 260px;
+  }
+
+  .badge {
+    color: #555;
+    background-color: rgba(0,0,0,.1);
+    border: 1px solid #ddd;
+    border-radius: 40px;
+    -webkit-transition: background-color 0.1s linear;
+    -moz-transition: background-color 0.1s linear;
+    -o-transition: background-color 0.1s linear;
+    transition: background-color 0.1s linear;
+    font-weight: 400;
+
+    &:hover {
+      color: #555!important;
+      background-color: rgba(0,0,0,.2);
+    }
+  }
+
+  .unassigned {
+    background-color: transparent;
+    color: #999!important;
+  }
+}
+
+#activeProcesses,
+#processDefinitions,
+#processHistory {
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+}
+
+.toolbar {
+  border-bottom: 1px solid #ddd;
+  padding:20px;
+
+  .form-group {
+    margin-right:20px;
+    margin-right:20px;
+  }
+
+}
+
+.grid-icon {
+  margin-right:10px;
+  cursor: pointer;
+  color: #777;
+}
+
+.grid-icon:hover {
+  color: @base-theme-color;
+}
+
+
+#activeProcesses .selectize-input,
+#processHistory .selectize-input {
+  width:250px;
+}
+
+.user-fullname .fa {
+  margin-right: 10px;
+}
+
+.table .sort-caret {
+  .fa-icon();
+
+  width: 5px;
+  position: relative;
+  font-weight:bold;
+  margin-left: 5px;
+  color: #999;
+}
+
+.table .descending .sort-caret {
+  bottom:3px;
+
+  &:before {
+    content:@fa-var-sort-desc;
+  }
+}
+
+.table .ascending .sort-caret {
+  top: 3px;
+
+  &:before {
+    content:@fa-var-sort-asc;
+  }
+}
+
+.table .empty {
+  width:100%;
+  text-align:center;
+  margin-top:50px;
+  margin-bottom:50px;
+  font-weight:bold;
+  background-color:#f7f7f7;
+}
+
+.table .empty td {
+  padding-top:50px;
+  padding-bottom:50px;
+  font-size:18px;
+  color:@base-theme-color;
+}
+
+.editResourceViewContainer {
+
+  span.meta-icon-bullet {
+    margin-left: 15px;
+  }
+
+  .circle-icon.circle-icon-xs {
+    height: 24px;
+    width: 24px;
+    font-size: 12px;
+    border-radius: 40px;
+    background: @base-theme-color;
+    color: #fff;
+    display: table;
+    text-align: center;
+    padding-top: 4px;
+  }
+
+  .detailTable .row {
+    margin-bottom: 15px;
+
+    .btn-xs {
+      margin-left: 15px;
+    }
+  }
+
+  .page-header .media, .page-header .media-body {
+    overflow: visible;
+  }
+
+  .tab-content .container .table {
+    width:97%;
+  }
+}
+
+.form-horizontal .control-text {
+  padding-top:7px;
+}
+
+/*
+  Temp styles to fix header
+*/
+
+.table thead tr th{
+  font-size:12px;
+  text-transform: uppercase;
+
+  a {
+    color: #2a2f32;
+    cursor: pointer;
+  }
+}
+
+.table thead tr th a:hover {
+  text-decoration:none;
+}
+
+.table-responsive {
+  border:none;
+}
+
+
+/*
+    Backgrid media query
+*/
+
+@media (max-width: 899px) {
+
+  tbody>tr:first-of-type .smallScreenCell{
+    border-top: none;
+  }
+
+  thead {
+    display: none;
+  }
+
+  th:not(.smallScreenCell), td:not(.smallScreenCell) {
+    display: none;
+    border: none;
+  }
+}
+
+@media (min-width: 900px) {
+  .smallScreenCell {
+    display: none;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  th:not(.smallScreenCell), td:not(.smallScreenCell) {
+    display: table-cell;
+    border-bottom: 2px solid #ddd;
+  }
+}

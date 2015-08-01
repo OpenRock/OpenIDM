@@ -30,6 +30,10 @@
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
 }
 
+.no-border{
+  border: none;
+}
+
 .alert-warning .fa,
 .alert-danger .fa {
   margin-right: 5px;
@@ -61,7 +65,6 @@
 .back-bar {
   padding: 15px 0;
   border-bottom: 1px solid #eee;
-  margin-bottom: 15px;
 }
 
 .clean-btn:hover {
@@ -70,6 +73,19 @@
 
 .inline-label {
   padding-left: 15px;
+}
+
+.panel-collapse h4.panel-title {
+  font-size: 18px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+.panel-heading {
+  padding: 30px 30px 30px 15px !important;
+}
+.panel-body {
+  padding: 30px;
 }
 
 .panel-collapse-group .panel {
@@ -93,11 +109,39 @@
 }
 
 /*
+  Navigation
+*/
+.subnav .nav-subnav a i {
+  margin-right: 10px;
+}
+
+/*
   Popover
 */
 
 .popover-info {
   overflow:hidden;
+}
+
+/*
+  Page Header
+*/
+
+.page-header-button-group a:hover {
+  text-decoration: none;
+}
+
+.page-toolbar {
+  padding-top:10px;
+  padding-bottom:10px;
+  margin-bottom:20px;
+  border-bottom: 1px solid #ddd;
+  border-top: 1px solid #ddd;
+}
+
+.toolbar {
+  padding: 15px;
+  border-bottom: 1px solid #ddd;
 }
 
 /*
@@ -150,6 +194,34 @@
   }
 }
 
+
+/*
+  Graph Display
+*/
+
+
+.reportsGraphBody {
+  overflow:hidden;
+  .node circle {
+    fill: #fff;
+    stroke: @base-theme-color;
+    stroke-width: 3px;
+  }
+
+  .node text { font: 12px; }
+
+  .link {
+    fill: none;
+    stroke: #2a2f32;
+    stroke-width: 2px;
+  }
+}
+
+
+/*
+  generic resource Display
+*/
+
 .resourcesContainer {
   margin-bottom:25px;
 
@@ -160,14 +232,135 @@
     margin-top: 0px;
   }
 
+
+  td.noData {
+    padding: 10px;
+  }
+
+  .ui-widget-content {
+    border-color:transparent !important;
+  }
+
   .ui-jqgrid {
     margin: auto;
     margin-top: 10px;
+    border: 1px solid #eee;
+
+    .ui-state-default {
+      border-color:transparent;
+    }
+    tr.ui-row-ltr td {
+      padding: 14px;
+    }
+    tr.ui-row-ltr :first-child {
+      padding: 12px;
+    }
+    .ui-jqgrid-sortable {
+      text-transform: uppercase;
+    }
+    .ui-jqgrid-pager {
+      background-color: #fff;
+    }
+    thead {
+      border-bottom: 2px solid #ddd;
+      tr td {
+        padding-bottom: 10px;
+      }
+    }
+  }
+}
+
+.editResourceViewContainer {
+  .resource-avatar {
+    display: table;
+    background: @base-theme-color;
+    color: #fff;
+    text-align: center;
+  }
+
+  .profile-header .resource-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 70px;
+    line-height: 70px;
+    font-size: 36px;
+  }
+
+  .panel-footer {
+    padding: 10px 15px;
+    border-radius: 0;
+    background-color: transparent;
+    overflow: auto;
+  }
+
+  .page-header h4.page-type {
+    text-transform: uppercase;
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    color: #666;
+    font-weight: 600;
+    margin-top: 0;
+  }
+
+  .page-header .meta {
+    margin: -10px 0 10px;
+    color: #777;
+    text-transform: none;
+    letter-spacing: 0;
+    border-left: 1px solid #ddd;
+    padding-left: 5px;
+    margin-left: 4px;
+    font-weight: 400;
+    display: inline-block;
+    margin-bottom: 0;
+  }
+
+  .tab-content {
+    background-color: #fff;
+    margin-bottom: 50px;
+  }
+
+  .fa-search {
+    margin-top: 10px;
+  }
+
+  .resourceCollectionTab {
+    padding-top: 10px;
+  }
+
+  #resource>div>h3, .tabHeaderTemplate, .tabContentTemplate  {
+    display: none !important;
+  }
+
+  .back-bar a {
+    color: #777;
+  }
+
+  #linkToResource span{
+    margin-top: 10px;
+  }
+
+  .well:not(.detailTable) {
+    background-color: transparent;
+    border-color: transparent;
+    -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,0.05);
+    box-shadow: inset 0 1px 1px rgba(0,0,0,0.05);
+  }
+
+  li.resourceListItem:hover {
+    background-color: #ededed;
   }
 }
 
 .list-table {
   .list-group {
+
+    .list-group-item:last-child {
+      border-bottom-right-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+
     .list-group-item {
       border-color: #eee;
       background-color: transparent;
@@ -254,7 +447,7 @@
         line-height: 32px;
       }
     }
-    .list-group-header, .list-group-item {
+    .list-group-header {
       border-top: none;
       padding-top: 0;
     }
@@ -272,7 +465,7 @@
       border-bottom: 2px solid #ddd;
       background-color: transparent;
       font-weight: 600;
-      display: none;
+      display: block;
       .text-muted {
         text-transform: none;
         letter-spacing: 0;
@@ -306,7 +499,128 @@
   }
 }
 
+/*
+  Resource Details
+*/
+#resource-details,
+#resource-roles,
+#relationshipsTemplate,
+#relationship-manager,
+#resource-linkedSystems {
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+}
+
+.editResourceViewContainer .panel-footer {
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-bottom:1px solid #ddd;
+}
+
+.page-header h1 {
+  font-weight:300;
+}
+
+/*
+Dialog Catch
+*/
+
+.dialogInner .modal-header {
+  padding-bottom:15px;
+}
+
+.page-header {
+  border:none;
+
+  .btn-secondary {
+    background-color: @background-color;
+
+    .fa {
+      width: 0px;
+      margin-left: 3px;
+      margin-right: 6px;
+    }
+  }
+
+  .btn-secondary:hover {
+    border-color: @base-theme-color;
+    color: @panel-hover-color;
+    background-color: #eee;
+  }
+}
+
+/*
+  Back bar
+*/
+
+.back-bar a:before {
+  content: "\f104";
+  font-family: FontAwesome;
+  margin-right: 5px;
+  display: inline-block;
+}
+
+.back-bar a {
+  color: #777;
+}
+
+.back-bar a:hover {
+  text-decoration:underline;
+  color:#777;
+}
+
+/*
+  Tab content
+*/
+
+.panel-collapse-group {
+  border:none;
+}
+
+.tab-content {
+  background-color: #fff;
+}
+
+.tab-pane-button-footer {
+  height:35px;
+}
+
+.tab-pane-button-footer .tab-button-bar {
+  margin-right:10px;
+  position:relative;
+  bottom:10px;
+}
+
+/*
+  Password Change
+*/
+#mandatoryPasswordChangeDialog .well {
+  margin-left:45px;
+}
+
+.iconpicker .iconpicker-item {
+  margin-right:10px;
+}
+
+/*
+  Footer
+*/
+
+.footer {
+  height: 80px;
+
+  .container {
+    padding-bottom:0px;
+  }
+
+}
+
 @media (max-width: 767px) {
+  .blockButton {
+    margin-top: 15px;
+    width: 100%;
+  }
+
   .btn-toolbar {
 
     .pull-right {
@@ -336,7 +650,6 @@
     .list-group {
       .list-group-item {
         border-top: none;
-        border-color: red;
         background-color: transparent;
         -webkit-transition: background-color 0.1s linear;
         -moz-transition: background-color 0.1s linear;
@@ -354,9 +667,7 @@
       .list-group-header, .list-group-item {
         padding-top: 15px;
       }
-      .list-group-header {
-        display: block;
-      }
+
       .list-group-item {
         .list-table-label {
           display: none;

@@ -206,17 +206,20 @@
 
   <section xml:id="managed-object-data-consistency">
    <title>Data Consistency</title>
-
-   <para>Single-object operations shall be consistent within the scope of
-   the operation performed, limited by capabilities of the underlying
-   data store. Bulk operations shall not have any consistency
-   guarantees. OpenIDM does not expose any transactional semantics
-   in the managed object access API.</para>
-
-   <para>All access through the REST API uses the ETag and associated
-   conditional headers: <literal>If-Match</literal>,
-   <literal>If-None-Match</literal>. In operations that
-   modify model objects, conditional headers are mandatory.</para>
+   <para>
+    Single-object operations are consistent within the scope of the operation
+    performed, limited by the capabilities of the underlying data store. Bulk
+    operations have no consistency guarantees. OpenIDM does not expose any
+    transactional semantics in the managed object access API.
+   </para>
+   <para>
+    All access through the REST API uses the ETag and associated conditional
+    headers: <literal>If-Match</literal>, <literal>If-None-Match</literal>. In
+    operations that modify objects, if no conditional header is provided, the
+    default <literal>If-Match: "*"</literal> is applied. This header indicates
+    that the call explicitly accepts overwriting other potential changes on the
+    object.
+   </para>
   </section>
 
   <section xml:id="managed-object-triggers">
@@ -308,6 +311,29 @@
       <listitem>
        <para>
         Called after an object is deleted.
+       </para>
+      </listitem>
+     </varlistentry>
+     <varlistentry>
+      <term>onSync</term>
+      <listitem>
+       <para>
+        Called when a managed object is changed, and the change triggers an
+        implicit synchronization operation. The implicit synchronization
+        operation is triggered by calling the sync service, which attempts to
+        to go through all the configured managed-system mappings, defined in
+        <filename>sync.json</filename>. The sync service returns either a
+        response or an error. For both the response and the error, script that
+        is referenced by the <literal>onSync</literal> hook is called.
+       </para>
+       <para>
+        You can use this hook to inject business logic when the sync service
+        either fails or succeeds to synchronize all applicable mappings. See
+        <link xlink:show="new" xlink:role="http://docbook.org/xlink/role/olink"
+        xlink:href="integrators-guide#sync-failure-compensation"><citetitle>Configuring
+        Synchronization Failure Compensation</citetitle></link> for example of
+        how the <literal>onSync</literal> hook is used to revert partial
+        successful synchronization operations.
        </para>
       </listitem>
      </varlistentry>
@@ -488,8 +514,7 @@
 
     <para>Specifies the configuration of each managed object.</para>
 
-    <programlisting language="javascript">
-{
+    <programlisting language="javascript">{
   "name"      : <replaceable>string</replaceable>,
   "schema"    : <replaceable>json-schema object</replaceable>,
   "onCreate"  : <replaceable>script object</replaceable>,
@@ -502,6 +527,7 @@
   "onValidate": <replaceable>script object</replaceable>,
   "onRetrieve": <replaceable>script object</replaceable>,
   "onStore"   : <replaceable>script object</replaceable>,
+  "onSync"   : <replaceable>script object</replaceable>,
   "properties": [ <replaceable>property-configuration object</replaceable>, ... ]
 }</programlisting>
 
@@ -623,6 +649,20 @@
      </listitem>
     </varlistentry>
     <varlistentry>
+     <term>onSync</term>
+     <listitem>
+      <para>script object, optional</para>
+      <para>
+       A script object to trigger when a change to a managed object triggers an
+       implicit synchronization operation. The script has access to the
+       <literal>syncResults</literal> object, the <literal>request</literal>
+       object, the state of the object before the change
+       (<literal>oldObject</literal>) and the state of the object after the
+       change (<literal>newObject</literal>). The script may change the object.
+      </para>
+     </listitem>
+    </varlistentry>
+    <varlistentry>
      <term>properties</term>
      <listitem>
       <para>array of property-config objects, optional</para>
@@ -686,9 +726,9 @@
      <listitem>
       <para>script object, optional</para>
       <para>A script object to trigger when the property requires
-      validation. The property to be validated is provided in the root
-      scope as the <literal>property</literal> property. If an exception is
-      thrown, the validation fails.</para>
+      validation. The value of the property to be validated is provided in
+      the root scope as the <literal>property</literal> property. If an
+      exception is thrown, validation fails.</para>
      </listitem>
     </varlistentry>
     <varlistentry>
@@ -696,10 +736,12 @@
      <listitem>
       <para>script object, optional</para>
       <para>A script object to trigger once a property is retrieved
-       from the repository. The property that was retrieved is provided
-       in the root scope as the <literal>property</literal> property. The
-       script may change the property value. If an exception is thrown, then
-       object retrieval fails.</para>
+       from the repository. That property may be one of two related variables:
+       <literal>property</literal> and <literal>propertyName</literal>.
+       The property that was retrieved is provided in the root scope as the
+       <literal>propertyName</literal> variable; its value is provided as
+       the <literal>property</literal> variable. If an exception is thrown,
+       then object retrieval fails.</para>
      </listitem>
     </varlistentry>
     <varlistentry>
@@ -707,10 +749,12 @@
      <listitem>
       <para>script object, optional</para>
       <para>A script object to trigger when a property is about to be
-       stored in the repository. The property to be stored is provided
-       in the root scope as the <literal>property</literal> property. The
-       script may change the property value. If an exception is thrown, then
-       object storage fails.</para>
+       stored in the repository. That property may be one of two related variables:
+       <literal>property</literal> and <literal>propertyName</literal>.
+       The property that was retrieved is provided in the root scope as the
+       <literal>propertyName</literal> variable; its value is provided as
+       the <literal>property</literal> variable. If an exception is thrown,
+       then object storage fails.</para>
      </listitem>
     </varlistentry>
     <varlistentry>
@@ -878,10 +922,9 @@ openidm.update("managed/foobar/myidentifier", expectedRev, mymap)</programlistin
     <section xml:id="managed-objects-programmatic-patch">
      <title>Patching Objects</title>
 
-     <para>You can partially update a managed object using the patch method, 
-      which changes only the specified properties of the object. OpenIDM
-      implements the JSON patch media type version 02, described at
-      <link xlink:show="new" xlink:href="http://tools.ietf.org/html/rfc6902" />.
+     <para>
+      You can partially update a managed or system object using the patch
+      method, which changes only the specified properties of the object.
      </para>
      
      <para>
@@ -896,8 +939,10 @@ openidm.patch("managed/foobar/myidentifier", rev, value)</programlisting>
      applied, regardless of revision. In the REST interface, this matches the 
      <literal>If-Match: "*"</literal> condition supported by patch.</para>
      
-     <para>The API supports patch by query, so the caller does not need to 
-     know the identifier of the object to change.</para>
+     <para>
+      For managed objects, the API supports patch by query, so the caller does
+      not need to know the identifier of the object to change.
+     </para>
 
      <screen>$ <userinput>curl \
  --cacert self-signed.crt \

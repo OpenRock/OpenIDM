@@ -30,61 +30,33 @@
 define("org/forgerock/openidm/ui/admin/delegates/SiteConfigurationDelegate", [
     "org/forgerock/commons/ui/common/main/Configuration",
     "org/forgerock/openidm/ui/common/delegates/SiteConfigurationDelegate",
-    "org/forgerock/commons/ui/common/components/Navigation",
-    "org/forgerock/openidm/ui/common/delegates/ConfigDelegate"
-], function(conf, commonSiteConfigurationDelegate, nav, configDelegate) {
+    "org/forgerock/commons/ui/common/main/EventManager",
+    "org/forgerock/commons/ui/common/util/Constants",
+    "org/forgerock/commons/ui/common/components/Navigation"
+], function(conf, commonSiteConfigurationDelegate, eventManager, constants, Navigation) {
 
     var obj = commonSiteConfigurationDelegate;
-    
+
     obj.checkForDifferences = function(){
-        if(_.contains(conf.loggedUser && conf.loggedUser.roles,"ui-admin")){
-            return obj.setDynamicNavItems();
-        } else {
-            return $.Deferred().resolve();
-        }
-    };
-    
-    obj.setDynamicNavItems = function() {
-        return configDelegate.readEntity("managed").then(function(managedConfig){
-            if(!obj.showRoles(managedConfig)) {
-                delete nav.configuration.links.admin.urls.roles;
-                nav.reload();
-            }
-        });
-    };
-    
-    obj.showRoles = function(managedConfig) {
-        var role = _.findWhere(managedConfig.objects, {name: "role"}),
-            user = _.findWhere(managedConfig.objects, {name: "user"}),
-            showRoles = true,
-            postScript = "roles/update-users-of-role.js",
-            eventScriptMap = {
-                "onDelete": "roles/onDelete-roles.js",
-                "postCreate": postScript,
-                "postDelete": postScript,
-                "postUpdate": postScript
-            };
-        
-        if(!user) {
-            showRoles = false;
-        } else {
-            showRoles = _.findWhere(user.properties, { name: "effectiveRoles" }) && _.findWhere(user.properties, { name: "effectiveAssignments" });
-        }
-        
-        if(showRoles) {
-            _.each(eventScriptMap, function(val, key) {
-                if(!showRoles || !role || !role[key] || !role[key].file || role[key].file !== val) {
-                    showRoles = false;
+        var promise = $.Deferred();
+
+        if (_.contains(conf.loggedUser && conf.loggedUser.roles,"ui-admin") &&
+            Navigation.configuration.links.admin.urls.managed.urls.length === 0) {
+
+            eventManager.sendEvent(constants.EVENT_UPDATE_NAVIGATION,
+                {
+                    callback: function () {
+                        promise.resolve();
+                    }
                 }
-            });
+            );
+
+        } else {
+            promise.resolve();
         }
-        
-        return showRoles;
+
+        return promise;
     };
 
-    
     return obj;
 });
-
-
-

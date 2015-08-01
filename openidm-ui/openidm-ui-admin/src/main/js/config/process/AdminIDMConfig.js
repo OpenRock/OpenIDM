@@ -40,6 +40,99 @@ define("config/process/AdminIDMConfig", [
                 processDescription: function(event, router, conf, PropertiesView) {
                     PropertiesView.render([event]);
                 }
+            },
+            {
+                startEvent: constants.EVENT_UPDATE_NAVIGATION,
+                description: "Update Navigation Bar",
+                dependencies: [
+                    "org/forgerock/commons/ui/common/components/Navigation",
+                    "org/forgerock/openidm/ui/common/delegates/ConfigDelegate"
+                ],
+                processDescription: function(event, Navigation, ConfigDelegate) {
+                    ConfigDelegate.readEntity("managed").then(function(managedConfig){
+                        Navigation.configuration.links.admin.urls.managed.urls = [];
+
+                        Navigation.configuration.links.admin.urls.managed.urls.push({
+                            "header": true,
+                            "headerTitle": "data"
+                        });
+
+                        _.each(managedConfig.objects, function(managed) {
+                            if(!managed.schema) {
+                                managed.schema = {};
+                            }
+
+                            if(!managed.schema.icon) {
+                                managed.schema.icon = "fa-cube";
+                            }
+
+                            Navigation.configuration.links.admin.urls.managed.urls.push({
+                                "url" : "#resource/managed/" +managed.name +"/list/",
+                                "name" : managed.name,
+                                "icon" : "fa " +managed.schema.icon,
+                                "cssClass" : "navigation-managed-object"
+                            });
+                        });
+
+                        Navigation.configuration.links.admin.urls.managed.urls.push({
+                            divider: true
+                        });
+
+                        Navigation.configuration.links.admin.urls.managed.urls.push({
+                            "header": true,
+                            "headerTitle": "workflow"
+                        });
+
+                        Navigation.configuration.links.admin.urls.managed.urls.push({
+                            "url": "#workflow/tasks/",
+                            "name": "Tasks",
+                            "icon": "fa fa-check-circle-o",
+                            "inactive": false
+                        });
+
+                        Navigation.configuration.links.admin.urls.managed.urls.push({
+                            "url": "#workflow/processes/",
+                            "name": "Processes",
+                            "icon": "fa fa-random",
+                            "inactive": false
+                        });
+
+                        return Navigation.reload();
+                    }).then(event ? event.callback : $.noop);
+                }
+            },
+            {
+                startEvent: constants.EVENT_CHANGE_BASE_VIEW,
+                description: "",
+                override: true,
+                dependencies: [
+                    "org/forgerock/commons/ui/common/components/Navigation",
+                    "org/forgerock/commons/ui/common/components/popup/PopupCtrl",
+                    "org/forgerock/commons/ui/common/components/Breadcrumbs",
+                    "org/forgerock/commons/ui/common/main/Configuration",
+                    "org/forgerock/openidm/ui/admin/components/Footer"
+                ],
+                processDescription: function(event, navigation, popupCtrl, breadcrumbs, conf,footer) {
+                    navigation.init();
+                    popupCtrl.init();
+
+                    breadcrumbs.buildByUrl();
+                    footer.render();
+                }
+            },
+            {
+                startEvent: constants.EVENT_SELF_SERVICE_CONTEXT,
+                description: "",
+                override: true,
+                dependencies: [
+                    "org/forgerock/openidm/ui/common/delegates/ConfigDelegate",
+                    "org/forgerock/commons/ui/common/main/Router"
+                ],
+                processDescription: function(event, configDelegate, router) {
+                    configDelegate.readEntity("ui.context/enduser").then(_.bind(function (data) {
+                        location.href = router.getCurrentUrlBasePart() + data.urlContextRoot;
+                    }, this));
+                }
             }
         ];
 

@@ -36,6 +36,14 @@ define("config/messages/AdminMessages", [
             msg: "config.messages.ConnectorMessages.connectorSaved",
             type: "info"
         },
+        "objectTypeSaved": {
+            msg: "config.messages.ConnectorMessages.objectTypeSaved",
+            type: "info"
+        },
+        "liveSyncSaved": {
+            msg: "config.messages.ConnectorMessages.liveSyncSaved",
+            type: "info"
+        },
         "connectorSaveFail": {
             msg: "config.messages.ConnectorMessages.connectorSaveFail",
             type: "error"
@@ -112,6 +120,10 @@ define("config/messages/AdminMessages", [
             msg: "config.messages.SyncMessages.policySaveSuccessful",
             type: "info"
         },
+        "auditSaveSuccess" : {
+            msg: "config.messages.AuditMessages.auditSaveSuccessful",
+            type: "info"
+        },
         "scheduleCreated" : {
             msg: "config.messages.SyncMessages.scheduleCreated",
             type: "info"
@@ -150,6 +162,18 @@ define("config/messages/AdminMessages", [
         },
         "linkQualifierSaveSuccess": {
             msg: "config.messages.SyncMessages.linkQualifierSaveSuccess",
+            type: "info"
+        },
+        "cancelActiveProcess": {
+            msg: "config.messages.WorkflowMessages.cancelActiveProcess",
+            type: "info"
+        },
+        "selfServiceSaveSuccess": {
+            msg: "config.messages.settingMessages.saveSelfServiceSuccess",
+            type: "info"
+        },
+        "emailConfigSaveSuccess": {
+            msg: "config.messages.settingMessages.saveEmailSuccess",
             type: "info"
         }
     };

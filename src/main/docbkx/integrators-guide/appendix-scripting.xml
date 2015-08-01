@@ -42,355 +42,26 @@
   </para>
   <para>
    OpenIDM ${docTargetVersion} supports scripts written in JavaScript and
-   Groovy. Script options are configured in the
-   <filename>conf/script.json</filename> file, described in
-   <xref linkend="script-json" /> .
+   Groovy. Script options, and the locations in which OpenIDM expects to find
+   scripts, are configured in the <filename>conf/script.json</filename> file for
+   your project. For more information, see <link xlink:show="new"
+   xlink:role="http://docbook.org/xlink/role/olink"
+   xlink:href="integrators-guide#script-config"><citetitle>Setting the Script
+   Configuration</citetitle></link>.
   </para>
 
-  <section xml:id="scripting-configuration">
-   <title>Scripting Configuration</title>
-
-   <para>
-    OpenIDM includes several default scripts in the following directory:
-    <filename>path/to/openidm/bin/defaults/script/</filename>. Do not modify
-    or remove any of the scripts in this directory, as OpenIDM needs these
-    scripts to run specific services. Scripts in this folder are not guaranteed
-    to remain constant between product releases.
-   </para>
-
-   <para>
-    If you develop custom scripts, copy them to the <literal>script/</literal>
-    directory for your project, such as
-    <literal>path/to/openidm/script/</literal>.
-   </para>
-
-   <section xml:id="script-json">
-    <title>Script Configuration File</title>
-     <para>
-      OpenIDM ${docTargetVersion} includes a script configuration file
-      (<filename>conf/script.json</filename>) that enables you to modify the
-      parameters used by your Javascript and Groovy scripts. You can also use
-      this file to change the default project and script directories. For more
-      information, see <link xlink:show="new"
-      xlink:role="http://docbook.org/xlink/role/olink"
-      xlink:href="integrators-guide#config-default-directories"><citetitle>Default
-      and Custom Configuration Directories</citetitle></link>.
-     </para>
-     <para>
-      The properties shown in the default version of the
-      <filename>script.json</filename> file are described here:
-     </para>
-
-     <variablelist>
-      <varlistentry>
-       <term>properties</term>
-       <listitem>
-        <para>
-         Additional custom properties.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>ECMAScript</term>
-       <listitem>
-        <para>
-         Includes JavaScript debug and compile options. JavaScript is an
-         ECMAScript language.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>javascript.debug</term>
-       <listitem>
-        <para>
-         See <xref linkend="debugging-scripts" />.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>javascript.recompile.minimumInterval</term>
-       <listitem>
-        <para>
-         Minimum time after which a script can be recompiled.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.warnings</term>
-       <listitem>
-        <para>
-         Specifies a log level for Groovy scripts.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.source.encoding</term>
-       <listitem>
-        <para>
-         Defines the encoding format for Groovy scripts.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.target.directory</term>
-       <listitem>
-        <para>
-         Specifies the output directory.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.target.bytecode</term>
-       <listitem>
-        <para>
-         Specifies the output bytecode.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.classpath</term>
-       <listitem>
-        <para>
-         Defines directories with Groovy class files.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.output.verbose</term>
-       <listitem>
-        <para>
-         Specifies the verbosity of stack traces.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.output.debug</term>
-       <listitem>
-        <para>
-         Sets debugging status.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.errors.tolerance</term>
-       <listitem>
-        <para>
-         Sets number of non-fatal errors before aborting a compilation.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.script.extension</term>
-       <listitem>
-        <para>
-         Defines the file extension for a Groovy script.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.script.base</term>
-       <listitem>
-        <para>
-         Defines the base class for the script.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.recompile</term>
-       <listitem>
-        <para>
-         Allows a script to be recompiled.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.recompile.minimumInterval</term>
-       <listitem>
-        <para>
-         Minimum time between when Groovy scripts can be compiled.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.target.indy</term>
-       <listitem>
-        <para>
-         Defines whether a Groovy indy test can be used.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>groovy.disabled.global.ast.transformations</term>
-       <listitem>
-        <para>
-         Notes whether Groovy Abstract Syntax Transformations (AST) are 
-         disabled.
-        </para>
-       </listitem>
-      </varlistentry>
-     </variablelist>
-
-    <para>
-     The remaining options in the <filename>script.json</filename> file are
-     discussed in the section on <link xlink:show="new"
-     xlink:role="http://docbook.org/xlink/role/olink"
-     xlink:href="integrators-guide#config-default-directories">
-     <citetitle>Default and Custom Configuration Directories</citetitle></link>.
-    </para>
-
-   </section>
-
-   <section xml:id="script-call">
-    <title>Calling A Script From a Configuration File</title>
-    <para>
-     You can call a script from within a configuration file by providing the
-     script source, or by referencing a file that contains the script source.
-     For example:
-    </para>
-
-    <programlisting language="javascript">
-{
-  "type" : "text/javascript",
-  "source": <replaceable>string</replaceable>
-}   </programlisting>
-
-    <para>or</para>
-
-    <programlisting language="javascript">
-{
-  "type" : "text/javascript",
-  "file" : <replaceable>file location</replaceable>
-}   </programlisting>
-
-   <variablelist>
-    <varlistentry>
-     <term>type</term>
-     <listitem>
-      <para>string, required</para>
-      <para>
-       Specifies the type of script to be executed. Supported types include
-       <literal>"text/javascript"</literal> and <literal>"groovy"</literal>.
-      </para>
-     </listitem>
-    </varlistentry>
-    <varlistentry>
-     <term>source</term>
-     <listitem>
-      <para>
-       string, required if <literal>file</literal> is not specified
-      </para>
-      <para>
-       Specifies the source code of the script to be executed.
-      </para>
-     </listitem>
-    </varlistentry>
-    <varlistentry>
-     <term>file</term>
-     <listitem>
-      <para>
-       string, required if <literal>source</literal> is not specified
-      </para>
-      <para>
-       Specifies the file containing the source code of the script to execute.
-      </para>
-     </listitem>
-    </varlistentry>
-   </variablelist>
-   <para>
-    The following examples indicate how scripts can be called from configuration
-    files.
-   </para>
-   <para>
-    The following example (included in the <filename>sync.json</filename> file)
-    returns <literal>true</literal> if the <literal>employeeType</literal> is
-    equal to <literal>external</literal>, otherwise returns
-    <literal>false</literal>. This script can be useful during reconciliation to
-    establish whether a target object should be included in the reconciliation
-    process, or should be ignored.
-   </para>
-   <programlisting language="javascript">
-"validTarget": {
-   "type" : "text/javascript",
-   "source": "target.employeeType == 'external'"
-}  </programlisting>
-
-   <para>
-    The following example (included in the <filename>sync.json</filename> file)
-    sets the <literal>__PASSWORD__</literal> attribute to
-    <literal>defaultpwd</literal> when OpenIDM creates a target object.
-   </para>
-   <programlisting language="javascript">
-"onCreate" : {
-  "type" : "text/javascript",
-  "source": "target.__PASSWORD__ = 'defaultpwd'"
-}  </programlisting>
-
-   <para>
-    The following example (included in the <filename>router.json</filename>
-    file) shows a trigger to create Solaris home directories using a script. The
-    script is located in a file,
-    <filename>/path/to/openidm/script/createUnixHomeDir.js</filename>.
-   </para>
-   <programlisting language="javascript">
-{
-  "filters" : [ {
-    "pattern" : "^system/solaris/account$",
-    "methods" : [ "create" ],
-    "onResponse" : {
-      "type" : "text/javascript",
-      "file" : "script/createUnixHomeDir.js"
-    }
-  } ]
-}   </programlisting>
-    <para>
-     Often, script files are reused in different contexts. You can pass
-     variables to your scripts to provide these contextual details at runtime.
-     You pass variables to the scripts that are referenced in configuration
-     files by declaring the variable name in the script reference.
-    </para>
-    <para>
-     The following example of a scheduled task configuration calls a script
-     named <literal>triggerEmailNotification.js</literal>. The example sets the
-     sender and recipient of the email in the schedule configuration, rather
-     than in the script itself.
-    </para>
-    <programlisting language="javascript">{
-    "enabled" : true,
-    "type" : "cron",
-    "schedule" : "0 0/1 * * * ?",
-    "invokeService" : "script",
-    "invokeContext" : {
-        "script": {
-            "type" : "text/javascript",
-            "file" : "script/triggerEmailNotification.js",
-            "fromSender" : "admin@example.com",
-            "toEmail" : "user@example.com"
-        }
-    }
-}   </programlisting>
-    <para>
-     In general, it is preferable to namespace variables passed into scripts
-     with the <literal>"globals"</literal> map. Passing variables in this way
-     prevents collisions with the top-level reserved words for script maps, such
-     as <literal>file</literal>, <literal>source</literal>, and
-     <literal>type</literal>. The following example uses the
-     <literal>"globals"</literal> map to namespace the variables passed in the
-     previous example.
-    </para>
-    <programlisting language="javascript">"script": {
-    "type" : "text/javascript",
-    "file" : "script/triggerEmailNotification.js",
-    "globals" : {
-        "fromSender" : "admin@example.com",
-        "toEmail" : "user@example.com"
-    }
-}</programlisting>
-    <para>
-     Script variables are not necessarily simple <literal>key:value</literal>
-     pairs. A script variable can be any arbitrarily complex JSON object.
-    </para>
-   </section>
-  </section>
+ <para>
+  OpenIDM includes several default scripts in the following directory
+  <filename><replaceable>install-dir</replaceable>/bin/defaults/script/</filename>.
+  Do not modify or remove any of the scripts in this directory. OpenIDM needs
+  these scripts to run specific services. Scripts in this folder are not
+  guaranteed to remain constant between product releases.
+ </para>
+ <para>
+  If you develop custom scripts, copy them to the <literal>script/</literal>
+  directory for your project, for example,
+  <literal>path/to/openidm/samples/sample2/script/</literal>.
+ </para>
 
    <section xml:id="function-ref">
     <title>Function Reference</title>
@@ -451,30 +122,45 @@
       </varlistentry>
      </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Returns</title>
-      <para>The created OpenIDM resource object.</para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>The created OpenIDM resource object.</para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Throws</title>
-      <para>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
        An exception is thrown if the object could not be created.
-      </para>
-     </blockquote>
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Example</title>
-      <programlisting language="javascript">openidm.create("managed/user", bjensen, <replaceable>map</replaceable>);</programlisting>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <programlisting language="javascript">openidm.create("managed/user", bjensen, <replaceable>map</replaceable>);</programlisting>
+       </listitem>
+      </varlistentry>
+     </variablelist>
     </section>
 
     <section xml:id="function-patch">
      <title>openidm.patch(id, rev, value)</title>
      <para>
-      This function performs a partial modification of a managed object. Unlike
-      the <literal>update</literal> function, only the modified attributes are
-      provided, not the entire object.
+      This function performs a partial modification of a managed or system
+      object. Unlike the <literal>update</literal> function, only the modified
+      attributes are provided, not the entire object.
      </para>
      <variablelist>
       <title>Parameters</title>
@@ -516,25 +202,40 @@
       </varlistentry>
      </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Returns</title>
-      <para>
-       The modified OpenIDM resource object.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         The modified OpenIDM resource object.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Throws</title>
-      <para>
-       An exception is thrown if the object could not be updated.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         An exception is thrown if the object could not be updated.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Example</title>
-      <programlisting language="javascript">openidm.patch("managed/user/" + user._id, null,
- [{"operation" : "replace", "field" : "/password", "value": "Passw0rd"}]);</programlisting>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <programlisting language="javascript">openidm.patch("managed/user/" + user._id, null,
+         [{"operation" : "replace", "field" : "/password", "value": "Passw0rd"}]);</programlisting>
+       </listitem>
+      </varlistentry>
+     </variablelist>
     </section>
 
     <section xml:id="function-read">
@@ -555,17 +256,27 @@
       </varlistentry>
      </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Returns</title>
-      <para>
-       The OpenIDM resource object, or <literal>null</literal> if not found.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         The OpenIDM resource object, or <literal>null</literal> if not found.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Example</title>
-      <programlisting language="javascript">openidm.read("managed/user/"+userId)</programlisting>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <programlisting language="javascript">openidm.read("managed/user/"+userId)</programlisting>
+       </listitem>
+      </varlistentry>
+     </variablelist>
     </section>
 
     <section xml:id="function-update">
@@ -607,34 +318,47 @@
       </varlistentry>
      </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Returns</title>
-      <para>
-       The modified OpenIDM resource object.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         The modified OpenIDM resource object.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Throws</title>
-      <para>
-       An exception is thrown if the object could not be updated.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         An exception is thrown if the object could not be updated.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
 
-     <blockquote>
-     <title>Example</title>
-     <para>
-      In this example, the managed user entry is read (with an
-      <literal>openidm.read</literal>, the user entry that has been read is
-      updated with a new description, and the entire updated object is replaced
-      with the new value.
-     </para>
-     <programlisting language="javascript">
-    var user_read = openidm.read('managed/user/' + source._id);
-    user_read['description'] = 'The entry has been updated';
-    openidm.update('managed/user/' + source._id, null, user_read);
-     </programlisting>
-     </blockquote>
+     <variablelist>
+      <title>Example</title>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         In this example, the managed user entry is read (with an
+         <literal>openidm.read</literal>, the user entry that has been read is
+         updated with a new description, and the entire updated object is replaced
+         with the new value.
+        </para>
+        <programlisting language="javascript">var user_read = openidm.read('managed/user/' + source._id);
+user_read['description'] = 'The entry has been updated';
+openidm.update('managed/user/' + source._id, null, user_read);</programlisting>
+       </listitem>
+      </varlistentry>
+     </variablelist>
     </section>
 
     <section xml:id="function-delete">
@@ -667,24 +391,39 @@
       </varlistentry>
      </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Returns</title>
-      <para>
-       Returns the deleted object if successful.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         Returns the deleted object if successful.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Throws</title>
-      <para>
-       An exception is thrown if the object could not be deleted.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         An exception is thrown if the object could not be deleted.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
 
-     <blockquote>
-     <title>Example</title>
-      <programlisting language="javascript">openidm.delete('managed/user/'+ user._id, user._rev)</programlisting>
-     </blockquote>
+     <variablelist>
+      <title>Example</title>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <programlisting language="javascript">openidm.delete('managed/user/'+ user._id, user._rev)</programlisting>
+       </listitem>
+      </varlistentry>
+     </variablelist>
     </section>
 
     <section xml:id="function-query">
@@ -724,7 +463,7 @@
          query results. The following sample query passes paging parameters and
          sort keys to the query.
         </para>
-        <informalexample><?dbfo pgwide="1"?>
+        <informalexample>
 <programlisting>reconAudit = openidm.query("audit/recon", {
     "_queryFilter": queryFilter,
     "_pageSize": limit,
@@ -768,49 +507,53 @@ openidm.query("managed/user", { "_queryFilter": "/userName sw \"user.1\""}, ["us
       </varlistentry>
      </variablelist>
 
-     <blockquote>
-     <title>Returns</title>
-     <para>
-      The result of the query. A query result includes the following parameters:
-     </para>
      <variablelist>
+      <title>Returns</title>
       <varlistentry>
-       <term>"query-time-ms"</term>
+       <term> </term>
        <listitem>
         <para>
-         The time, in milliseconds, that OpenIDM took to process the query.
+         The result of the query. A query result includes the following
+         parameters:
         </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>"conversion-time-ms"</term>
-       <listitem>
+        <variablelist>
+         <varlistentry>
+          <term>"query-time-ms"</term>
+          <listitem>
+           <para>
+            The time, in milliseconds, that OpenIDM took to process the query.
+           </para>
+          </listitem>
+         </varlistentry>
+         <varlistentry>
+          <term>"conversion-time-ms"</term>
+          <listitem>
+           <para>
+            (For an OrientDB repository only) the time, in milliseconds, taken
+            to convert the data to a JSON object.
+           </para>
+          </listitem>
+         </varlistentry>
+         <varlistentry>
+          <term>"result"</term>
+          <listitem>
+           <para>
+            The list of entries retrieved by the query. The result includes the
+            revision (<literal>"_rev"</literal>) of the entry and any other
+            properties that were requested in the query.
+           </para>
+          </listitem>
+         </varlistentry>
+        </variablelist>
         <para>
-         (For an OrientDB repository only) the time, in milliseconds, taken to
-         convert the data to a JSON object.
+         The following example shows the result of a custom query that requests
+         the ID, user name, and email address of managed users in the
+         repository. For an OrientDB repository, the query would be something
+         like <literal>select _openidm_id, userName, email from managed_user,</literal>.
         </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>"result"</term>
-       <listitem>
-        <para>
-         The list of entries retrieved by the query. The result includes the
-         revision (<literal>"_rev"</literal>) of the entry and any other
-         properties that were requested in the query.
-        </para>
-       </listitem>
-      </varlistentry>
-     </variablelist>
-     <para>
-      The following example shows the result of a custom query that requests the
-      ID, user name, and email address of managed users in the repository. For
-      an OrientDB repository, the query would be something like
-      <literal>select _openidm_id, userName, email from managed_user,</literal>.
-     </para>
-     <programlisting language="javascript">{
-  "conversion-time-ms": 0,
-  "result": [
+        <programlisting language="javascript">{
+    "conversion-time-ms": 0,
+    "result": [
     {
       "email": "bjensen@example.com",
       "userName": "bjensen",
@@ -823,35 +566,47 @@ openidm.query("managed/user", { "_queryFilter": "/userName sw \"user.1\""}, ["us
       "_rev": "0",
       "_id": "cc3bf6f0-949e-4699-9b8e-8c78ce04a287"
     }
-  ],
-  "query-time-ms": 1
+    ],
+    "query-time-ms": 1
 }
       </programlisting>
-     </blockquote>
+       </listitem>
+      </varlistentry>
+  </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Throws</title>
-      <para>
-       An exception is thrown if the given query could not be processed.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         An exception is thrown if the given query could not be processed.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Examples</title>
-      <para>
-       The following sample query uses a <literal>_queryFilter</literal> to
-       query the managed user repository.
-      </para>
-      <programlisting>openidm.query("managed/user",
-{ '_queryFilter' : userIdPropertyName + ' eq "' + security.authenticationId  + '"' });</programlisting>
-      <para>
-       The following sample query references the <literal>for-userName</literal>
-       query, defined in the repository configuration, to query the managed user
-       repository.
-      </para>
-      <programlisting>openidm.query("managed/user",
-{"_queryId": "for-userName", "uid": request.additionalParameters.uid } );</programlisting>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         The following sample query uses a <literal>_queryFilter</literal> to
+         query the managed user repository.
+        </para>
+        <programlisting>openidm.query("managed/user",
+         { '_queryFilter' : userIdPropertyName + ' eq "' + security.authenticationId  + '"' });</programlisting>
+        <para>
+         The following sample query references the <literal>for-userName</literal>
+         query, defined in the repository configuration, to query the managed user
+         repository.
+        </para>
+        <programlisting>openidm.query("managed/user",
+         {"_queryId": "for-userName", "uid": request.additionalParameters.uid } );</programlisting>
+       </listitem>
+      </varlistentry>
+     </variablelist>
     </section>
 
     <section xml:id="function-action">
@@ -1097,19 +852,30 @@ openidm.action('workflow/processinstance/15', {"_action" : "claim"}, params);</p
       </varlistentry>
      </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Returns</title>
-      <para>
-       The result of the action may be <literal>null</literal>.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         The result of the action may be <literal>null</literal>.
+        </para>
+       </listitem>
+      </varlistentry>
 
-     <blockquote>
+     </variablelist>
+
+     <variablelist>
       <title>Throws</title>
-      <para>
-       If the action cannot be executed, an exception is thrown.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         If the action cannot be executed, an exception is thrown.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
     </section>
 
     <section xml:id="function-encrypt">
@@ -1150,20 +916,31 @@ openidm.action('workflow/processinstance/15', {"_action" : "claim"}, params);</p
       </varlistentry>
      </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Returns</title>
-      <para>
-       The value, encrypted with the specified cipher and key.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         The value, encrypted with the specified cipher and key.
+        </para>
+       </listitem>
+      </varlistentry>
 
-     <blockquote>
+     </variablelist>
+
+     <variablelist>
       <title>Throws</title>
-       <para>
-        An exception is thrown if the object could not be encrypted for any
-        reason.
-       </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         An exception is thrown if the object could not be encrypted for any
+         reason.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
      </section>
 
     <section xml:id="function-decrypt">
@@ -1182,21 +959,32 @@ openidm.action('workflow/processinstance/15', {"_action" : "claim"}, params);</p
       </varlistentry>
      </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Returns</title>
-      <para>
-       A deep copy of the value, with any encrypted value decrypted.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         A deep copy of the value, with any encrypted value decrypted.
+        </para>
+       </listitem>
+      </varlistentry>
 
-     <blockquote>
+     </variablelist>
+
+     <variablelist>
       <title>Throws</title>
-      <para>
-       An exception is thrown if the object could not be decrypted for any
-       reason. An error is thrown if the value is passed in as a string - it
-       must be passed in an object.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         An exception is thrown if the object could not be decrypted for any
+         reason. An error is thrown if the value is passed in as a string - it
+         must be passed in an object.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
     </section>
 
     <section xml:id="function-isencrypted">
@@ -1218,21 +1006,32 @@ openidm.action('workflow/processinstance/15', {"_action" : "claim"}, params);</p
       </varlistentry>
      </variablelist>
 
-     <blockquote>
+     <variablelist>
       <title>Returns</title>
-      <para>
-       Boolean, <literal>true</literal> if the value is encrypted, and
-       <literal>false</literal> if it is not encrypted.
-      </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         Boolean, <literal>true</literal> if the value is encrypted, and
+         <literal>false</literal> if it is not encrypted.
+        </para>
+       </listitem>
+      </varlistentry>
 
-     <blockquote>
+     </variablelist>
+
+     <variablelist>
       <title>Throws</title>
-       <para>
-        An exception is thrown if the server is unable to detect whether the
-        value is encrypted, for any reason.
-       </para>
-     </blockquote>
+      <varlistentry>
+       <term> </term>
+       <listitem>
+        <para>
+         An exception is thrown if the server is unable to detect whether the
+         value is encrypted, for any reason.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
     </section>
 
     <section xml:id="logger-functions">
@@ -1306,19 +1105,30 @@ logger = LoggerFactory.getLogger('logger');
        </varlistentry>
       </variablelist>
 
-      <blockquote>
+      <variablelist>
        <title>Returns</title>
-       <para>
-        A <literal>null</literal> value if successful.
-       </para>
-      </blockquote>
+       <varlistentry>
+        <term> </term>
+        <listitem>
+         <para>
+          A <literal>null</literal> value if successful.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
 
-      <blockquote>
+      <variablelist>
        <title>Throws</title>
-       <para>
-        An exception is thrown if the message could not be logged.
-       </para>
-      </blockquote>
+       <varlistentry>
+        <term> </term>
+        <listitem>
+         <para>
+          An exception is thrown if the message could not be logged.
+         </para>
+        </listitem>
+       </varlistentry>
+
+      </variablelist>
      </section>
 
      <section xml:id="function-logger-error">
@@ -1349,19 +1159,29 @@ logger = LoggerFactory.getLogger('logger');
        </varlistentry>
       </variablelist>
 
-      <blockquote>
+      <variablelist>
        <title>Returns</title>
-       <para>
-        A <literal>null</literal> value if successful.
-       </para>
-      </blockquote>
+       <varlistentry>
+        <term> </term>
+        <listitem>
+         <para>
+          A <literal>null</literal> value if successful.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
 
-      <blockquote>
+      <variablelist>
        <title>Throws</title>
-       <para>
-        An exception is thrown if the message could not be logged.
-       </para>
-      </blockquote>
+       <varlistentry>
+        <term> </term>
+        <listitem>
+         <para>
+          An exception is thrown if the message could not be logged.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
      </section>
 
      <section xml:id="function-logger-info">
@@ -1392,19 +1212,29 @@ logger = LoggerFactory.getLogger('logger');
        </varlistentry>
       </variablelist>
 
-      <blockquote>
+      <variablelist>
        <title>Returns</title>
-       <para>
-        A <literal>null</literal> value if successful.
-       </para>
-      </blockquote>
+       <varlistentry>
+        <term> </term>
+        <listitem>
+         <para>
+          A <literal>null</literal> value if successful.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
 
-      <blockquote>
+      <variablelist>
        <title>Throws</title>
-       <para>
-        An exception is thrown if the message could not be logged.
-       </para>
-      </blockquote>
+       <varlistentry>
+        <term> </term>
+        <listitem>
+         <para>
+          An exception is thrown if the message could not be logged.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
      </section>
 
      <section xml:id="function-logger-trace">
@@ -1435,19 +1265,29 @@ logger = LoggerFactory.getLogger('logger');
        </varlistentry>
       </variablelist>
 
-      <blockquote>
+      <variablelist>
        <title>Returns</title>
-       <para>
-        A <literal>null</literal> value if successful.
-       </para>
-      </blockquote>
+       <varlistentry>
+        <term> </term>
+        <listitem>
+         <para>
+          A <literal>null</literal> value if successful.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
 
-      <blockquote>
+      <variablelist>
        <title>Throws</title>
-       <para>
-        An exception is thrown if the message could not be logged.
-       </para>
-      </blockquote>
+       <varlistentry>
+        <term> </term>
+        <listitem>
+         <para>
+          An exception is thrown if the message could not be logged.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
      </section>
 
      <section xml:id="function-logger-warn">
@@ -1478,19 +1318,30 @@ logger = LoggerFactory.getLogger('logger');
        </varlistentry>
       </variablelist>
 
-      <blockquote>
+      <variablelist>
        <title>Returns</title>
-       <para>
-        A <literal>null</literal> value if successful.
-       </para>
-      </blockquote>
+       <varlistentry>
+        <term> </term>
+        <listitem>
+         <para>
+          A <literal>null</literal> value if successful.
+         </para>
+        </listitem>
+       </varlistentry>
 
-      <blockquote>
+      </variablelist>
+
+      <variablelist>
        <title>Throws</title>
-       <para>
-        An exception is thrown if the message could not be logged.
-       </para>
-      </blockquote>
+       <varlistentry>
+        <term> </term>
+        <listitem>
+         <para>
+          An exception is thrown if the message could not be logged.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
      </section>
     </section>
     </section>
@@ -1566,7 +1417,7 @@ logger = LoggerFactory.getLogger('logger');
        <listitem>
         <para>
          onCreate, onRead, onUpdate, onDelete, onValidate, onRetrieve, onStore,
-         postCreate, postUpdate, and postDelete
+         onSync, postCreate, postUpdate, and postDelete
         </para>
         <para>
          <filename>managed.json</filename> supports only one script per hook. If
@@ -1594,321 +1445,380 @@ logger = LoggerFactory.getLogger('logger');
     </section>
 
     <section xml:id="script-variables">
-     <title>Variables Available in Scripts</title>
+     <title>Variables Available to Scripts</title>
      <para>
       The variables that are available to scripts depend on the triggers that
-      launch the script, and on the locations in which those triggers are
-      defined. The following section outlines the available variables, per
-      trigger.
+      launch the script, and on the file in which those triggers are
+      defined. The following table lists triggers, with associated variables.
      </para>
+
+     <table pgwide="1" xml:id="table-script-triggers">
+      <title>Script Triggers and Associated Variables</title>
+
+      <tgroup cols="3">
+       <colspec colnum="1" colwidth="2*" />
+       <colspec colnum="2" colwidth="3*" />
+       <colspec colnum="3" colwidth="2*"/>
+
+       <thead>
+        <row>
+         <entry>Configuration File</entry>
+         <entry>Trigger</entry>
+         <entry>Variable</entry>
+        </row>
+       </thead>
+       <tbody>
+        <row>
+         <entry morerows="7">managed.json</entry>
+         <entry>onCreate, onDelete</entry>
+         <entry>object, source, target, situation, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>onRetrieve, onStore</entry>
+         <entry><para>
+          object, when called from either an object or a property storage
+          trigger
+         </para>
+          <para>
+           property and propertyName, only when called from a property storage
+           trigger
+          </para></entry>
+        </row>
+        <row>
+         <entry>onSync</entry>
+         <entry>syncResults, request, oldObject, newObject</entry>
+        </row>
+        <row>
+         <entry>onUpdate</entry>
+         <entry>oldObject, newObject, source, target, situation, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>onValidate</entry>
+         <entry>property, only when called from a property storage
+         trigger</entry>
+        </row>
+        <row>
+         <entry>postCreate, postDelete, postUpdate</entry>
+         <entry>object</entry>
+        </row>
+        <row>
+         <entry>onRead</entry>
+         <entry><para>
+          object, when called from either an object or a property storage trigger
+          </para>
+         <para>
+          property, only when called from a property storage trigger
+         </para></entry>
+        </row>
+        <row>
+         <entry>onStore</entry>
+         <entry>object, property</entry>
+        </row>
+        <row>
+         <entry morerows="2">router.json</entry>
+         <entry>onFailure</entry>
+         <entry>exception</entry>
+        </row>
+        <row>
+         <entry>onRequest</entry>
+         <entry>request</entry>
+        </row>
+        <row>
+         <entry>onResponse</entry>
+         <entry>response</entry>
+        </row>
+        <row>
+         <entry morerows="8">sync.json</entry>
+         <entry>onCreate, onDelete, onUpdate</entry>
+         <entry>object, source, target, situation, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>onLink, onUnlink</entry>
+         <entry>source, target, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>validSource</entry>
+         <entry>source, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>validTarget</entry>
+         <entry>target, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>correlationQuery, correlationScript</entry>
+         <entry>source, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>condition</entry>
+         <entry>object, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>action</entry>
+         <entry>
+          source, target, linkQualifier, recon (where
+          <literal>recon.actionParam</literal> contains information about the
+          current reconciliation operation)
+         </entry>
+        </row>
+        <row>
+         <entry>transform</entry>
+         <entry>source, linkQualifier</entry>
+        </row>
+        <row>
+         <entry>result</entry>
+         <entry>source, target, global, with reconciliation results</entry>
+        </row>
+        <row>
+         <entry>*</entry>
+         <entry>custom endpoint scripts</entry>
+         <entry>request, context</entry>
+        </row>
+       </tbody>
+      </tgroup>
+     </table>
+
      <variablelist>
+      <para>
+       OpenIDM includes one additional variable used in scripts:
+      </para>
+
       <varlistentry>
-       <term>condition</term>
-       <listitem>
-        <para>object</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>correlationQuery</term>
-       <listitem>
-        <para>source</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>correlationScript</term>
-       <listitem>
-        <para>source</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>Custom endpoint scripts</term>
-       <listitem>
-        <para>request</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>linkQualifier</term>
-       <listitem>
-        <para>target</para>
-        <para>
-         Often used to qualify objects for a <literal>correlationQuery</literal>,
-         a <literal>correlationScript</literal>, or a policy.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>onCreate</term>
-       <listitem>
-        <para>
-         Triggered in <filename>sync.json</filename> : object, source, target
-        </para>
-        <para>
-         Triggered in <filename>managed.json</filename> : object
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>onDelete</term>
-       <listitem>
-        <para>
-         Triggered in <filename>sync.json</filename> : object, source, target
-        </para>
-        <para>
-         Triggered in <filename>managed.json</filename> : object
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>onLink</term>
-       <listitem>
-        <para>source, target</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>onRead</term>
-       <listitem>
-        <para>object</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>onRetrieve</term>
-       <listitem>
-        <para>
-         object (when called from either an object or a property storage
-         trigger)
-        </para>
-        <para>
-         property (only when called from a property storage trigger)
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>onStore</term>
-       <listitem>
-        <para>object, property</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>onUnlink</term>
-       <listitem>
-        <para>source, target</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>onUpdate</term>
-       <listitem>
-        <para>
-         Triggered in <filename>sync.json</filename> : source, target
-        </para>
-        <para>
-         Triggered in <filename>managed.json</filename> : oldObject, newObject
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>onValidate</term>
-       <listitem>
-        <para>object, property</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>postCreate, postDelete</term>
-       <listitem>
-        <para>
-         Triggered in <filename>managed.json</filename> : object
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>postUpdate</term>
-       <listitem>
-        <para>
-         Triggered in <filename>managed.json</filename> : oldObject, newObject
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>result</term>
-       <listitem>
-        <para>source, target</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>synchronization situation scripts</term>
-       <listitem>
-        <para>
-         <literal>recon.actionParam</literal> - the details of the
-         synchronization operation in progress. This variable can be used for
-         asynchronous callbacks to execute the action at a later stage.
-        </para>
-        <para>
-         <literal>sourceAction</literal> - a boolean that indicates whether the
-         situation was assessed during the source phase
-        </para>
-        <para>
-         <literal>source</literal> (if found)
-        </para>
-        <para>
-         <literal>target</literal> (if found)
-        </para>
-        <para>
-         The properties from the configured script object.
-        </para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>taskScanner</term>
-       <listitem>
-        <para>input, objectID</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>transform</term>
-       <listitem>
-        <para>source</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>validSource</term>
-       <listitem>
-        <para>source</para>
-       </listitem>
-      </varlistentry>
-      <varlistentry>
-       <term>validTarget</term>
-       <listitem>
-        <para>target</para>
-       </listitem>
+        <term>identityServer</term>
+        <listitem>
+         <itemizedlist>
+          <para>
+           The <literal>identityServer</literal> variable can be used in
+           several ways. The <literal>ScriptRegistryService</literal> described
+           in <xref linkend="script-endpoint" /> binds this variable to:
+          </para>
+          <listitem>
+           <para><literal>getProperty</literal></para>
+           <para>
+            Retrieves property information from configuration files.
+            Creates a new identity environment configuration.
+           </para>
+           <para>
+            For example, you can retrieve the value of the
+            <literal>openidm.config.crypto.alias</literal> property from that
+            file with the following code:
+            <literal>alias = identityServer.getProperty("openidm.config.crypto.alias", "true", true);</literal>
+           </para>
+          </listitem>
+          <listitem>
+           <para><literal>getInstallLocation</literal></para>
+           <para>
+            Retrieves the installation path for OpenIDM, such as
+            <filename>/path/to/openidm</filename>. May be superseded by an
+            absolute path.
+           </para>
+          </listitem>
+          <listitem>
+           <para><literal>getProjectLocation</literal></para>
+           <para>Retrieves the directory used when you started OpenIDM. That
+            directory includes configuration and script files for your
+            project.</para>
+           <para>
+            For more information on the project location, see
+            <link xlink:show="new" xlink:role="http://docbook.org/xlink/role/olink"
+                  xlink:href="integrators-guide#startup-configuration">
+             <citetitle>Specifying the OpenIDM Startup
+              Configuration</citetitle></link>
+           </para>
+          </listitem>
+          <listitem>
+           <para><literal>getWorkingLocation</literal></para>
+           <para>Retrieves the directory associated with database cache and
+           audit logs. You can find <filename>db/</filename> and
+           <filename>audit/</filename> subdirectories there.</para>
+           <para>
+            For more information on the working location, see
+            <link xlink:show="new" xlink:role="http://docbook.org/xlink/role/olink"
+                  xlink:href="integrators-guide#startup-configuration">
+             <citetitle>Specifying the OpenIDM Startup
+              Configuration</citetitle></link>
+           </para>
+          </listitem>
+         </itemizedlist>
+        </listitem>
       </varlistentry>
      </variablelist>
+
     </section>
-
-    <section xml:id="debugging-scripts">
-     <title>Debugging OpenIDM JavaScripts</title>
-
-     <para>
-      OpenIDM includes Eclipse JSDT libraries so you can use Eclipse to debug
-      your OpenIDM JavaScripts during development.
-     </para>
-
-     <procedure xml:id="enable-debugging">
-      <title>To Enable Debugging</title>
+<!--TODO Reintegrate, and possible revise, when debugging is resolved on Mars
+ <section xml:id="debugging-scripts">
+  <title>Debugging OpenIDM JavaScripts</title>
+  <para>
+   OpenIDM includes Eclipse JSDT libraries that enable you to use Eclipse to
+   debug your OpenIDM JavaScript scripts during development.
+  </para>
+  <caution>
+   <para>
+    Debugging with Eclipse is currently supported <emphasis>only</emphasis> for
+    Eclipse Luna.
+   </para>
+  </caution>
+  <para>
+   To enable debugging
+   with Eclipse, follow these steps:
+  </para>
+  <procedure>
+   <step>
+    <para>
+     Stop OpenIDM, if it is running.
+    </para>
+   </step>
+   <step>
+    <para>
+     Install a version of Eclipse that supports JavaScript development (from the
+     <link xlink:href="http://www.eclipse.org/downloads/"
+     xlink:show="new">Eclipse download page</link>), or add the <link xlink:show="new"
+     xlink:href="http://wiki.eclipse.org/JSDT">JavaScript Development
+     Tools</link> to your existing Eclipse installation.
+    </para>
+    <para>
+     This procedure uses <link xlink:href="http://www.eclipse.org/downloads/packages/eclipse-ide-java-ee-developers/lunasr2"
+     xlink:show="new">Eclipse IDE for Java EE Developers</link>.
+    </para>
+   </step>
+   <step>
+    <para>
+     Copy the Rhino Debugger that is provided with Eclipse into the
+     <literal>openidm/bundle</literal> directory.
+    </para>
+    <informalexample><?dbfo pgwide="1"?>
+<screen>$ cd /path/to/openidm/bundle
+$ cp /path/to/Eclipse/plugins/org.eclipse.wst.jsdt.debug.rhino.debugger_1.0.500.v201503300052.jar .</screen>
+    </informalexample>
+   </step>
+   <step>
+    <para>
+     Copy the transport JAR file (used to load scripts to be debugged) that is
+     provided with Eclipse into the <literal>openidm/bundle</literal> directory.
+    </para>
+    <informalexample><?dbfo pgwide="1"?>
+     <screen>$ cd /path/to/openidm/bundle
+$ cp /path/to/Eclipse/plugins/org.eclipse.wst.jsdt.debug.transport_1.0.300.v201502261613.jar .</screen>
+    </informalexample>
+   </step>
+   <step>
+    <para>
+     If you have previously started this OpenIDM instance, delete the
+     <literal>felix-cache</literal> directory.
+    </para>
+   </step>
+   <step>
+    <para>
+     Enable debugging by editing the script configuration file for your project
+     (<filename><replaceable>project-dir</replaceable>/conf/script.json</filename>).
+    </para>
+    <para>
+     Specifically, uncomment the following line:
+    </para>
+    <screen>"javascript.debug" : "transport=socket,suspend=y,address=9888,trace=true",</screen>
+    <para>
+     The <literal>suspend=y</literal> parameter prevents OpenIDM from starting
+     until the remote JavaScript debugger has connected. You might want to set
+     this to <literal>suspend=n</literal>, if you do not want to prevent OpenIDM
+     from starting.
+    </para>
+   </step>
+   <step>
+    <para>
+     Start Eclipse and create an empty JavaScript project named, for example,
+     <literal>OpenIDM_Scripts</literal>.
+    </para>
+    <para>
+     Eclipse will create an <filename>OpenIDM_Scripts</filename>
+     directory in the default Eclipse workspace location, and will use this
+     directory to store the sources that it loads from OpenIDM.
+    </para>
+   </step>
+   <step>
+    <para>
+     Link the folder, within your OpenIDM project, that contains the script or
+     scripts that you want to debug.
+    </para>
+    <substeps>
+     <step>
       <para>
-       Follow these steps to enable debugging using Eclipse.
+       Select Project > Properties > JavaScript > Include Path.
       </para>
-      <step>
-       <para>
-        Install the environment to support JavaScript development in either of
-        the following ways.
-       </para>
-       <stepalternatives>
-        <step>
-         <para>
-          Download and install Eclipse IDE for JavaScript Web Developers from
-          the <link xlink:href="http://www.eclipse.org/downloads/"
-          xlink:show="new">Eclipse download page</link>.
-         </para>
-        </step>
-        <step>
-         <para>
-          Add <link xlink:href="http://wiki.eclipse.org/JSDT"
-          xlink:show="new">JavaScript Development Tools</link> to your existing
-          Eclipse installation.
-         </para>
-        </step>
-       </stepalternatives>
-      </step>
-      <step>
-       <para>
-        Create an empty JavaScript project called <literal>External JavaScript
-        Source</literal> in Eclipse.
-       </para>
-       <para>
-        Eclipse then uses the <filename>External JavaScript Source</filename>
-        directory in the default workspace location to store sources that it
-        downloads from OpenIDM.
-       </para>
-      </step>
-      <step>
-       <para>
-        Stop OpenIDM.
-       </para>
-      </step>
-      <step>
-       <para>
-        Edit <filename>openidm/conf/boot/boot.properties</filename> to enable
-        debugging.
-       </para>
-       <substeps>
-        <step>
-         <para>
-          Uncomment and edit the following line.
-         </para>
-         <programlisting>
-#openidm.script.javascript.debug=transport=socket,suspend=y,address=9888,trace=true
-         </programlisting>
-         <para>
-          Here <literal>suspend=y</literal> prevents OpenIDM from starting until
-          the remote JavaScript debugger has connected. You might therefore
-          choose to set this to <literal>suspend=n</literal>.
-         </para>
-        </step>
-        <step>
-         <para>
-          Uncomment and edit the following line.
-         </para>
-         <programlisting>
-#openidm.script.javascript.sources=/Eclipse/workspace/External JavaScript Source/
-         </programlisting>
-         <para>
-          Adjust <literal>/Eclipse/workspace/External JavaScript Source/</literal>
-          to match the absolute path to this folder including the trailing
-          <literal>/</literal> character. On Windows, also use forward slashes,
-          such as<literal>C:/Eclipse/workspace/External JavaScript Source/</literal>.
-         </para>
-         <para>
-          Each time OpenIDM loads a new script, it then creates or overwrites
-          the file in the <filename>External JavaScript Source</filename>
-          directory. Before toggling breakpoints, be sure to refresh the source
-          manually in Eclipse so you have the latest version.
-         </para>
-        </step>
-       </substeps>
-      </step>
-      <step>
-       <para>
-        Edit the <filename>conf/script.json</filename> file to enable debugging.
-        Specifically, uncomment and edit the following line:
-       </para>
-       <programlisting>
-"#javascript.debug": "transport=socket,suspend=y,address=9888,trace=true",
-       </programlisting>
-      </step>
-      <step>
-       <para>
-        Prepare the Eclipse debugger to allow you to set breakpoints.
-       </para>
-       <para>
-        In the Eclipse Debug perspective, select the Breakpoints tab, and click
-        the Add Script Load Breakpoint icon to open the list of scripts.
-       </para>
-       <para>
-        In the Add Script Load Breakpoint window, select your scripts, and click
-        OK.
-       </para>
-      </step>
-      <step>
-       <para>
-        Start OpenIDM, and connect the debugger.
-       </para>
-       <para>
-        To create a new debug configuration, select Run &gt; Debug
-        Configurations... &gt; Remote JavaScript &gt; New, and set the port to
-        9888 as shown in the previous step.
-       </para>
-      </step>
-     </procedure>
-    </section>
+     </step>
+     <step>
+      <para>
+       Click on the Source tab and click Link External Folder.
+      </para>
+     </step>
+     <step>
+      <para>
+       Browse for the folder or folders that will contain the JavaScript files
+       that you want to debug, for example,
+       <filename><replaceable>project-dir</replaceable>/script</filename>, and
+       click Finish.
+      </para>
+     </step>
+    </substeps>
+    <para>
+     Each time OpenIDM loads a new script, it creates or overwrites the file in
+     the <filename>External JavaScript Source</filename> directory. Before you
+     toggle breakpoints, you must refresh the source manually in Eclipse, so
+     that you have the latest version of the script.
+    </para>
+   </step>
+   <step>
+    <para>
+     Start the OpenIDM instance.
+    </para>
+   </step>
+   <step>
+    <para>
+     Connect the debugger to OpenIDM by creating a new debug configuration:
+    </para>
+    <substeps>
+     <step>
+      <para>
+       Select Run > Debug Configurations > Remote JavaScript > New
+      </para>
+     </step>
+     <step>
+      <para>
+       Provide a name for the configuration, for example, OpenIDM_Scripts, and
+       set the port to 9888.
+      </para>
+     </step>
+     <step>
+      <para>
+       Click Apply.
+      </para>
+     </step>
+    </substeps>
+   </step>
+   <step>
+    <para>
+     Prepare the Eclipse debugger to allow you to set breakpoints.
+    </para>
+    <substeps>
+     <step>
+      <para>
+       In the Eclipse Debug perspective, select the Breakpoints tab.
+      </para>
+     </step>
+     <step>
+      <para>
+       Click the Add Script Load Breakpoint icon to display the list of scripts
+       in the external directory that you have specified.
+      </para>
+     </step>
+     <step>
+      <para>
+       In the Add Script Load Breakpoint window, select the script or scripts
+       you want to debug, and click OK.
+      </para>
+     </step>
+    </substeps>
+   </step>
+  </procedure>
+ </section> -->
 
  <section xml:id="script-endpoint">
   <title>Validating Scripts Over REST</title>
@@ -1920,20 +1830,22 @@ logger = LoggerFactory.getLogger('logger');
    scripts in this way can be useful in debugging.
   </para>
   <para>
-   In addition, the script service enables you to call out to other scripts
+   In addition, the script registry service supports calls to other scripts
    (even scripts written in a different language, such as from JavaScript to
-   Groovy). For example, you might have logic written in Javascript, but also
+   Groovy). For example, you might have logic written in JavaScript, but also
    some code available in Groovy. Ordinarily, it would be challenging to
    interoperate between these two environments, but this script service enables
    you to call one from the other on the OpenIDM router.
   </para>
   <para>
-   Scripts called over the <literal>script</literal> endpoint have access to
-   the <literal>"openidm"</literal> and <literal>"context"</literal> objects.
-   The only supported action on the <literal>script</literal> endpoint is
-   <literal>eval</literal>, so scripts can not be launched from this endpoint,
-   but merely evaluated. The last statement that is executed is the value
-   produced by the script, and the expected result of the REST call.
+   The <literal>script</literal> endpoint supports two actions -
+   <literal>eval</literal> and <literal>compile</literal>.
+  </para>
+  <para>
+   The <literal>eval</literal> action evaluates a script, by taking any actions
+   referenced in the script, such as router calls to affect the state of an
+   object. For JavaScript scripts, the last statement that is executed is the
+   value produced by the script, and the expected result of the REST call.
   </para>
   <para>
    The following REST call attempts to evaluate the
@@ -1964,13 +1876,59 @@ logger = LoggerFactory.getLogger('logger');
  "https://localhost:8443/openidm/script?_action=eval"</userinput>
 <computeroutput>
 "Must choose to either purge by expired or number of recons to keep"</computeroutput></screen>
+  <tip>
+   <para>
+    The variables passed into this scripts are namespaced with the
+    <literal>"globals"</literal> map. It is preferable to namespace variables
+    passed into scripts in this way, to avoid collisions with the top-level
+    reserved words for script maps, such as <literal>file</literal>,
+    <literal>source</literal>, and <literal>type</literal>.
+   </para>
+  </tip>
   <para>
-   Note that the variables passed into this script are namespaced with the
-   <literal>"globals"</literal> map. It is preferable to namespace variables
-   passed into scripts in this way, to avoid collisions with the top-level
-   reserved words for script maps, such as <literal>file</literal>,
-   <literal>source</literal>, and <literal>type</literal>.
+   The <literal>compile</literal> action compiles a script, but does not
+   execute it. This action is used primarily by the UI, to validate scripts that
+   are entered in the UI. A successful compilation returns
+   <literal>true</literal>. An unsuccessful compilation returns the reason for
+   the failure.
   </para>
+  <para>
+   The following REST call tests whether a transformation script will compile.
+  </para>
+  <screen>$ <userinput>curl \
+   --cacert self-signed.crt \
+   --header "X-OpenIDM-Username: openidm-admin" \
+   --header "X-OpenIDM-Password: openidm-admin" \
+   --header "Content-Type: application/json" \
+   --request POST \
+   --data '{
+       "type":"text/javascript",
+       "source":"source.mail ? source.mail.toLowerCase() : null"
+   }' \
+   "https://localhost:8443/openidm/script?_action=compile"</userinput>
+<computeroutput>True</computeroutput></screen>
+  <para>
+   If the script is not valid, the action returns an indication of the error,
+   for example:
+  </para>
+  <screen>$ <userinput>curl \
+   --cacert self-signed.crt \
+   --header "X-OpenIDM-Username: openidm-admin" \
+   --header "X-OpenIDM-Password: openidm-admin" \
+   --header "Content-Type: application/json" \
+   --request POST \
+   --data '{
+       "type":"text/javascript",
+       "source":"source.mail ? source.mail.toLowerCase()"
+   }' \
+   "https://localhost:8443/openidm/script?_action=compile"</userinput>
+<computeroutput>{
+    "code": 400,
+    "reason": "Bad Request",
+    "message": "missing : in conditional expression
+        (3864142CB836831FAB8EAB662F566139CDC22BF2#1)
+        in 3864142CB836831FAB8EAB662F566139CDC22BF2
+        at line number 1 at column number 39"
+}</computeroutput></screen>
  </section>
-
 </appendix>
