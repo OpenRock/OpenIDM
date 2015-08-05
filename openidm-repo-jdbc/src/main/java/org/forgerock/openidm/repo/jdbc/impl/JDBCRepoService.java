@@ -1131,7 +1131,7 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                             new DefaultSQLExceptionHandler(), cryptoServiceAccessor);
         case POSTGRESQL:
             return
-                    new MappedTableHandler(table, objectToColumn, dbSchemaName, explicitQueries, explicitCommands,
+                    new PostgreSQLMappedTableHandler(table, objectToColumn, dbSchemaName, explicitQueries, explicitCommands,
                             new DefaultSQLExceptionHandler(), cryptoServiceAccessor);
         case MYSQL:
             return
