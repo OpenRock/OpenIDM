@@ -22,7 +22,7 @@
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
 
-/*global define*/
+/*global define */
 define("config/routes/AdminRoutesConfig", [
     "config/routes/CommonRoutesConfig"
 ], function(commonRoutes) {
@@ -189,6 +189,12 @@ define("config/routes/AdminRoutesConfig", [
             role: "ui-admin",
             url: /^workflow\/processinstance\/(.+)$/,
             pattern: "workflow/processinstance/?"
+        },
+        "processDefinitionView" : {
+            view: "org/forgerock/openidm/ui/admin/workflow/ProcessDefinitionView",
+            role: "ui-admin",
+            url: /^workflow\/processdefinition\/(.+)$/,
+            pattern: "workflow/processdefinition/?"
         }
     };
 

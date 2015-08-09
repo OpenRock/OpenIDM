@@ -22,9 +22,11 @@
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
 
-/*global define, $, _, Handlebars */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
+    "jquery",
+    "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/openidm/ui/common/delegates/ResourceDelegate",
     "org/forgerock/commons/ui/common/util/UIUtils",
@@ -35,7 +37,8 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
     "org/forgerock/openidm/ui/admin/util/BackgridUtils",
     "org/forgerock/commons/ui/common/main/Router",
     "backgrid"
-], function(AdminAbstractView,
+], function($, _,
+            AdminAbstractView,
             ResourceDelegate,
             uiUtils,
             AbstractModel,
@@ -83,7 +86,7 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
                 processGrid = new Backgrid.Grid({
                     className: "table",
                     emptyText: $.t("templates.workflows.processes.noCompletedProcesses"),
-                    columns: [
+                    columns: BackgridUtils.addSmallScreenCell([
                         {
                             name: "processDefinitionResourceName",
                             label: $.t("templates.workflows.processes.processInstance"),
@@ -95,14 +98,14 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
                                     return this;
                                 }
                             }),
-                            sortable: true,
+                            sortable: false,
                             editable: false
                         },
                         {
                             name: "startUserId",
                             label: $.t("templates.workflows.processes.startedBy"),
                             cell: "string",
-                            sortable: true,
+                            sortable: false,
                             editable: false
                         },
                         {
@@ -110,20 +113,22 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
                             label: $.t("templates.workflows.processes.created"),
                             cell: BackgridUtils.DateCell("startTime"),
                             sortable: true,
-                            editable: false
+                            editable: false,
+                            sortType: "toggle"
                         },
                         {
                             name: "endTime",
                             label: "COMPLETED",
                             cell: BackgridUtils.DateCell("endTime"),
                             sortable: true,
-                            editable: false
+                            editable: false,
+                            sortType: "toggle"
                         },
                         {
                             name: "",
                             cell: BackgridUtils.ButtonCell([
                                 {
-                                    className: "fa fa-pencil grid-icon",
+                                    className: "fa fa-eye grid-icon",
                                     callback: function() {
                                         eventManager.sendEvent(constants.EVENT_CHANGE_VIEW, {route: router.configuration.routes.processInstanceView, args: [this.model.id]});
                                     }
@@ -131,7 +136,7 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
                             ]),
                             sortable: false,
                             editable: false
-                        }],
+                        }]),
                     collection: this.model.processes
                 });
 
@@ -152,30 +157,24 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
                     },this),
                     render : {
                         item: function(item, escape) {
-                            var username = '<small class="text-muted"> (' +escape(item.userName) +')</small>';
+                            var userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "",
+                                displayName = (item.displayName) ? item.displayName : item.givenName + " " + item.sn;
 
-                            if(item._id === "anyone") {
-                                username = '';
-                            }
 
                             return '<div>' +
                                 '<span class="user-title">' +
-                                '<span class="user-fullname">' + escape(item.givenName) +' ' +escape(item.sn) + '</span>' +
-                                username +
+                                '<span class="user-fullname">' + escape(displayName) + userName + '</span>' +
                                 '</span>' +
                                 '</div>';
                         },
                         option: function(item, escape) {
-                            var username = '<small class="text-muted"> (' +escape(item.userName) +')</small>';
+                            var userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "",
+                                displayName = (item.displayName) ? item.displayName : item.givenName + " " + item.sn;
 
-                            if(item._id === "anyone") {
-                                username = "";
-                            }
 
                             return '<div>' +
                                 '<span class="user-title">' +
-                                '<span class="user-fullname">' + escape(item.givenName) +' ' +escape(item.sn) + '</span>' +
-                                username +
+                                '<span class="user-fullname">' + escape(displayName) + userName + '</span>' +
                                 '</span>' +
                                 '</div>';
                         }

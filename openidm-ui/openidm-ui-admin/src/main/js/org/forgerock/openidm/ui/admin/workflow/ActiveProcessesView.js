@@ -22,9 +22,11 @@
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
 
-/*global define, $, _, Handlebars */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
+    "jquery",
+    "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/openidm/ui/common/delegates/ResourceDelegate",
     "org/forgerock/commons/ui/common/util/UIUtils",
@@ -35,7 +37,8 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
     "org/forgerock/openidm/ui/admin/util/BackgridUtils",
     "org/forgerock/commons/ui/common/main/Router",
     "backgrid"
-], function(AdminAbstractView,
+], function($, _,
+            AdminAbstractView,
             ResourceDelegate,
             uiUtils,
             AbstractModel,
@@ -83,7 +86,7 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                 processGrid = new Backgrid.Grid({
                     className: "table",
                     emptyText: $.t("templates.workflows.processes.noActiveProcesses"),
-                    columns: [
+                    columns: BackgridUtils.addSmallScreenCell([
                         {
                             name: "processDefinitionResourceName",
                             label: $.t("templates.workflows.processes.processInstance"),
@@ -95,14 +98,14 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                                     return this;
                                 }
                             }),
-                            sortable: true,
+                            sortable: false,
                             editable: false
                         },
                         {
                             name: "startUserId",
                             label: $.t("templates.workflows.processes.startedBy"),
                             cell: "string",
-                            sortable: true,
+                            sortable: false,
                             editable: false
                         },
                         {
@@ -110,7 +113,8 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                             label: $.t("templates.workflows.processes.created"),
                             cell: BackgridUtils.DateCell("startTime"),
                             sortable: true,
-                            editable: false
+                            editable: false,
+                            sortType: "toggle"
                         },
                         {
                             name: "",
@@ -138,7 +142,7 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                             ]),
                             sortable: false,
                             editable: false
-                        }],
+                        }]),
                     collection: this.model.processes
                 });
 
@@ -159,30 +163,24 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                     },this),
                     render : {
                         item: function(item, escape) {
-                            var username = '<small class="text-muted"> (' +escape(item.userName) +')</small>';
+                            var userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "",
+                                displayName = (item.displayName) ? item.displayName : item.givenName + " " + item.sn;
 
-                            if(item._id === "anyone") {
-                                username = '';
-                            }
 
                             return '<div>' +
                                 '<span class="user-title">' +
-                                '<span class="user-fullname">' + escape(item.givenName) +' ' +escape(item.sn) + '</span>' +
-                                username +
+                                '<span class="user-fullname">' + escape(displayName) + userName + '</span>' +
                                 '</span>' +
                                 '</div>';
                         },
                         option: function(item, escape) {
-                            var username = '<small class="text-muted"> (' +escape(item.userName) +')</small>';
+                            var userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "",
+                                displayName = (item.displayName) ? item.displayName : item.givenName + " " + item.sn;
 
-                            if(item._id === "anyone") {
-                                username = "";
-                            }
 
                             return '<div>' +
                                 '<span class="user-title">' +
-                                '<span class="user-fullname">' + escape(item.givenName) +' ' +escape(item.sn) + '</span>' +
-                                username +
+                                '<span class="user-fullname">' + escape(displayName) + userName + '</span>' +
                                 '</span>' +
                                 '</div>';
                         }

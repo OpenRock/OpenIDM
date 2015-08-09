@@ -22,15 +22,17 @@
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
 
-/*global define, $, _, Handlebars, form2js */
+/*global define */
 
 define("org/forgerock/openidm/ui/common/resource/ResourceCollectionArrayView", [
+    "jquery",
+    "underscore",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/openidm/ui/common/delegates/ResourceDelegate",
     "org/forgerock/openidm/ui/common/util/ResourceCollectionUtils",
     "org/forgerock/openidm/ui/common/resource/GenericEditResourceView"
-], function(AbstractView, constants, resourceDelegate, resourceCollectionUtils) {
+], function($, _, AbstractView, constants, resourceDelegate, resourceCollectionUtils) {
     var ResourceCollectionArrayView = AbstractView.extend({
             template: "templates/admin/resource/ResourceCollectionArrayViewTemplate.html",
             noBaseTemplate: true,
@@ -69,9 +71,19 @@ define("org/forgerock/openidm/ui/common/resource/ResourceCollectionArrayView", [
                 }
             },
             setupAutocomplete: function(prop) {
-                var autocompleteField = this.$el.parent().find("#autoCompleteResourceCollection_" + prop.propName);
+                var autocompleteField = this.$el.parent().find("#autoCompleteResourceCollection_" + prop.propName),
+                    onChange = _.bind(function(value) {
+                        var newVal = this.data.prop.items.resourceCollection.path + "/" + value;
 
-                resourceCollectionUtils.setupAutocompleteField(autocompleteField, prop);
+                        if(!_.contains(this.data.prop.value, newVal)) {
+                            if(!this.data.prop.value) {
+                                this.data.prop.value = [];
+                            }
+                            this.data.prop.value.push(newVal);
+                        }
+                    }, this);
+
+                    resourceCollectionUtils.setupAutocompleteField(autocompleteField, prop, { onChange: onChange });
             },
             convertToHuman: function() {
                 var listElements = this.$el.find(".resourceListItem");
@@ -101,6 +113,7 @@ define("org/forgerock/openidm/ui/common/resource/ResourceCollectionArrayView", [
                 if(e) {
                     e.preventDefault();
                 }
+
                 var value = this.$el.parent().find("#autoCompleteResourceCollection_" + this.data.prop.propName).val();
 
                 if (value && value.length) {

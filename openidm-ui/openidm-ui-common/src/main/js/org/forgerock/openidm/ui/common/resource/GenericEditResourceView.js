@@ -22,12 +22,12 @@
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
 
-/*global define, $, _, JSONEditor */
+/*global define */
 
-/**
- * @author huck.elliott
- */
 define("org/forgerock/openidm/ui/common/resource/GenericEditResourceView", [
+    "jquery",
+    "underscore",
+    "jsonEditor",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
@@ -39,8 +39,9 @@ define("org/forgerock/openidm/ui/common/resource/GenericEditResourceView", [
     "org/forgerock/openidm/ui/common/resource/ResourceCollectionRelationshipsView",
     "org/forgerock/openidm/ui/common/util/ResourceCollectionUtils",
     "org/forgerock/openidm/ui/common/linkedView/LinkedView",
-    "org/forgerock/commons/ui/common/main/Router"
-], function(
+    "org/forgerock/commons/ui/common/main/Router",
+    "bootstrap"
+], function($, _, JSONEditor,
         AbstractView,
         eventManager,
         constants,
@@ -187,7 +188,6 @@ define("org/forgerock/openidm/ui/common/resource/GenericEditResourceView", [
                 this.editor.on('change', _.bind(function() {
                     this.showPendingChanges();
                 }, this));
-
             }, this));
         },
         showPendingChanges : function() {
@@ -421,7 +421,7 @@ define("org/forgerock/openidm/ui/common/resource/GenericEditResourceView", [
 
                     resourceCollectionUtils.setupAutocompleteField(autocompleteField, field, { onChange: onChange });
 
-                    if (!_this.data.newObject && el.val().length) {
+                    if(!_this.data.newObject && el.val() && el.val().length){
                         return resourceDelegate.readResource("/" + constants.context,el.val()).then(function(result){
                             autocompleteField[0].selectize.addOption(result);
                             autocompleteField[0].selectize.setValue(result._id);
