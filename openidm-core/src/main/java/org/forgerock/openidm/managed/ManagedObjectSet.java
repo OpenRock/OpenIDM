@@ -1064,8 +1064,8 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             request.addField(fieldsList.toArray(new JsonPointer[fieldsList.size()]));
             Resource resource = connectionFactory.getConnection().read(context, request);
             
-            // Add the result to the supplied relationship object
-            value.put(SchemaField.FIELD_EXPANSION_VALUE, resource.getContent().asMap());
+            // Merge the result with the supplied relationship object
+            value.asMap().putAll(resource.getContent().asMap());
         } else {
             logger.warn("Cannot expand a null relationship object");
         }
