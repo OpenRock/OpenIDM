@@ -977,8 +977,15 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
                         Pair<JsonPointer, JsonPointer> expansionPair = schema.getResourceExpansionField(field);
                         if (expansionPair != null) {
                             JsonPointer relationshipField = expansionPair.getFirst();
+                            // Allow the field by removing it from the fieldsToRemove list (if there)
+                            fieldsToRemove.remove(relationshipField);
+                            // Add the field to the expansion map
                             if (!resourceExpansionMap.containsKey(relationshipField)) {
+                            	// Initialize the list of fields in the resource expansion map
                                 resourceExpansionMap.put(relationshipField, new ArrayList<JsonPointer>());
+                                // replace the field in the fields list with the relationship field
+                                fields.remove(field);
+                                fields.add(relationshipField);
                             }
                             resourceExpansionMap.get(relationshipField).add(expansionPair.getSecond());
                         }
@@ -1030,7 +1037,12 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             }
         }
         
-        return Resources.filterResource(resource, fields);
+        // Update the list of fields in the response
+        if (fields != null && fields.size() > 0) {
+        	resource.addField(fields.toArray(new JsonPointer[fields.size()]));
+        }
+        
+        return resource;
     }
     
     /**
