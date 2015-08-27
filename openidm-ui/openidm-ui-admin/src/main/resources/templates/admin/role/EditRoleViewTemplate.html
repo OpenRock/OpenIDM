@@ -1,11 +1,11 @@
 <div class="editRoleViewContainer">
 	<div class="back-bar">
 	    <div class="container">
-	        <a href="#" class="backToList">{{t "templates.admin.RoleUsersTemplate.backToRoles"}}</a>
-	    </div>
+            <a href="#resource/managed/role/list/" class="backToList">{{t "templates.admin.RoleUsersTemplate.backToRoles"}}</a>
+        </div>
 	</div>
     <div class="container">
-        <div class="page-header no-border profile-header">
+        <div class="page-header profile-header">
            <div class="media ">
               <div class="media-left media-top">
                  <span class="user-avatar"><i class="fa fa-key"></i></span>
@@ -60,7 +60,7 @@
                  </div>
                  <div class="panel-footer">
                     <div class="pull-right">
-                       <a href="#" class="btn btn-default backToList" id="cancelButton">{{t "common.form.cancel"}}</a>
+                       <a href="#resource/managed/role/list/" class="btn btn-default backToList" id="cancelButton">{{t "common.form.cancel"}}</a>
                        {{#if newRole}}
                        <a href="#" id="createRoleButton" class="btn btn-primary saveRole">{{t "common.form.create"}}</a>
                        {{else}}
@@ -72,10 +72,10 @@
               </div>
            </div>
            <div role="tabpanel" class="tab-pane" id="role-entitlements">
-              
+
            </div>
            <div role="tabpanel" class="tab-pane" id="role-users">
-              
+
            </div>
         </div>
     </div>

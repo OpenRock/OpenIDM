@@ -70,11 +70,12 @@ define("org/forgerock/openidm/ui/common/MandatoryPasswordChangeDialog", [
                             title: $.t("templates.MandatoryChangePassword.title"),
                             type: BootstrapDialog.TYPE_DEFAULT,
                             message: currentDialog,
+                            onshow: _.bind(function(dialogRef){
+                                dialogRef.$modalFooter.find("#submitPasswordChange").prop('disabled', true);
+                            }, this),
                             onshown : _.bind(function (dialogRef) {
                                 validatorsManager.bindValidators(this.$el, this.delegate.baseEntity + "/" + conf.loggedUser._id, _.bind(function () {
                                     this.$el.find("[name=password]").focus();
-
-                                    this.model.dialog.$modalFooter.find("#submitPasswordChange").prop('disabled', true);
 
                                     if (callback) {
                                         callback();
@@ -90,8 +91,6 @@ define("org/forgerock/openidm/ui/common/MandatoryPasswordChangeDialog", [
                                     id: "submitPasswordChange",
                                     cssClass: "btn-primary",
                                     action: _.bind(function(dialogRef) {
-                                        event.preventDefault();
-
                                         var patchDefinitionObject = [], element;
                                         if(validatorsManager.formValidated(this.$el.find("#passwordChange"))) {
                                             patchDefinitionObject.push({operation: "replace", field: "/password", value: this.$el.find("input[name=password]").val()});

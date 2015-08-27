@@ -24,18 +24,25 @@
 
 package org.forgerock.openidm.audit.util;
 
+import static org.forgerock.json.JsonValue.field;
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
+
+import java.util.List;
+
 import org.forgerock.audit.events.AuditEvent;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.http.Context;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.Connection;
 import org.forgerock.json.resource.ConnectionFactory;
-import org.forgerock.json.resource.Context;
 import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestType;
 import org.forgerock.json.resource.Requests;
-import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.SecurityContext;
-import org.forgerock.json.resource.ServerContext;
 import org.forgerock.openidm.core.IdentityServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,7 +105,7 @@ public class RouterActivityLogger implements ActivityLogger {
      * {@inheritDoc}
      */
     @Override
-    public void log(ServerContext context, Request request, String message, String objectId,
+    public void log(Context context, Request request, String message, String objectId,
                     JsonValue before, JsonValue after, Status status) throws ResourceException {
 
         if (null == request) {
@@ -112,9 +119,11 @@ public class RouterActivityLogger implements ActivityLogger {
 
             String revision = getRevision(before, after);
 
-            boolean passwordChanged = false;   //todo needs OPENIDM-3575
+            //will be true if any of the watched password fields have changed.
+            //TODO once dependency is resolved, get action from AuditService.AuditAction rather than these strings.
+            boolean passwordChanged = getChangedFields("getChangedPasswordFields", before, after, context).length > 0;
 
-            String[] changedFields = new String[0]; //todo needs OPENIDM-3575
+            String[] changedFields = getChangedFields("getChangedWatchedFields", before, after, context);
 
             RequestType requestType = request.getRequestType();
             String beforeValue = getJsonForLog(before, requestType);
@@ -159,6 +168,32 @@ public class RouterActivityLogger implements ActivityLogger {
     }
 
     /**
+     * This calls Audit service to utilize its get changed field abilities.
+     * Determining the changed fields is left to the AuditService since it has the ability to utilize the CryptoService.
+     *
+     * @param auditAction The action that determines which watch filter to apply to the fields.
+     * @param before The object before changes.
+     * @param after The object after changes.
+     * @param context passed to the action call on audit service.
+     * @return fields that have changes.
+     * @throws ResourceException
+     */
+    //TODO once dependency is resolved, first param should be AuditService.AuditAction rather than string.
+    private String[] getChangedFields(String auditAction, JsonValue before, JsonValue after,
+            Context context) throws ResourceException {
+        ActionRequest actionRequest = Requests.newActionRequest("audit", auditAction);
+        actionRequest.setContent(
+                json(object(
+                        field("before", before),
+                        field("after", after)
+                )));
+        Connection connection = connectionFactory.getConnection();
+        JsonValue action = connection.action(context, actionRequest).getJsonContent();
+        List<String> changes = action.asList(String.class);
+        return changes.toArray(new String[changes.size()]);
+    }
+
+    /**
      * By default, READ and QUERY requests will not log the full object,
      * unless overridden by logFullObjects.
      *
@@ -185,11 +220,11 @@ public class RouterActivityLogger implements ActivityLogger {
      * @return revision
      */
     private String getRevision(JsonValue before, JsonValue after) {
-        if (after != null && after.get(Resource.FIELD_CONTENT_REVISION).isString()) {
-            return after.get(Resource.FIELD_CONTENT_REVISION).asString();
+        if (after != null && after.get(ResourceResponse.FIELD_CONTENT_REVISION).isString()) {
+            return after.get(ResourceResponse.FIELD_CONTENT_REVISION).asString();
         }
-        if (before != null && before.get(Resource.FIELD_CONTENT_REVISION).isString()) {
-            return before.get(Resource.FIELD_CONTENT_REVISION).asString();
+        if (before != null && before.get(ResourceResponse.FIELD_CONTENT_REVISION).isString()) {
+            return before.get(ResourceResponse.FIELD_CONTENT_REVISION).asString();
         }
         return null;
     }

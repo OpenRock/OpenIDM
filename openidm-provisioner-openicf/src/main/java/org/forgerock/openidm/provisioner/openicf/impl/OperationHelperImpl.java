@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright © 2011 ForgeRock AS. All rights reserved.
+ * Copyright 2011-2015 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -26,9 +26,9 @@
 
 package org.forgerock.openidm.provisioner.openicf.impl;
 
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ForbiddenException;
-import org.forgerock.json.resource.Resource;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.openidm.crypto.CryptoService;
 import org.forgerock.openidm.provisioner.Id;
@@ -125,7 +125,7 @@ public class OperationHelperImpl implements OperationHelper {
         resetUid(source.getUid(), result);
         if (null != source.getUid().getRevision()) {
             //System supports Revision
-            result.put(Resource.FIELD_CONTENT_REVISION, source.getUid().getRevision());
+            result.put(ResourceResponse.FIELD_CONTENT_REVISION, source.getUid().getRevision());
         }
         return result;
     }
@@ -133,7 +133,7 @@ public class OperationHelperImpl implements OperationHelper {
     public void resetUid(Uid uid, JsonValue target) {
         if (null != uid && null != target) {
             // TODO are we going to encode ids?
-            target.put(Resource.FIELD_CONTENT_ID, /*Id.escapeUid(*/uid.getUidValue()/*)*/);
+            target.put(ResourceResponse.FIELD_CONTENT_ID, /*Id.escapeUid(*/uid.getUidValue()/*)*/);
         }
     }
 

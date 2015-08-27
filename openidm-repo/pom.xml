@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.forgerock.openidm</groupId>
         <artifactId>openidm-project</artifactId>
-        <version>3.2.0-SNAPSHOT</version>
+        <version>4.0.0-SNAPSHOT</version>
     </parent>
     <artifactId>openidm-repo</artifactId>
     <name>OpenIDM repository common</name>
@@ -37,6 +37,10 @@
             <groupId>org.forgerock.openidm</groupId>
             <artifactId>openidm-util</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.forgerock.commons</groupId>
+            <artifactId>forgerock-util</artifactId>
         </dependency>
         <dependency>
             <groupId>org.forgerock.commons.guava</groupId>

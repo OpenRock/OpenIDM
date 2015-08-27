@@ -27,7 +27,7 @@
     <parent>
         <artifactId>openidm-ui</artifactId>
         <groupId>org.forgerock.openidm</groupId>
-        <version>3.2.0-SNAPSHOT</version>
+        <version>4.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>openidm-ui-admin</artifactId>
@@ -97,6 +97,13 @@
             <artifactId>jquery.jqGrid</artifactId>
             <version>4.5.4</version>
             <classifier>min</classifier>
+            <type>js</type>
+        </dependency>
+
+        <dependency>
+            <groupId>org.forgerock.commons.ui.libs</groupId>
+            <artifactId>jquery-nestingSortable</artifactId>
+            <version>0.9.12</version>
             <type>js</type>
         </dependency>
 

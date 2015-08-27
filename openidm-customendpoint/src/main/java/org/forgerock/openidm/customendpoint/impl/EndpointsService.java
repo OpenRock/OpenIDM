@@ -34,10 +34,9 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.resource.PersistenceConfig;
+import org.forgerock.http.Context;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ServerContext;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.script.AbstractScriptedService;
@@ -67,10 +66,6 @@ public class EndpointsService extends AbstractScriptedService {
     private static final Logger logger = LoggerFactory.getLogger(EndpointsService.class);
 
     public static final String CONFIG_RESOURCE_CONTEXT = "context";
-    
-    /** PersistenceConfig service. */
-    @Reference(policy = ReferencePolicy.DYNAMIC)
-    private PersistenceConfig persistenceConfig;
 
     /** Enhanced configuration service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
@@ -117,13 +112,6 @@ public class EndpointsService extends AbstractScriptedService {
             routerPrefix = "endpoint/" + String.valueOf(factoryPid) + "*";
         }
         return new String[] { routerPrefix };
-    }
-
-    protected JsonValue serialiseServerContext(ServerContext context) throws ResourceException {
-        if (null != context) {
-            return context.toJsonValue();
-        }
-        return null;
     }
 
     protected BundleContext getBundleContext() {

@@ -54,7 +54,7 @@ exports.fetch = function (resourceName) {
 
     var _ = require('lib/lodash'),
         getException = function (e) {
-            if (_.has(e, "javaException") && _.has(e.javaException, "cause")) {
+            if (_.has(e, "javaException") && _.has(e.javaException, "cause") && e.javaException.cause !== null) {
                 return e.javaException.cause.localizedMessage || e.javaException.cause.message;
             } else if (_.has(e, "messageDetail") && _.has(e.messageDetail, "message")) {
                 return e.messageDetail.message;
@@ -94,7 +94,10 @@ exports.fetch = function (resourceName) {
         });
 
         try {
-            currentResource = openidm.read(resourceName, null, context.current);
+            // TODO-crest3: restore the below commented-out line when forgerock-script supports passing along crest3 contexts
+            // https://bugster.forgerock.org/jira/browse/OPENIDM-3857 filed to track this regression
+            //currentResource = openidm.read(resourceName, null, context.current);
+            currentResource = openidm.read(resourceName);
         } catch (e) {
             currentResource["error"] = getException(e);
         }

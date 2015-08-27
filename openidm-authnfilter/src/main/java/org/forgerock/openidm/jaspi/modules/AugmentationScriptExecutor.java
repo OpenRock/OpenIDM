@@ -11,15 +11,15 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014 ForgeRock AS.
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
 package org.forgerock.openidm.jaspi.modules;
 
+import org.forgerock.http.Context;
 import org.forgerock.jaspi.exceptions.JaspiAuthException;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.ServiceUnavailableException;
 import org.forgerock.openidm.jaspi.config.OSGiAuthnFilterHelper;
 import org.forgerock.script.Script;
@@ -68,8 +68,8 @@ class AugmentationScriptExecutor {
                         + augmentScript.getName().toString());
             }
 
-            // Create internal ServerContext chain for script-call
-            ServerContext context = authnFilterHelper.getRouter().createServerContext();
+            // Create internal Context chain for script-call
+            Context context = authnFilterHelper.getRouter().createServerContext();
             final Script script = augmentScript.getScript(context);
             // Pass auth module properties and SecurityContextWrapper details to augmentation script
             script.put("properties", properties);
@@ -99,7 +99,7 @@ class AugmentationScriptExecutor {
             logger.error("{} when attempting to execute script {}", e.toString(), augmentScript.getName(), e);
             throw new JaspiAuthException(e.getMessage(), e);
         } catch (ResourceException e) {
-            logger.error("{} when attempting to create server context", e.toString(), e);
+            logger.error("{} when attempting to create context", e.toString(), e);
             throw new JaspiAuthException(e.getMessage(), e);
         }
     }

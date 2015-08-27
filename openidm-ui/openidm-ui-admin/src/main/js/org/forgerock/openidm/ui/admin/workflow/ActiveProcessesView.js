@@ -84,7 +84,7 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                 this.model.processes.state.sortKey = "-startTime";
 
                 processGrid = new Backgrid.Grid({
-                    className: "table",
+                    className: "table backgrid-table",
                     emptyText: $.t("templates.workflows.processes.noActiveProcesses"),
                     columns: BackgridUtils.addSmallScreenCell([
                         {
@@ -133,7 +133,7 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                                         uiUtils.jqConfirm($.t("templates.workflows.processes.cancelProcessDialog"), _.bind(function(){
                                             this.model.destroy({
                                                 success: _.bind(function() {
-                                                    eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "deletedActiveProcess");
+                                                    eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "cancelActiveProcess");
                                                 }, this)
                                             });
                                         }, this));

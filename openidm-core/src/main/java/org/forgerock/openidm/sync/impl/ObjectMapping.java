@@ -1,34 +1,25 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Portions copyright 2011-2015 ForgeRock AS.
  */
 package org.forgerock.openidm.sync.impl;
 
-import static org.forgerock.json.fluent.JsonValue.array;
-import static org.forgerock.json.fluent.JsonValue.field;
-import static org.forgerock.json.fluent.JsonValue.json;
-import static org.forgerock.json.fluent.JsonValue.object;
+import static org.forgerock.json.JsonValue.array;
+import static org.forgerock.json.JsonValue.field;
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
 
-import javax.script.ScriptException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -39,24 +30,23 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
-import org.forgerock.json.fluent.JsonPointer;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.fluent.JsonValueException;
-import org.forgerock.json.resource.Context;
+import javax.script.ScriptException;
+
+import org.forgerock.http.Context;
+import org.forgerock.http.context.RootContext;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.JsonValueException;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.NotFoundException;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResult;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.Requests;
-import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.RootContext;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.SecurityContext;
-import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.UpdateRequest;
-import org.forgerock.openidm.audit.util.AuditConstants;
 import org.forgerock.openidm.audit.util.Status;
 import org.forgerock.openidm.config.enhanced.InternalErrorException;
 import org.forgerock.openidm.patch.JsonPatch;
@@ -102,6 +92,9 @@ class ObjectMapping {
     public static final Name EVENT_RECON_SOURCE = Name.get("openidm/internal/discovery-engine/reconciliation/source-phase");
     public static final Name EVENT_RECON_TARGET = Name.get(
             "openidm/internal/discovery-engine/reconciliation/target-phase");
+
+    /** Default number of executor threads to process ReconTasks */
+    private static final int DEFAULT_TASK_THREADS = 10;
 
     /** Logger */
     private static final Logger LOGGER = LoggerFactory.getLogger(ObjectMapping.class);
@@ -201,7 +194,7 @@ class ObjectMapping {
     private Script resultScript;
 
     /** an additional set of key-value conditions to be met for a source object to be valid to be mapped */
-    private JsonValue sourceCondition;
+    private Condition sourceCondition;
 
     /**
      * Whether existing links should be fetched in one go along with the source and target id lists.
@@ -223,7 +216,10 @@ class ObjectMapping {
     private final Boolean linkingEnabled;
 
     /** The number of processing threads to use in reconciliation */
-    int taskThreads = 10; // TODO: make configurable
+    private int taskThreads;
+
+    /** The number of initial tasks the ReconFeeder should submit to executors */
+    private int feedSize;
 
     /** a reference to the {@link SynchronizationService} */
     private final SynchronizationService service;
@@ -249,7 +245,7 @@ class ObjectMapping {
         targetIdsCaseSensitive = config.get("targetIdsCaseSensitive").defaultTo(Boolean.TRUE).asBoolean();
         validSource = Scripts.newInstance(config.get("validSource"));
         validTarget = Scripts.newInstance(config.get("validTarget"));
-        sourceCondition = config.get("sourceCondition").expect(Map.class);
+        sourceCondition = new Condition(config.get("sourceCondition"));
         correlation = new Correlation(config);
         JsonValue linkQualifiersValue = config.get("linkQualifiers");
         if (linkQualifiersValue.isNull()) {
@@ -286,10 +282,8 @@ class ObjectMapping {
         onUnlinkScript = Scripts.newInstance(config.get("onUnlink"));
         resultScript = Scripts.newInstance(config.get("result"));
         prefetchLinks = config.get("prefetchLinks").defaultTo(Boolean.TRUE).asBoolean();
-        Integer confTaskThreads = config.get("taskThreads").asInteger();
-        if (confTaskThreads != null) {
-            taskThreads = confTaskThreads.intValue();
-        }
+        taskThreads = config.get("taskThreads").defaultTo(DEFAULT_TASK_THREADS).asInteger();
+        feedSize = config.get("feedSize").defaultTo(ReconFeeder.DEFAULT_FEED_SIZE).asInteger();
         correlateEmptyTargetSet = config.get("correlateEmptyTargetSet").defaultTo(Boolean.FALSE).asBoolean();
         syncEnabled = config.get("enableSync").defaultTo(Boolean.TRUE).asBoolean();
         linkingEnabled = config.get("enableLinking").defaultTo(Boolean.TRUE).asBoolean();
@@ -527,25 +521,15 @@ class ObjectMapping {
         try {
             Map<String, Object> result = new HashMap<String, Object>(1);
             final Collection<Object> list = new ArrayList<Object>();
-            result.put(QueryResult.FIELD_RESULT, list);
+            result.put(QueryResponse.FIELD_RESULT, list);
 
             QueryRequest request = RequestUtil.buildQueryRequestFromParameterMap(targetObjectSet, queryParameters);
-            service.getConnectionFactory().getConnection().query(service.getServerContext(), request,
-                    new QueryResultHandler() {
+            service.getConnectionFactory().getConnection().query(service.getContext(), request,
+                    new QueryResourceHandler() {
                         @Override
-                        public void handleError(ResourceException error) {
-                            // ignore
-                        }
-
-                        @Override
-                        public boolean handleResource(Resource resource) {
+                        public boolean handleResource(ResourceResponse resource) {
                             list.add(resource.getContent().asMap());
                             return true;
-                        }
-
-                        @Override
-                        public void handleResult(QueryResult result) {
-                            //ignore
                         }
                     });
             return result;
@@ -568,7 +552,7 @@ class ObjectMapping {
         try {
             CreateRequest createRequest =
                     Requests.newCreateRequest(targetObjectSet, target.get("_id").asString(), target);
-            Resource resource =  service.getConnectionFactory().getConnection().create(context, createRequest);
+            ResourceResponse resource =  service.getConnectionFactory().getConnection().create(context, createRequest);
             targetObject = new LazyObjectAccessor(service, targetObjectSet, resource.getId(), resource.getContent());
             measure.setResult(target);
         } catch (JsonValueException jve) {
@@ -627,7 +611,7 @@ class ObjectMapping {
             try {
                 DeleteRequest ur = Requests.newDeleteRequest(targetObjectSet, target.get("_id").required().asString());
                 ur.setRevision(target.get("_rev").asString());
-                LOGGER.trace("Delete target object {}", ur.getResourceName());
+                LOGGER.trace("Delete target object {}", ur.getResourcePath());
                 service.getConnectionFactory().getConnection().delete(context, ur);
             } catch (JsonValueException jve) {
                 throw new SynchronizationException(jve);
@@ -721,7 +705,7 @@ class ObjectMapping {
             if (value == null || value.getObject() == null) {
                 // notification without the actual value
                 value = LazyObjectAccessor.rawReadObject(
-                        service.getServerContext(), service.getConnectionFactory(), resourceContainer, resourceId);
+                        service.getContext(), service.getConnectionFactory(), resourceContainer, resourceId);
             }
             return doSourceSync(context, resourceId, value); // synchronous for now
         }
@@ -743,7 +727,7 @@ class ObjectMapping {
         if (isSourceObject(resourceContainer, resourceId)) {
         	if (newValue == null || newValue.getObject() == null) { // notification without the actual value
                 newValue = LazyObjectAccessor.rawReadObject(
-                        service.getServerContext(), service.getConnectionFactory(), resourceContainer, resourceId);
+                        service.getContext(), service.getConnectionFactory(), resourceContainer, resourceId);
             }
 
             if (oldValue == null || oldValue.getObject() == null || JsonPatch.diff(oldValue, newValue).size() > 0) {
@@ -801,14 +785,13 @@ class ObjectMapping {
     public void performAction(JsonValue params) throws SynchronizationException {
         // If reconId is set this action is part of a reconciliation run
         String reconId = params.get("reconId").asString();
-        ServerContext context = ObjectSetContext.get();
+        Context context = ObjectSetContext.get();
         if (reconId != null) {
             context = new TriggerContext(context, "recon");
             ObjectSetContext.push(context);
         }
 
         try {
-            Context rootContext = context.asContext(RootContext.class);
             ReconAction action = params.get("action").required().asEnum(ReconAction.class);
             SyncOperation op = null;
             ReconAuditEventLogger event = null;
@@ -819,7 +802,7 @@ class ObjectMapping {
                     op = sop;
                     sop.fromJsonValue(params);
 
-                    event = new ReconAuditEventLogger(sop, name, rootContext);
+                    event = new ReconAuditEventLogger(sop, name, context);
                     event.setLinkQualifier(sop.getLinkQualifier());
                     String sourceObjectId = LazyObjectAccessor.qualifiedId(sourceObjectSet, sop.getSourceObjectId());
                     event.setSourceObjectId(sourceObjectId);
@@ -841,7 +824,7 @@ class ObjectMapping {
                     top.fromJsonValue(params);
                     String targetId = params.get("targetId").required().asString();
 
-                    event = new ReconAuditEventLogger(top, name, rootContext);
+                    event = new ReconAuditEventLogger(top, name, context);
                     event.setLinkQualifier(top.getLinkQualifier());
                     String targetObjectId = LazyObjectAccessor.qualifiedId(targetObjectSet, targetId);
                     event.setTargetObjectId(targetObjectId);
@@ -940,7 +923,7 @@ class ObjectMapping {
         String reconId = reconContext.getReconId();
         EventEntry measureIdQueries = Publisher.start(EVENT_RECON_ID_QUERIES, reconId, null);
         reconContext.setStage(ReconStage.ACTIVE_QUERY_ENTRIES);
-        ServerContext context = ObjectSetContext.get();
+        Context context = ObjectSetContext.get();
         try {
             context = new TriggerContext(context, "recon");
             ObjectSetContext.push(context);
@@ -1007,8 +990,8 @@ class ObjectMapping {
                     sourceIter = sourceQueryResult.getIterator();
                 }
                 // Perform source recon phase on current set of source ids
-                ReconPhase sourcePhase = new ReconPhase(sourceIter, reconContext, context, allLinks,
-                        remainingTargetIds, sourceRecon);
+                ReconPhase sourcePhase = new ReconPhase(sourceIter, reconContext, context, allLinks, remainingTargetIds, sourceRecon);
+                sourcePhase.setFeedSize(feedSize);
                 sourcePhase.execute();
                 queryNextPage = true;
             } while (reconSourceQueryPaging && sourceQueryResult.getPagingCookie() != null); // If paging, loop through next pages
@@ -1025,6 +1008,7 @@ class ObjectMapping {
                 reconContext.getStatistics().targetPhaseStart();
                 ReconPhase targetPhase = new ReconPhase(targetIterable.iterator(), reconContext, context,
                         allLinks, null, targetRecon);
+                targetPhase.setFeedSize(feedSize);
                 targetPhase.execute();
                 reconContext.getStatistics().targetPhaseEnd();
                 measureTarget.end();
@@ -1036,10 +1020,30 @@ class ObjectMapping {
             reconContext.setStage(ReconStage.COMPLETED_SUCCESS);
             logReconEndSuccess(reconContext, context);
         } catch (InterruptedException ex) {
-            reconContext.checkCanceled();
-            throw new SynchronizationException("Interrupted execution of reconciliation", ex);
+            SynchronizationException syncException;
+            if (reconContext.isCanceled()) {
+                reconContext.setStage(ReconStage.COMPLETED_CANCELED);
+                syncException = new SynchronizationException("Reconciliation canceled: " + reconContext.getReconId());
+            }
+            else {
+                reconContext.setStage(ReconStage.COMPLETED_FAILED);
+                syncException = new SynchronizationException("Interrupted execution of reconciliation", ex);
+            }
+            doResults(reconContext);
+            throw syncException;
+        } catch (SynchronizationException e) {
+            // Make sure that the error did not occur within doResults or last logging for completed success case
+            reconContext.setStage(ReconStage.COMPLETED_FAILED);
+            if ( reconContext.getStage() != ReconStage.ACTIVE_PROCESSING_RESULTS
+                    && reconContext.getStage() != ReconStage.COMPLETED_SUCCESS ) {
+                doResults(reconContext);
+            }
+            reconContext.getStatistics().reconEnd();
+            logReconEndFailure(reconContext, context);
+            throw new SynchronizationException("Synchronization failed", e);
         } catch (Exception e) {
             reconContext.setStage(ReconStage.COMPLETED_FAILED);
+            doResults(reconContext);
             reconContext.getStatistics().reconEnd();
             logReconEndFailure(reconContext, context);
             throw new SynchronizationException("Synchronization failed", e);
@@ -1112,7 +1116,7 @@ class ObjectMapping {
          * {@inheritDoc}
          */
         @Override
-        public void recon(String id, JsonValue objectEntry, ReconciliationContext reconContext, Context rootContext, 
+        public void recon(String id, JsonValue objectEntry, ReconciliationContext reconContext, Context context,
                 Map<String, Map<String, Link>> allLinks, Collection<String> remainingIds)
                 throws SynchronizationException {
             reconContext.checkCanceled();
@@ -1126,7 +1130,7 @@ class ObjectMapping {
                 op.reconContext = reconContext;
                 op.setLinkQualifier(linkQualifier);
 
-                ReconAuditEventLogger auditEvent = new ReconAuditEventLogger(op, name, rootContext);
+                ReconAuditEventLogger auditEvent = new ReconAuditEventLogger(op, name, context);
                 auditEvent.setLinkQualifier(op.getLinkQualifier());
                 op.sourceObjectAccessor = sourceObjectAccessor;
                 if (allLinks != null) {
@@ -1170,6 +1174,7 @@ class ObjectMapping {
                     }
                     auditEvent.setStatus(status);
                     auditEvent.setAmbiguousTargetIds(op.getAmbiguousTargetIds());
+                    auditEvent.setReconId(reconContext.getReconId());
                     logEntry(auditEvent);
                 }
             }
@@ -1184,7 +1189,7 @@ class ObjectMapping {
          * {@inheritDoc}
          */
         @Override
-        public void recon(String id, JsonValue objectEntry, ReconciliationContext reconContext, Context rootContext, Map<String, 
+        public void recon(String id, JsonValue objectEntry, ReconciliationContext reconContext, Context context, Map<String,
                 Map<String, Link>> allLinks, Collection<String> remainingIds)  throws SynchronizationException {
             reconContext.checkCanceled();
             for (String linkQualifier : getAllLinkQualifiers()) {
@@ -1192,7 +1197,7 @@ class ObjectMapping {
                 op.reconContext = reconContext;
                 op.setLinkQualifier(linkQualifier);
 
-                ReconAuditEventLogger event = new ReconAuditEventLogger(op, name, rootContext);
+                ReconAuditEventLogger event = new ReconAuditEventLogger(op, name, context);
                 event.setLinkQualifier(op.getLinkQualifier());
                 
                 if (objectEntry == null) {
@@ -1225,6 +1230,7 @@ class ObjectMapping {
                                 LazyObjectAccessor.qualifiedId(sourceObjectSet, op.getSourceObjectId()));
                     }
                     event.setStatus(status);
+                    event.setReconId(reconContext.getReconId());
                     logEntry(event);
                 }
             }
@@ -1238,13 +1244,12 @@ class ObjectMapping {
         String id;
         JsonValue objectEntry;
         ReconciliationContext reconContext;
-        ServerContext parentContext;
+        Context parentContext;
         Map<String, Map<String, Link>> allLinks;
         Collection<String> remainingIds;
         Recon reconById;
 
-        public ReconTask(ResultEntry resultEntry, ReconciliationContext reconContext,
-                ServerContext parentContext,
+        public ReconTask(ResultEntry resultEntry, ReconciliationContext reconContext, Context parentContext,
                 Map<String, Map<String, Link>> allLinks, Collection<String> remainingIds, Recon reconById) {
             this.id = resultEntry.getId();
             // This value is null if it wasn't pre-queried
@@ -1260,7 +1265,7 @@ class ObjectMapping {
 
         public Void call() throws SynchronizationException {
             //TODO I miss the Request Context
-            ObjectSetContext.push(new ServerContext(parentContext));
+            ObjectSetContext.push(parentContext);
             try {
                 reconById.recon(id, objectEntry, reconContext, parentContext, allLinks, remainingIds);
             } finally {
@@ -1274,13 +1279,12 @@ class ObjectMapping {
      * Reconcile the source/target phase, multi threaded or single threaded.
      */
     class ReconPhase extends ReconFeeder {
-        ServerContext parentContext;
+        Context parentContext;
         Map<String, Map<String, Link>> allLinks;
         Collection<String> remainingIds;
         Recon reconById;
 
-        public ReconPhase(Iterator<ResultEntry> resultIter, ReconciliationContext reconContext,
-                ServerContext parentContext,
+        public ReconPhase(Iterator<ResultEntry> resultIter, ReconciliationContext reconContext, Context parentContext,
                 Map<String, Map<String, Link>> allLinks, Collection<String> remainingIds, Recon reconById) {
             super(resultIter, reconContext);
             this.parentContext = parentContext;
@@ -1324,10 +1328,10 @@ class ObjectMapping {
      * @param context
      * @throws SynchronizationException
      */
-    private void logReconStart(ReconciliationContext reconContext, ServerContext context)
+    private void logReconStart(ReconciliationContext reconContext, Context context)
             throws SynchronizationException {
         ReconAuditEventLogger reconStartEntry = new ReconAuditEventLogger(null, name, context);
-        reconStartEntry.setEntryType(AuditConstants.RECON_LOG_ENTRY_TYPE_RECON_START);
+        reconStartEntry.setEntryType(ReconAuditEventLogger.RECON_LOG_ENTRY_TYPE_RECON_START);
         reconStartEntry.setReconciliationServiceReconAction(reconContext.getReconAction());
         reconStartEntry.setReconId(reconContext.getReconId());
         reconStartEntry.setMessage("Reconciliation initiated by "
@@ -1343,7 +1347,7 @@ class ObjectMapping {
      * @param context
      * @throws SynchronizationException
      */
-    private void logReconEndSuccess(ReconciliationContext reconContext, ServerContext context)
+    private void logReconEndSuccess(ReconciliationContext reconContext, Context context)
             throws SynchronizationException {
         logReconEnd(reconContext, context, Status.SUCCESS, "Reconciliation completed.");
     }
@@ -1355,7 +1359,7 @@ class ObjectMapping {
      * @param context
      * @throws SynchronizationException
      */
-    private void logReconEndFailure(ReconciliationContext reconContext, ServerContext context)
+    private void logReconEndFailure(ReconciliationContext reconContext, Context context)
             throws SynchronizationException {
         logReconEnd(reconContext, context, Status.FAILURE, "Reconciliation failed.");
     }
@@ -1373,8 +1377,10 @@ class ObjectMapping {
             String loggerMessage) throws SynchronizationException {
 
         ReconAuditEventLogger reconAuditEvent = new ReconAuditEventLogger(null, name, rootContext);
+        reconAuditEvent.setEntryType(ReconAuditEventLogger.RECON_LOG_ENTRY_TYPE_RECON_END);
         reconAuditEvent.setReconciliationServiceReconAction(reconContext.getReconAction());
         reconAuditEvent.setStatus(status);
+        reconAuditEvent.setReconId(reconContext.getReconId());
         String simpleSummary = reconContext.getStatistics().simpleSummary();
         reconAuditEvent.setMessage(simpleSummary);
         reconAuditEvent.setMessageDetail(json(reconContext.getSummary()));
@@ -1853,7 +1859,7 @@ class ObjectMapping {
         protected void postAction(boolean sourceAction) throws SynchronizationException {
             if (null != activePolicy) {
                 activePolicy.evaluatePostAction(
-                                sourceObjectAccessor, targetObjectAccessor, action, sourceAction, getLinkQualifier());
+                                sourceObjectAccessor, targetObjectAccessor, action, sourceAction, getLinkQualifier(), reconId);
             }
         }
 
@@ -1869,36 +1875,17 @@ class ObjectMapping {
         }
         
         /**
-         * Checks any declared source conditions on the source object
+         * Evaluates the source condition on the source object
          * 
+         * @param linkQualifier the link qualifier for the current sync operation.
          * @return true if the conditions pass, false otherwise
          * @throws SynchronizationException
          */
-        protected boolean checkSourceConditions() throws SynchronizationException {
-            if (!sourceCondition.isNull()) {
-                for (String key : sourceCondition.keys()) {
-                    JsonPointer pointer = new JsonPointer(key);
-                    JsonValue source = sourceObjectAccessor.getObject();
-                    if (!source.isNull() && source.get(pointer) != null) {
-                        JsonValue valueToTest = source.get(pointer);
-                        Object sourceConditionValue = sourceCondition.get(key).getObject();
-                        if (valueToTest.isList()) {
-                            if (!valueToTest.asList().contains(sourceConditionValue)) {
-                                return false;
-                            }
-                        } else if (valueToTest.isMap()) {
-                            if (!valueToTest.asMap().containsKey(sourceConditionValue)) {
-                                return false;
-                            }                            
-                        } else if (!valueToTest.getObject().equals(sourceConditionValue)) {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                }
-            }
-            return true;
+        protected boolean checkSourceConditions(String linkQualifier) throws SynchronizationException {
+        	JsonValue params = json(object(
+        			field("source", sourceObjectAccessor.getObject()), 
+        			field("linkQualifier", linkQualifier)));
+        	return sourceCondition.evaluate(params);
         }
 
         /**
@@ -2284,7 +2271,7 @@ class ObjectMapping {
                         }
                     }
                 }
-            } else if (isSourceValid() && checkSourceConditions()) { // source is valid for mapping
+            } else if (isSourceValid() && checkSourceConditions(getLinkQualifier())) { // source is valid for mapping
                 if (linkObject._id != null) { // source object linked to target
                     if (hasTargetObject()) {
                         situation = Situation.CONFIRMED;
@@ -2510,7 +2497,7 @@ class ObjectMapping {
                 case correlationQuery:
                     // Execute the correlationQuery and return the results
                     return json(queryTargetObjectSet(execScript(type.toString(), correlationQueries.get(linkQualifier), scope).asMap()))
-                            .get(QueryResult.FIELD_RESULT).required();
+                            .get(QueryResponse.FIELD_RESULT).required();
                 case correlationScript:
                     // Execute the correlationScript and return the results corresponding to the given linkQualifier
                     return execScript(type.toString(), correlationScript, scope);

@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2015 ForgeRock AS. All Rights Reserved
+ * Copyright 2011-2015 ForgeRock AS.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -24,17 +24,25 @@
 
 package org.forgerock.openidm.repo.jdbc.impl;
 
-import static org.forgerock.json.fluent.JsonValue.field;
-import static org.forgerock.json.fluent.JsonValue.json;
-import static org.forgerock.json.fluent.JsonValue.object;
-import static org.forgerock.json.resource.Resource.FIELD_CONTENT_ID;
-import static org.forgerock.json.resource.Resource.FIELD_CONTENT_REVISION;
+import static org.forgerock.json.JsonValue.field;
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.json.resource.QueryResponse.NO_COUNT;
+import static org.forgerock.json.resource.ResourceException.newInternalServerErrorException;
+import static org.forgerock.json.resource.ResourceException.newNotSupportedException;
+import static org.forgerock.json.resource.ResourceResponse.FIELD_CONTENT_ID;
+import static org.forgerock.json.resource.ResourceResponse.FIELD_CONTENT_REVISION;
+import static org.forgerock.json.resource.Responses.newActionResponse;
+import static org.forgerock.json.resource.Responses.newQueryResponse;
+import static org.forgerock.json.resource.Responses.newResourceResponse;
 import static org.forgerock.openidm.repo.QueryConstants.PAGED_RESULTS_OFFSET;
 import static org.forgerock.openidm.repo.QueryConstants.PAGE_SIZE;
 import static org.forgerock.openidm.repo.QueryConstants.QUERY_EXPRESSION;
 import static org.forgerock.openidm.repo.QueryConstants.QUERY_FILTER;
 import static org.forgerock.openidm.repo.QueryConstants.QUERY_ID;
 import static org.forgerock.openidm.repo.QueryConstants.SORT_KEYS;
+import static org.forgerock.util.promise.Promises.newExceptionPromise;
+import static org.forgerock.util.promise.Promises.newResultPromise;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -64,10 +72,13 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.http.Context;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.ConflictException;
+import org.forgerock.json.resource.CountPolicy;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.InternalServerErrorException;
@@ -75,15 +86,13 @@ import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.PreconditionFailedException;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResult;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.RequestHandler;
 import org.forgerock.json.resource.Requests;
-import org.forgerock.json.resource.Resource;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.config.enhanced.InvalidException;
@@ -99,6 +108,7 @@ import org.forgerock.openidm.repo.jdbc.TableHandler;
 import org.forgerock.openidm.repo.jdbc.impl.pool.DataSourceFactory;
 import org.forgerock.openidm.util.Accessor;
 import org.forgerock.openidm.patch.JsonPatch;
+import org.forgerock.util.promise.Promise;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.ServiceRegistration;
@@ -164,29 +174,28 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
     private EnhancedConfig enhancedConfig;
 
     @Override
-    public void handleRead(ServerContext context, ReadRequest request,
-            ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
         try {
-            handler.handleResult(read(request));
+            return newResultPromise(read(request));
         } catch (final ResourceException e) {
-            handler.handleError(e);
+            return newExceptionPromise(e);
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e));
+            return newExceptionPromise(newInternalServerErrorException("Read failed", e));
         }
     }
 
     @Override
-    public Resource read(ReadRequest request) throws ResourceException {
-        if (request.getResourceNameObject().size() < 2) {
+    public ResourceResponse read(ReadRequest request) throws ResourceException {
+        if (request.getResourcePathObject().size() < 2) {
             throw new BadRequestException(
                     "The repository requires clients to supply an identifier for the object to read.");
         }
         // Parse the remaining resourceName
-        final String type = request.getResourceNameObject().parent().toString();
-        final String localId = request.getResourceNameObject().leaf();
+        final String type = request.getResourcePathObject().parent().toString();
+        final String localId = request.getResourcePathObject().leaf();
 
         Connection connection = null;
-        Resource result = null;
+        ResourceResponse result = null;
         try {
             connection = getConnection();
             connection.setAutoCommit(true); // Ensure this does not get
@@ -196,19 +205,19 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                 throw ResourceException.getException(ResourceException.INTERNAL_ERROR,
                         "No handler configured for resource type " + type);
             }
-            result = handler.read(request.getResourceName(), type, localId, connection);
+            result = handler.read(request.getResourcePath(), type, localId, connection);
             return result;
         } catch (SQLException ex) {
             if (logger.isDebugEnabled()) {
                 logger.debug("SQL Exception in read of {} with error code {}, sql state {}",
-                        new Object[] { request.getResourceName(), ex.getErrorCode(), ex.getSQLState(), ex });
+                        request.getResourcePath(), ex.getErrorCode(), ex.getSQLState(), ex);
             }
             throw new InternalServerErrorException("Reading object failed " + ex.getMessage(), ex);
         } catch (ResourceException ex) {
-            logger.debug("ResourceException in read of {}", request.getResourceName(), ex);
+            logger.debug("ResourceException in read of {}", request.getResourcePath(), ex);
             throw ex;
         } catch (IOException ex) {
-            logger.debug("IO Exception in read of {}", request.getResourceName(), ex);
+            logger.debug("IO Exception in read of {}", request.getResourcePath(), ex);
             throw new InternalServerErrorException("Conversion of read object failed", ex);
         } finally {
             CleanupHelper.loggedClose(connection);
@@ -216,25 +225,24 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
     }
 
     @Override
-    public void handleCreate(ServerContext context, CreateRequest request,
-            ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleCreate(Context context, CreateRequest request) {
         try {
-            handler.handleResult(create(request));
+            return newResultPromise(create(request));
         } catch (final ResourceException e) {
-            handler.handleError(e);
+            return newExceptionPromise(e);
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e));
+            return newExceptionPromise(newInternalServerErrorException("Failed to create resource", e));
         }
     }
 
     @Override
-    public Resource create(CreateRequest request) throws ResourceException {
-        if (request.getResourceNameObject().isEmpty()) {
+    public ResourceResponse create(CreateRequest request) throws ResourceException {
+        if (request.getResourcePathObject().isEmpty()) {
             throw new BadRequestException(
                     "The respository requires clients to supply a type for the object to create.");
         }
         // Parse the remaining resourceName
-        final String type = request.getResourceName();
+        final String type = request.getResourcePath();
         final String localId = (request.getNewResourceId() == null || request.getNewResourceId().isEmpty())
                 ? UUID.randomUUID().toString() // Generate ID server side.
                 : request.getNewResourceId();
@@ -265,7 +273,7 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
             } catch (SQLException ex) {
                 if (logger.isDebugEnabled()) {
                     logger.debug("SQL Exception in create of {} with error code {}, sql state {}",
-                            new Object[] { fullId, ex.getErrorCode(), ex.getSQLState(), ex });
+                            fullId, ex.getErrorCode(), ex.getSQLState(), ex);
                 }
                 rollback(connection);
                 boolean alreadyExisted = handler.isErrorType(ex, ErrorType.DUPLICATE_KEY);
@@ -305,35 +313,34 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
         } while (retry);
 
         // Return the newly created resource
-        return new Resource(obj.get(FIELD_CONTENT_ID).asString(), obj.get(FIELD_CONTENT_REVISION).asString(), obj);
+        return newResourceResponse(obj.get(FIELD_CONTENT_ID).asString(), obj.get(FIELD_CONTENT_REVISION).asString(), obj);
     }
 
     @Override
-    public void handleUpdate(ServerContext context, UpdateRequest request,
-            ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, UpdateRequest request) {
         try {
-            handler.handleResult(update(request));
+            return newResultPromise(update(request));
         } catch (final ResourceException e) {
-            handler.handleError(e);
+            return newExceptionPromise(e);
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e));
+            return newExceptionPromise(newInternalServerErrorException("Update failed", e));
         }
     }
 
     @Override
-    public Resource update(UpdateRequest request) throws ResourceException {
-        if (request.getResourceNameObject().size() < 2) {
+    public ResourceResponse update(UpdateRequest request) throws ResourceException {
+        if (request.getResourcePathObject().size() < 2) {
             throw new BadRequestException(
                     "The repository requires clients to supply an identifier for the object to update.");
         }
         // Parse the remaining resourceName
-        final String type = request.getResourceNameObject().parent().toString();
-        final String localId = request.getResourceNameObject().leaf();
+        final String type = request.getResourcePathObject().parent().toString();
+        final String localId = request.getResourcePathObject().leaf();
 
         Map<String, Object> obj = request.getContent().asMap();
         String rev = request.getRevision() != null && !"".equals(request.getRevision())
                 ? request.getRevision()
-                : read(Requests.newReadRequest(request.getResourceName())).getRevision();
+                : read(Requests.newReadRequest(request.getResourcePath())).getRevision();
 
         Connection connection = null;
         Integer previousIsolationLevel = null;
@@ -353,14 +360,14 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                 connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
                 connection.setAutoCommit(false);
 
-                handler.update(request.getResourceName(), type, localId, rev, obj, connection);
+                handler.update(request.getResourcePath(), type, localId, rev, obj, connection);
 
                 connection.commit();
-                logger.debug("Commited updated object for id: {}", request.getResourceName());
+                logger.debug("Commited updated object for id: {}", request.getResourcePath());
             } catch (SQLException ex) {
                 if (logger.isDebugEnabled()) {
                     logger.debug("SQL Exception in update of {} with error code {}, sql state {}",
-                            new Object[] { request.getResourceName(), ex.getErrorCode(), ex.getSQLState(), ex });
+                            request.getResourcePath(), ex.getErrorCode(), ex.getSQLState(), ex);
                 }
                 rollback(connection);
                 if (handler.isRetryable(ex, connection)) {
@@ -374,15 +381,15 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                             + ex.getMessage(), ex);
                 }
             } catch (ResourceException ex) {
-                logger.debug("ResourceException in update of {}", request.getResourceName(), ex);
+                logger.debug("ResourceException in update of {}", request.getResourcePath(), ex);
                 rollback(connection);
                 throw ex;
             } catch (java.io.IOException ex) {
-                logger.debug("IO Exception in update of {}", request.getResourceName(), ex);
+                logger.debug("IO Exception in update of {}", request.getResourcePath(), ex);
                 rollback(connection);
                 throw new InternalServerErrorException("Conversion of object to update failed", ex);
             } catch (RuntimeException ex) {
-                logger.debug("Runtime Exception in update of {}", request.getResourceName(), ex);
+                logger.debug("Runtime Exception in update of {}", request.getResourcePath(), ex);
                 rollback(connection);
                 throw new InternalServerErrorException(
                         "Updating object failed with unexpected failure: " + ex.getMessage(), ex);
@@ -401,24 +408,23 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
         } while (retry);
 
         // Return the newly created resource
-        return read(Requests.newReadRequest(request.getResourceName()));
+        return read(Requests.newReadRequest(request.getResourcePath()));
     }
 
     @Override
-    public void handleDelete(ServerContext context, DeleteRequest request,
-            ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleDelete(Context context, DeleteRequest request) {
         try {
-            handler.handleResult(delete(request));
+            return newResultPromise(delete(request));
         } catch (final ResourceException e) {
-            handler.handleError(e);
+            return newExceptionPromise(e);
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e));
+            return newExceptionPromise(newInternalServerErrorException("Failed to delete", e));
         }
     }
 
     @Override
-    public Resource delete(DeleteRequest request) throws ResourceException {
-        if (request.getResourceNameObject().size() < 2) {
+    public ResourceResponse delete(DeleteRequest request) throws ResourceException {
+        if (request.getResourcePathObject().size() < 2) {
             throw new BadRequestException(
                     "The repository requires clients to supply an identifier for the object to update.");
         }
@@ -428,10 +434,10 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
         }
 
         // Parse the remaining resourceName
-        final String type = request.getResourceNameObject().parent().toString();
-        final String localId = request.getResourceNameObject().leaf();
+        final String type = request.getResourcePathObject().parent().toString();
+        final String localId = request.getResourcePathObject().leaf();
 
-        Resource result = null;
+        ResourceResponse result = null;
         Connection connection = null;
         boolean retry = false;
         int tryCount = 0;
@@ -449,21 +455,25 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                 connection.setAutoCommit(false);
 
                 // Read in the resource before deleting
-                result = handler.read(request.getResourceName(), type, localId, connection);
+                result = handler.read(request.getResourcePath(), type, localId, connection);
 
-                handler.delete(request.getResourceName(), type, localId, request.getRevision(), connection);
+                handler.delete(request.getResourcePath(), type, localId, request.getRevision(), connection);
 
                 connection.commit();
-                logger.debug("Commited deleted object for id: {}", request.getResourceName());
+                logger.debug("Commited deleted object for id: {}", request.getResourcePath());
+            } catch (ResourceException ex) {
+                logger.debug("ResourceException in delete of {}", request.getResourcePath(), ex);
+                rollback(connection);
+                throw ex;
             } catch (IOException ex) {
-                logger.debug("IO Exception in delete of {}", request.getResourceName(), ex);
+                logger.debug("IO Exception in delete of {}", request.getResourcePath(), ex);
                 rollback(connection);
                 throw new InternalServerErrorException("Deleting object failed " + ex.getMessage(),
                         ex);
             } catch (SQLException ex) {
                 if (logger.isDebugEnabled()) {
                     logger.debug("SQL Exception in delete of {} with error code {}, sql state {}",
-                            new Object[] { request.getResourceName(), ex.getErrorCode(), ex.getSQLState(), ex });
+                            request.getResourcePath(), ex.getErrorCode(), ex.getSQLState(), ex);
                 }
                 rollback(connection);
                 if (handler.isRetryable(ex, connection)) {
@@ -476,12 +486,8 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                     throw new InternalServerErrorException("Deleting object failed "
                             + ex.getMessage(), ex);
                 }
-            } catch (ResourceException ex) {
-                logger.debug("ResourceException in delete of {}", request.getResourceName(), ex);
-                rollback(connection);
-                throw ex;
             } catch (RuntimeException ex) {
-                logger.debug("Runtime Exception in delete of {}", request.getResourceName(), ex);
+                logger.debug("Runtime Exception in delete of {}", request.getResourcePath(), ex);
                 rollback(connection);
                 throw new InternalServerErrorException(
                         "Deleting object failed with unexpected failure: " + ex.getMessage(), ex);
@@ -494,14 +500,12 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
     }
 
     @Override
-    public void handlePatch(ServerContext context, PatchRequest request,
-            ResultHandler<Resource> handler) {
-        final ResourceException e = new NotSupportedException("Patch operations are not supported");
-        handler.handleError(e);
+    public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
+        return newExceptionPromise(newNotSupportedException("Patch operations are not supported"));
     }
 
     @Override
-    public void handleQuery(ServerContext context, QueryRequest request, QueryResultHandler handler) {
+    public Promise<QueryResponse, ResourceException> handleQuery(Context context, QueryRequest request, QueryResourceHandler handler) {
         try {
 
             // If paged results are requested then decode the cookie in order to determine
@@ -533,8 +537,8 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
             // Once cookie is processed Queries.query() can rely on the offset.
             request.setPagedResultsOffset(firstResultIndex);
 
-            List<Resource> results = query(request);
-            for (Resource result : results) {
+            List<ResourceResponse> results = query(request);
+            for (ResourceResponse result : results) {
                 handler.handleResource(result);
             }
 
@@ -542,14 +546,12 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
              * Execute additional -count query if we are paging
              */
             final String nextCookie;
-            final int remainingResults;
+
+            // The number of results (if known)
+            final int resultCount;
 
             if (pagedResultsRequested) {
-
-                // The number of results (if known)
-                Integer resultCount = null;
-
-                TableHandler tableHandler = getTableHandler(trimStartingSlash(request.getResourceName()));
+                TableHandler tableHandler = getTableHandler(trimStartingSlash(request.getResourcePath()));
 
                 // Get total if -count query is available
                 final String countQueryId = request.getQueryId() + "-count";
@@ -562,20 +564,23 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                     countRequest.setPagedResultsOffset(0);
                     countRequest.setPagedResultsCookie(null);
 
-                    List<Resource> countResult = query(countRequest);
+                    List<ResourceResponse> countResult = query(countRequest);
 
                     if (countResult != null && !countResult.isEmpty()) {
                         resultCount = countResult.get(0).getContent().get("total").asInteger();
+                    } else {
+                        logger.warn("Count query {} failed", countQueryId);
+                        resultCount = NO_COUNT;
                     }
+                } else {
+                    logger.warn("Count query with id {} not found", countQueryId);
+                    resultCount = NO_COUNT;
                 }
 
-                boolean unknownCount = resultCount == null;
-
                 if (results.size() < requestPageSize) {
-                    remainingResults = 0;
                     nextCookie = null;
                 } else {
-                    remainingResults = unknownCount ? -1 : resultCount - (firstResultIndex + results.size());
+                    final int remainingResults = resultCount - (firstResultIndex + results.size());
                     if (remainingResults == 0) {
                         nextCookie = null;
                     } else {
@@ -584,20 +589,25 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                 }
             } else {
                 nextCookie = null;
-                remainingResults = -1;
+                resultCount = NO_COUNT;
             }
 
-            handler.handleResult(new QueryResult(nextCookie, remainingResults));
+            // TODO-crest3 Check for count policy in the request
+            if (resultCount == NO_COUNT) {
+                return newResultPromise(newQueryResponse(nextCookie));
+            } else {
+                return newResultPromise(newQueryResponse(nextCookie, CountPolicy.EXACT, resultCount));
+            }
         } catch (final ResourceException e) {
-            handler.handleError(e);
+            return newExceptionPromise(e);
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e));
+            return newExceptionPromise(newInternalServerErrorException("Query failed", e));
         }
     }
 
     @Override
-    public List<Resource> query(QueryRequest request) throws ResourceException {
-        String fullId = request.getResourceName();
+    public List<ResourceResponse> query(QueryRequest request) throws ResourceException {
+        String fullId = request.getResourcePath();
         String type = trimStartingSlash(fullId);
         logger.trace("Full id: {} Extracted type: {}", fullId, type);
         Map<String, Object> params = new HashMap<String, Object>();
@@ -621,19 +631,19 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                                             // start transaction isolation
 
             List<Map<String, Object>> docs = tableHandler.query(type, params, connection);
-            List<Resource> results = new ArrayList<Resource>();
+            List<ResourceResponse> results = new ArrayList<ResourceResponse>();
             for (Map<String, Object> resultMap : docs) {
                 String id = (String) resultMap.get("_id");
                 String rev = (String) resultMap.get("_rev");
                 JsonValue value = new JsonValue(resultMap);
-                Resource resultResource = new Resource(id, rev, value);
+                ResourceResponse resultResource = newResourceResponse(id, rev, value);
                 results.add(resultResource);
             }
             return results;
         } catch (SQLException ex) {
             if (logger.isDebugEnabled()) {
                 logger.debug("SQL Exception in query of {} with error code {}, sql state {}",
-                        new Object[] { fullId, ex.getErrorCode(), ex.getSQLState(), ex });
+                        fullId, ex.getErrorCode(), ex.getSQLState(), ex);
             }
             throw new InternalServerErrorException("Querying failed: " + ex.getMessage(), ex);
         } catch (ResourceException ex) {
@@ -645,18 +655,17 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
     }
     
     @Override
-    public void handleAction(ServerContext context, ActionRequest request,
-            ResultHandler<JsonValue> handler) {
+    public Promise<ActionResponse, ResourceException> handleAction(Context context, ActionRequest request) {
         try {
             if (ACTION_COMMAND.equalsIgnoreCase(request.getAction())) {
-                handler.handleResult(command(request));
+                return newResultPromise(command(request));
             } else {
                 throw new NotSupportedException("Action operations are not supported");
             }
         } catch (final ResourceException e) {
-            handler.handleError(e);
+            return newExceptionPromise(e);
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e));
+            return newExceptionPromise(newInternalServerErrorException("Action failed", e));
         }
     }
 
@@ -667,8 +676,8 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
      * @return the number of records affected
      * @throws ResourceException on failure to execute the command query
      */
-    private JsonValue command(ActionRequest request) throws ResourceException {
-        final String type = request.getResourceName();
+    private ActionResponse command(ActionRequest request) throws ResourceException {
+        final String type = request.getResourcePath();
 
         JsonValue result = null;
         Connection connection = null;
@@ -693,7 +702,7 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
             } catch (SQLException ex) {
                 if (logger.isDebugEnabled()) {
                     logger.debug("SQL Exception in command on {} with error code {}, sql state {}",
-                            new Object[] { request.getResourceName(), ex.getErrorCode(), ex.getSQLState(), ex });
+                            request.getResourcePath(), ex.getErrorCode(), ex.getSQLState(), ex);
                 }
                 rollback(connection);
                 if (handler.isRetryable(ex, connection)) {
@@ -706,11 +715,11 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                     throw new InternalServerErrorException("Command failed " + ex.getMessage(), ex);
                 }
             } catch (ResourceException ex) {
-                logger.debug("ResourceException in command on {}", request.getResourceName(), ex);
+                logger.debug("ResourceException in command on {}", request.getResourcePath(), ex);
                 rollback(connection);
                 throw ex;
             } catch (RuntimeException ex) {
-                logger.debug("Runtime Exception in command on {}", request.getResourceName(), ex);
+                logger.debug("Runtime Exception in command on {}", request.getResourcePath(), ex);
                 rollback(connection);
                 throw new InternalServerErrorException(
                         "Command query failed with unexpected failure: " + ex.getMessage(), ex);
@@ -719,7 +728,7 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
             }
         } while (retry);
 
-        return result;
+        return newActionResponse(result);
     }
 
     // Utility method to cleanly roll back including logging

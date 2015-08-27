@@ -1,11 +1,16 @@
 {
     "auditServiceConfig" : {
-        "handlerForQueries" : "csv"
+        "handlerForQueries" : "repo",
+        "availableAuditEventHandlers" : [
+            "org.forgerock.audit.events.handlers.csv.CSVAuditEventHandler",
+            "org.forgerock.openidm.audit.impl.RepositoryAuditEventHandler",
+            "org.forgerock.openidm.audit.impl.RouterAuditEventHandler"
+        ]
     },
     "eventHandlers" : [
         {
             "name" : "csv",
-            "class" : "org.forgerock.audit.events.handlers.impl.CSVAuditEventHandler",
+            "class" : "org.forgerock.audit.events.handlers.csv.CSVAuditEventHandler",
             "config" : {
                 "logDirectory" : "audit"
             },
@@ -47,7 +52,9 @@
                     "patch",
                     "action"
                 ]
-            }
+            },
+            "watchedFields" : [ ],
+            "passwordFields" : [ "password" ]
         }
     },
     "customEventTypes" : {
@@ -186,5 +193,9 @@
                 }
             }
         }
+    },
+    "exceptionFormatter" : {
+        "type" : "text/javascript",
+        "file" : "bin/defaults/script/audit/stacktraceFormatter.js"
     }
 }

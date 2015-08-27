@@ -1,7 +1,7 @@
-/*
+/**
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2014 ForgeRock AS. All rights reserved.
+ * Copyright (c) 2015 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -22,18 +22,22 @@
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
 
-package org.forgerock.openidm.audit.util;
+/*global define */
 
-/**
- * Audit logging constants.
- */
-public final class AuditConstants {
+define("org/forgerock/openidm/ui/admin/delegates/AuditDelegate", [
+    "jquery",
+    "org/forgerock/commons/ui/common/util/Constants",
+    "org/forgerock/commons/ui/common/main/AbstractDelegate"
+], function($, constants, AbstractDelegate) {
 
-    /** entryType for a "start" recon audit log entry */
-    public final static String RECON_LOG_ENTRY_TYPE_RECON_START = "start";
-    /** entryType for a "summary" recon audit log entry */
-    public final static String RECON_LOG_ENTRY_TYPE_RECON_END = "summary";
-    /** entryType for an "entry" recon audit log entry */
-    public final static String RECON_LOG_ENTRY_TYPE_RECON_ENTRY = "entry";
+    var obj = new AbstractDelegate(constants.host + "/openidm/audit/");
 
-}
+    obj.availableHandlers = function() {
+        return obj.serviceCall({
+            url: "?_action=availableHandlers",
+            type: "POST"
+        });
+    };
+
+    return obj;
+});

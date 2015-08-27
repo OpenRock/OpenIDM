@@ -1,6 +1,7 @@
 {
   "auditServiceConfig" : {
-    "handlerForQueries" : "passthrough"
+    "handlerForQueries" : "passthrough",
+    "availableAuditEventHandlers" : ["org.forgerock.openidm.audit.events.handlers.impl.PassThroughAuditEventHandler"]
   },
   "eventHandlers" : [
     {
@@ -9,11 +10,43 @@
       "config" : {
         "message" : "added an event"
       },
-      "events" : [ "access" ],
+      "events" : [ "access", "activity" ],
       "ignoreLoggingFailures" : false
     }
   ],
   "extendedEventTypes" : {
+    "activity": {
+      "schema": {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "id": "/",
+        "type": "object",
+        "properties": {
+          "objectId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "passwordChanged": {
+            "type": "boolean"
+          }
+        }
+      },
+      "filter" : {
+        "actions" : [
+          "create",
+          "update",
+          "delete",
+          "patch",
+          "action"
+        ]
+      },
+      "watchedFields" : [ "mail" ],
+      "passwordFields" : [ "password" ]
+    }
   },
   "customEventTypes" : {
     "test": {
@@ -41,9 +74,16 @@
                 "type": "string"
               }
             }
+          },
+          "exception": {
+            "type": "string"
           }
         }
       }
     }
+  },
+  "exceptionFormatter" : {
+    "type" : "text/javascript",
+    "file" : "stacktraceFormatter.js"
   }
 }

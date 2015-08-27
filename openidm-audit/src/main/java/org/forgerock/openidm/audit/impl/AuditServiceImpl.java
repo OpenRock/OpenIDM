@@ -23,9 +23,25 @@
  */
 package org.forgerock.openidm.audit.impl;
 
+import static org.forgerock.json.JsonValue.field;
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.json.resource.ResourceException.cast;
+import static org.forgerock.json.resource.Responses.newActionResponse;
+import static org.forgerock.json.resource.Responses.newResourceResponse;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.AS_SINGLE_FIELD_VALUES_FILTER;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.newActivityActionFilter;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.newAndCompositeFilter;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.newEventTypeFilter;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.newOrCompositeFilter;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.newReconActionFilter;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.newScriptedFilter;
+import static org.forgerock.util.promise.Promises.newExceptionPromise;
+import static org.forgerock.util.promise.Promises.newResultPromise;
+
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
@@ -37,23 +53,29 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
+import org.forgerock.audit.AuditException;
 import org.forgerock.audit.AuditServiceConfiguration;
 import org.forgerock.audit.DependencyProviderBase;
+import org.forgerock.audit.events.handlers.AuditEventHandler;
 import org.forgerock.audit.json.AuditJsonConfig;
-import org.forgerock.json.fluent.JsonPointer;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.http.Context;
+import org.forgerock.http.context.RootContext;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.ConnectionFactory;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
+import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
-import org.forgerock.json.resource.Resource;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.ServerContext;
+import org.forgerock.json.resource.ResourceException;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.audit.AuditService;
 import org.forgerock.openidm.audit.impl.AuditLogFilters.JsonValueObjectConverter;
@@ -63,18 +85,13 @@ import org.forgerock.openidm.crypto.CryptoService;
 import org.forgerock.openidm.crypto.factory.CryptoServiceFactory;
 import org.forgerock.openidm.patch.JsonPatch;
 import org.forgerock.openidm.router.RouteService;
-import org.forgerock.openidm.util.ResourceUtil;
+import org.forgerock.script.Script;
+import org.forgerock.script.ScriptEntry;
 import org.forgerock.script.ScriptRegistry;
+import org.forgerock.util.promise.Promise;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.AS_SINGLE_FIELD_VALUES_FILTER;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newActivityActionFilter;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newAndCompositeFilter;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newEventTypeFilter;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newReconActionFilter;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newOrCompositeFilter;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newScriptedFilter;
 
 /**
  * This audit service is the entry point for audit logging on the router.
@@ -88,6 +105,8 @@ import static org.forgerock.openidm.audit.impl.AuditLogFilters.newScriptedFilter
 })
 public class AuditServiceImpl implements AuditService {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuditServiceImpl.class);
+    public static final String EXCEPTION_FORMATTER = "exceptionFormatter";
+    public static final String EXCEPTION = "exception";
 
     // ----- Declarative Service Implementation
 
@@ -115,16 +134,20 @@ public class AuditServiceImpl implements AuditService {
     private EnhancedConfig enhancedConfig;
 
     /** the script to execute to format exceptions */
-    //private static ScriptEntry exceptionFormatterScript = null;
+    private static ScriptEntry exceptionFormatterScript = null;
 
     private AuditLogFilter auditFilter = AuditLogFilters.NEVER;
 
-    private final List<JsonPointer> watchFieldFilters = new ArrayList<>();
-    private final List<JsonPointer> passwordFieldFilters = new ArrayList<>();
+    private List<JsonPointer> watchFieldFilters = new ArrayList<>();
+    private List<JsonPointer> passwordFieldFilters = new ArrayList<>();
 
     private static final String AUDIT_SERVICE_CONFIG = "auditServiceConfig";
     private static final String EVENT_HANDLERS = "eventHandlers";
     private static final String EXTENDED_EVENT_TYPES = "extendedEventTypes";
+    private static final JsonPointer WATCHED_PASSWORDS_CONFIG_POINTER = new JsonPointer(
+            EXTENDED_EVENT_TYPES + "/activity/passwordFields");
+    private static final JsonPointer WATCHED_FIELDS_CONFIG_POINTER = new JsonPointer(
+            EXTENDED_EVENT_TYPES + "/activity/watchedFields");
     private static final String CUSTOM_EVENT_TYPES = "customEventTypes";
 
     private final AuditLogFilterBuilder auditLogFilterBuilder = new AuditLogFilterBuilder()
@@ -257,11 +280,39 @@ public class AuditServiceImpl implements AuditService {
             for (final JsonValue handlerConfig : eventHandlers) {
                 AuditJsonConfig.registerHandlerToService(handlerConfig, auditService, this.getClass().getClassLoader());
             }
+
+            if (!config.get(EXCEPTION_FORMATTER).isNull()) {
+                exceptionFormatterScript =  scriptRegistry.takeScript(config.get(EXCEPTION_FORMATTER));
+            }
+
+            JsonValue watchedFieldsValue = config.get(WATCHED_FIELDS_CONFIG_POINTER);
+            if (null != watchedFieldsValue) {
+                watchFieldFilters = getJsonPointers(watchedFieldsValue.asList(String.class));
+            }
+
+            JsonValue passwordFieldsValue = config.get(WATCHED_PASSWORDS_CONFIG_POINTER);
+            if (null != passwordFieldsValue) {
+                passwordFieldFilters = getJsonPointers(passwordFieldsValue.asList(String.class));
+            }
+
         } catch (Exception ex) {
             LOGGER.warn("Configuration invalid, can not start Audit service.", ex);
             throw ex;
         }
         LOGGER.info("Audit service started.");
+    }
+
+    /**
+     * Converts the list of strings into a list of JsonPointers
+     * @param pointerStrings strings to get converted.
+     * @return converted list of pointers.
+     */
+    private List<JsonPointer> getJsonPointers(List<String> pointerStrings) {
+        List<JsonPointer> pointers = new ArrayList<>();
+        for (String pointerString : pointerStrings) {
+            pointers.add(new JsonPointer(pointerString));
+        }
+        return pointers;
     }
 
     /**
@@ -310,10 +361,9 @@ public class AuditServiceImpl implements AuditService {
      * {@inheritDoc}
      */
     @Override
-    public void handleRead(final ServerContext context, final ReadRequest request,
-                           final ResultHandler<Resource> handler) {
-            LOGGER.debug("Audit read called for {}", request.getResourceName());
-            auditService.handleRead(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
+        LOGGER.debug("Audit read called for {}", request.getResourcePath());
+        return auditService.handleRead(context, request);
     }
 
     /**
@@ -325,56 +375,46 @@ public class AuditServiceImpl implements AuditService {
      * {@inheritDoc}
      */
     @Override
-    public void handleCreate(final ServerContext context, final CreateRequest request,
-                             final ResultHandler<Resource> handler) {
-        if (request.getResourceName() == null) {
+    public Promise<ResourceResponse, ResourceException> handleCreate(Context context, CreateRequest request) {
+        if (request.getResourcePath() == null) {
             //TODO IGNORE FAILURE PER AUDIT LOGGER?
-            handler.handleError(
-                    new BadRequestException(
-                            "Audit service called without specifying which audit log in the identifier"));
-            return;
-        }
-
-        Map<String, Object> obj = request.getContent().asMap();
-
-        // TODO pretty sure this is in CAUD now
-        // Don't audit the audit log
-        if (context.containsContext(AuditContext.class)) {
-            handler.handleResult(new Resource(null, null, new JsonValue(obj)));
-            return;
-        }
-
-        // Audit create called for /access with {timestamp=2013-07-30T18:10:03.773Z,
-        // principal=openidm-admin, status=SUCCESS, roles=[openidm-admin, openidm-authorized], action=authenticate,
-        // userid=openidm-admin, ip=127.0.0.1}
-        LOGGER.debug("Audit create called for {} with {}", request.getResourceName(), obj);
-
-        String type = request.getResourceNameObject().head(1).toString();
-
-        if (auditFilter.isFiltered(context, request)) {
-            LOGGER.debug("Request filtered by filter for {}/{} using method {}",
-                    request.getResourceName(),
-                    request.getNewResourceId(),
-                    request.getContent().get(new JsonPointer("resourceOperation/operation/method")));
-            handler.handleResult(new Resource(null, null, new JsonValue(obj)));
-            return;
+            return newExceptionPromise(cast(new BadRequestException(
+                    "Audit service called without specifying which audit log in the identifier")));
         }
 
         try {
-            auditService.handleCreate(context, request, handler);
-        } catch (RuntimeException ex) {
-            LOGGER.warn("Failure writing audit log: {}/ with exception: {}", new Object[]{type, ex});
-            //TODO IGNORE FAILURE PER AUDIT LOGGER?
+            formatException(request.getContent());
+        } catch (Exception e) {
+            LOGGER.error("Failed to format audit entry exception", e);
+            return newExceptionPromise(cast(
+                    new InternalServerErrorException("Failed to format audit entry exception", e)));
         }
+
+        // Don't audit the audit log
+        if (context.containsContext(AuditContext.class)) {
+            return newResultPromise(newResourceResponse(null, null, request.getContent()));
+        }
+
+        LOGGER.debug("Audit create called for {} with {}", request.getResourcePath(), request.getContent().asMap());
+
+        if (auditFilter.isFiltered(context, request)) {
+            LOGGER.debug("Request filtered by filter for {}/{} using method {}",
+                    request.getResourcePath(),
+                    request.getNewResourceId(),
+                    request.getContent().get(new JsonPointer("resourceOperation/operation/method")));
+            return newResultPromise(newResourceResponse(null, null, request.getContent()));
+        }
+
+        return auditService.handleCreate(context, request);
+
     }
 
     /**
      * Audit service does not support changing audit entries.
      */
     @Override
-    public void handleUpdate(final ServerContext context, final UpdateRequest request,
-            final ResultHandler<Resource> handler) {
-        auditService.handleUpdate(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, UpdateRequest request) {
+        return auditService.handleUpdate(context, request);
     }
 
     /**
@@ -385,9 +425,8 @@ public class AuditServiceImpl implements AuditService {
      * {@inheritDoc}
      */
     @Override
-    public void handleDelete(ServerContext context, DeleteRequest request,
-            ResultHandler<Resource> handler) {
-        auditService.handleDelete(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleDelete(Context context, DeleteRequest request) {
+        return auditService.handleDelete(context, request);
     }
 
     /**
@@ -396,9 +435,8 @@ public class AuditServiceImpl implements AuditService {
      * {@inheritDoc}
      */
     @Override
-    public void handlePatch(final ServerContext context, final PatchRequest request,
-            final ResultHandler<Resource> handler) {
-        auditService.handlePatch(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
+        return auditService.handlePatch(context, request);
     }
 
     /**
@@ -416,23 +454,62 @@ public class AuditServiceImpl implements AuditService {
      * {@inheritDoc}
      */
     @Override
-    public void handleQuery(final ServerContext context, final QueryRequest request, final QueryResultHandler handler) {
-        LOGGER.debug("Audit query called for {} with {}", request.getResourceName(), request.getAdditionalParameters());
+    public Promise<QueryResponse, ResourceException> handleQuery(final Context context, final QueryRequest request,
+            final QueryResourceHandler handler) {
 
-        //TODO DO WE CARE ABOUT THE FORMATTED KEYWORD
-        //final boolean formatted = getFormattedValue(request.getAdditionalParameter("formatted"));
-        auditService.handleQuery(context, request, handler);
+        LOGGER.debug("Audit query called for {} with {}", request.getResourcePath(), request.getAdditionalParameters());
+
+        return auditService.handleQuery(context, request, handler);
     }
 
     /**
-     * Audit service does not support actions on audit entries.
+     * Audit service action handles the actions defined in #ActivityAction.
      *
      * {@inheritDoc}
      */
     @Override
-    public void handleAction(final ServerContext context, final ActionRequest request,
-            final ResultHandler<JsonValue> handler) {
-        handler.handleError(ResourceUtil.notSupported(request));
+    public Promise<ActionResponse, ResourceException> handleAction(Context context, ActionRequest request) {
+
+        LOGGER.debug("Audit handleAction called with action={}", request.getAction());
+
+        AuditAction requestAction = null;
+        try {
+            requestAction = request.getActionAsEnum(AuditAction.class);
+        } catch (Exception e) {
+            // this will leave requestAction as null.
+            LOGGER.debug("Action is not a OpenIDM action delegating to CAUD", e);
+        }
+
+        JsonValue content = request.getContent();
+
+        if (requestAction != null) {
+
+            switch (requestAction) {
+                case getChangedWatchedFields:
+                    List<String> changedFields =
+                            checkForFields(watchFieldFilters, content.get("before"), content.get("after"));
+
+                    return newResultPromise(newActionResponse(new JsonValue(changedFields)));
+
+                case getChangedPasswordFields:
+                    List<String> changedPasswordFields =
+                            checkForFields(passwordFieldFilters, content.get("before"), content.get("after"));
+
+                    return newResultPromise(newActionResponse(new JsonValue(changedPasswordFields)));
+
+                case availableHandlers:
+                    try {
+                        return newResultPromise(newActionResponse(getAvailableAuditEventHandlersWithConfigSchema()));
+                    } catch (ResourceException e) {
+                        return newExceptionPromise(e);
+                    }
+
+                default:
+                    //allow to fall to caud
+            }
+        }
+        //if action unknown in openidm, delegate it caud
+        return auditService.handleAction(context, request);
     }
 
     /**
@@ -497,5 +574,80 @@ public class AuditServiceImpl implements AuditService {
             fieldList.add(field.asPointer());
         }
         return fieldList;
+    }
+
+    private void formatException(final JsonValue entry) throws Exception {
+        if (!entry.isDefined(EXCEPTION)
+                || entry.get(EXCEPTION).isNull()
+                || exceptionFormatterScript == null) {
+            return;
+        }
+
+        final Object exception = entry.get(EXCEPTION).getObject();
+
+        if (exception instanceof Exception) {
+            final Script s = exceptionFormatterScript.getScript(new RootContext());
+            s.put(EXCEPTION, exception);
+            entry.put(EXCEPTION, s.eval());
+        }
+    }
+
+    /**
+     * Gets the available audit event handlers from the audit service and the config schema.
+     *
+     * Should return a json object similar to this:
+     * <pre>
+     *      [{
+     *          "class" : "org.forgerock.audit.events.handlers.impl.CSVAuditEventHandler",
+     *          "config" : {
+     *              "type" : "object",
+     *              "properties" : {
+     *                  "logDirectory" : {
+     *                      "type" : "string"
+     *                  },
+     *                  ....
+     *              }
+     *          }
+     *      },
+     *      {
+     *          "class" : "org.forgerock.audit.events.handlers.impl.AnotherAuditEventHandler",
+     *          "config" : {
+     *              "type" : "object",
+     *              "properties" : {
+     *                  "configKey" : {
+     *                      "type" : "string"
+     *                  },
+     *                  ....
+     *              }
+     *          }
+     *      }]
+     * </pre>
+     * @return A json object containing the available audit event handlers and their config schema.
+     * @throws AuditException If an error occurs instantiating one of the audit event handlers
+     */
+    private JsonValue getAvailableAuditEventHandlersWithConfigSchema() throws ResourceException {
+        try {
+            final List<String> availableAuditEventHandlers = auditService.getConfig().getAvailableAuditEventHandlers();
+            final JsonValue result = new JsonValue(new LinkedList<>());
+
+            for (final String auditEventHandler : availableAuditEventHandlers) {
+                try {
+                    AuditEventHandler eventHandler =
+                            (AuditEventHandler) Class.forName(auditEventHandler).newInstance();
+                    final JsonValue entry = json(object(
+                            field("class", auditEventHandler),
+                            field("config", AuditJsonConfig.getAuditEventHandlerConfigurationSchema(eventHandler).getObject())
+                    ));
+                    result.add(entry.getObject());
+                } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+                    throw new InternalServerErrorException(String.format("An error occurred while trying to instantiate class "
+                            + "for the handler '%s' or its configuration", auditEventHandler), e);
+                }
+            }
+            return result;
+        } catch (AuditException e) {
+            throw new InternalServerErrorException(
+                    "Unable to get available audit event handlers and their config schema", e);
+        }
     }
 }

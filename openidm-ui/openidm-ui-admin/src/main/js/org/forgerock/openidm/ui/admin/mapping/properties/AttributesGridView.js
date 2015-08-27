@@ -45,10 +45,9 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
     "org/forgerock/openidm/ui/admin/mapping/util/QueryFilterEditor",
     "org/forgerock/openidm/ui/admin/mapping/properties/AddPropertyMappingDialog",
     "org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDialog",
-    "org/forgerock/commons/ui/common/main/AbstractModel",
-    "org/forgerock/commons/ui/common/main/AbstractCollection",
     "backgrid",
-    "org/forgerock/openidm/ui/admin/util/BackgridUtils"
+    "org/forgerock/openidm/ui/admin/util/BackgridUtils",
+    "jquerySortable"
 ], function($, _, Handlebars, Backbone,
             MappingAdminAbstractView,
             eventManager,
@@ -66,8 +65,6 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             QueryFilterEditor,
             AddPropertyMappingDialog,
             EditPropertyMappingDialog,
-            AbstractModel,
-            AbstractCollection,
             Backgrid,
             BackgridUtils) {
 
@@ -96,11 +93,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             this.data.linkQualifiers = LinkQualifierUtil.getLinkQualifier(this.mapping.name);
             this.currentLinkQualifier = this.data.linkQualifiers[0];
 
-            if (this.mapping.linkQualifiers) {
-                this.data.hasLinkQualifiers = true;
-            } else {
-                this.data.hasLinkQualifiers = false;
-            }
+            this.data.hasLinkQualifiers =this.mapping.linkQualifiers;
 
             if (conf.globalData.sampleSource && this.mapping.properties.length) {
                 this.data.sampleSource_txt = conf.globalData.sampleSource[this.mapping.properties[0].source];
@@ -134,6 +127,13 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                     }
                 }, this));
             }, this));
+        },
+
+        initSort: function() {
+            BackgridUtils.sortable({
+                "grid": this.$el.find("#attributesGridHolder table"),
+                "rows": _.clone(this.model.mappingProperties, true)
+            }, _.bind(this.setMappingProperties, this));
         },
 
         checkChanges: function () {
@@ -191,8 +191,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                 }
             });
 
-            this.model.mappingProperties = props;
-            this.render();
+            this.setMappingProperties(props);
         },
 
         setMappingProperties: function(mappingProperties) {
@@ -213,11 +212,11 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         "click": "rowClick"
                     },
                     rowClick: function (event) {
-                        if(!$(event.target).hasClass("fa-times")) {
+                        if (!$(event.target).hasClass("fa-times")) {
                             EditPropertyMappingDialog.render({
                                 id: this.model.attributes.id,
                                 mappingProperties: _this.model.mappingProperties,
-                                availProperties: _this.model.availableObjects.target.properties,
+                                availProperties: _this.model.availableObjects.source.properties,
                                 saveCallback: function(props) {
                                     _this.setMappingProperties(props);
                                 }
@@ -253,7 +252,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             }, this);
 
             attributesGrid = new Backgrid.Grid({
-                className: "table",
+                className: "table backgrid-table",
                 row: ClickableRow,
                 columns: BackgridUtils.addSmallScreenCell([
                     {
@@ -262,7 +261,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         editable: false,
                         cell: Backgrid.Cell.extend({
                             render: function () {
-                                var previewElement = $('<div class="property-container-parent"><div class="property-container"></div></div>');
+                                var previewElement = $('<i class="dragToSort fa fa-arrows pull-left"></i> <div class="property-container-parent"><div class="property-container"></div></div>');
 
                                 if(this.model.attributes.attribute.source) {
                                     previewElement.find(".property-container").append('<div class="title">' + this.model.attributes.attribute.source + '</div>');
@@ -304,12 +303,12 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                                     }
 
                                     iconElement.append('<span class="badge properties-badge" rel="tooltip" data-toggle="popover" data-placement="top" title=""><i class="fa fa-filter"></i>'
-                                        +'<div style="display:none;" class="tooltip-details">' + $.t("templates.mapping.conditionalUpon") +'<pre class="text-muted code-tooltip">' +conditionIcon +'</pre></div></span>');
+                                    +'<div style="display:none;" class="tooltip-details">' + $.t("templates.mapping.conditionalUpon") +'<pre class="text-muted code-tooltip">' +conditionIcon +'</pre></div></span>');
                                 }
 
                                 if(this.model.attributes.attribute.transform) {
                                     iconElement.append('<span class="badge properties-badge" rel="tooltip" data-toggle="popover" data-placement="top" title=""><i class="fa fa-wrench"></i>'
-                                        +'<div style="display:none;" class="tooltip-details">' +$.t("templates.mapping.transformationScriptApplied") +'<pre class="text-muted code-tooltip">' +this.model.attributes.attribute.transform.source +'</pre></div></span>');
+                                    +'<div style="display:none;" class="tooltip-details">' +$.t("templates.mapping.transformationScriptApplied") +'<pre class="text-muted code-tooltip">' +this.model.attributes.attribute.transform.source +'</pre></div></span>');
                                 }
 
                                 this.$el.html(iconElement);
@@ -403,7 +402,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                 }
 
                 this.gridFromMapProps(this.model.mappingProperties);
-
+                this.initSort();
             }, this));
 
             this.$el.find("#linkQualifierSelect").selectize({
@@ -411,6 +410,8 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                 create: false,
                 sortField: 'text'
             });
+
+            this.initSort();
         },
 
         gridFromMapProps : function (props) {
