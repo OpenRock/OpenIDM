@@ -546,7 +546,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             		SynchronizationService.SyncServiceAction.notifyCreate,
                     new JsonValue(null), createResponse.getContent());
 
-            return newResultPromise(prepareResponse(context, _new, request.getFields()));
+            return newResultPromise(prepareResponse(context, createResponse, request.getFields()));
         } catch (ResourceException e) {
         	return newExceptionPromise(e);
         } catch (Exception e) {
@@ -599,7 +599,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             activityLogger.log(context, request, "update", managedId(readResponse.getId()).toString(), 
             		readResponse.getContent(), updatedResponse.getContent(), Status.SUCCESS);
 
-            return newResultPromise(prepareResponse(context, updatedResource, request.getFields()));
+            return newResultPromise(prepareResponse(context, updatedResponse, request.getFields()));
         } catch (ResourceException e) {
         	return newExceptionPromise(e);
         } catch (Exception e) {
@@ -1010,18 +1010,18 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      * supplied {@link List} of fields indicates which fields to read and then merge with the relationship
      * object.
      *    
-     * @param context the {@link ServerContext} of the request
+     * @param context the {@link Context} of the request
      * @param value the value of the relationship object
      * @param fieldsList the list of fields to read and merge with the relationship object.
      * @throws ResourceException if an error is encountered.
      */
-    private void expandResource(ServerContext context, JsonValue value, List<JsonPointer> fieldsList) 
+    private void expandResource(Context context, JsonValue value, List<JsonPointer> fieldsList) 
             throws ResourceException {
         if (!value.isNull() && value.get(SchemaField.FIELD_REFERENCE) != null) {
             // Create and issue a read request on the referenced resource with the specified list of fields
             ReadRequest request = Requests.newReadRequest(value.get(SchemaField.FIELD_REFERENCE).asString());
             request.addField(fieldsList.toArray(new JsonPointer[fieldsList.size()]));
-            Resource resource = connectionFactory.getConnection().read(context, request);
+            ResourceResponse resource = connectionFactory.getConnection().read(context, request);
             
             // Merge the result with the supplied relationship object
             value.asMap().putAll(resource.getContent().asMap());
