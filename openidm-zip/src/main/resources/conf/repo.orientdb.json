@@ -147,7 +147,7 @@
                         "indexType" : "unique"
                     },
                     {
-                        "propertyNames" : [ "firstId", "firstKey", "secondId"],
+                        "propertyNames" : [ "firstId", "firstPropertyName", "secondId"],
                         "propertyType" : "string",
                         "indexType" : "unique"
                     }
