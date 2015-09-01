@@ -139,7 +139,7 @@
                     }
                 ]
             },
-            "relationship": {
+            "relationships": {
                 "index": [
                     {
                         "propertyName" : "_openidm_id",
