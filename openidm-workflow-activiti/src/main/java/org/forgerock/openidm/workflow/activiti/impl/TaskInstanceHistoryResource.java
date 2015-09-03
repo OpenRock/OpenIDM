@@ -15,13 +15,9 @@
  */
 package org.forgerock.openidm.workflow.activiti.impl;
 
-
-import static org.forgerock.json.resource.ResourceException.newBadRequestException;
-import static org.forgerock.json.resource.ResourceException.newInternalServerErrorException;
 import static org.forgerock.json.resource.Responses.newQueryResponse;
 import static org.forgerock.json.resource.Responses.newResourceResponse;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
-import static org.forgerock.util.promise.Promises.newResultPromise;
+import static org.forgerock.openidm.util.ResourceUtil.notSupportedOnInstance;
 
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,9 +31,11 @@ import org.forgerock.http.Context;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
+import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.CollectionResourceProvider;
 import org.forgerock.json.resource.DeleteRequest;
+import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
@@ -49,7 +47,6 @@ import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.SecurityContext;
 import org.forgerock.json.resource.SortKey;
 import org.forgerock.json.resource.UpdateRequest;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.openidm.workflow.activiti.ActivitiConstants;
 import org.forgerock.openidm.workflow.activiti.impl.mixin.HistoricTaskInstanceEntityMixIn;
 import org.forgerock.util.promise.Promise;
@@ -87,7 +84,7 @@ public class TaskInstanceHistoryResource implements CollectionResourceProvider {
      */
     @Override
     public Promise<ActionResponse, ResourceException> actionCollection(Context context, ActionRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     /**
@@ -95,7 +92,7 @@ public class TaskInstanceHistoryResource implements CollectionResourceProvider {
      */
     @Override
     public Promise<ActionResponse, ResourceException> actionInstance(Context context, String resourceId, ActionRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     /**
@@ -103,7 +100,7 @@ public class TaskInstanceHistoryResource implements CollectionResourceProvider {
      */
     @Override
     public Promise<ResourceResponse, ResourceException> createInstance(Context context, CreateRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     /**
@@ -111,7 +108,7 @@ public class TaskInstanceHistoryResource implements CollectionResourceProvider {
      */
     @Override
     public Promise<ResourceResponse, ResourceException> deleteInstance(Context context, String resourceId, DeleteRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     /**
@@ -119,7 +116,7 @@ public class TaskInstanceHistoryResource implements CollectionResourceProvider {
      */
     @Override
     public Promise<ResourceResponse, ResourceException> patchInstance(Context context, String resourceId, PatchRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     /**
@@ -142,12 +139,12 @@ public class TaskInstanceHistoryResource implements CollectionResourceProvider {
                     Map<String, Object> value = MAPPER.convertValue(i, Map.class);
                     handler.handleResource(newResourceResponse(i.getId(), null, new JsonValue(value)));
                 }
-                return newResultPromise(newQueryResponse());
+                return newQueryResponse().asPromise();
             } else {
-                return newExceptionPromise(newBadRequestException("Unknown query-id"));
+                return new BadRequestException("Unknown query-id").asPromise();
             }
         } catch (Exception ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 
@@ -156,7 +153,7 @@ public class TaskInstanceHistoryResource implements CollectionResourceProvider {
      */
     @Override
     public Promise<ResourceResponse, ResourceException> readInstance(Context context, String resourceId, ReadRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     /**
@@ -164,7 +161,7 @@ public class TaskInstanceHistoryResource implements CollectionResourceProvider {
      */
     @Override
     public Promise<ResourceResponse, ResourceException> updateInstance(Context context, String resourceId, UpdateRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     /**

@@ -28,9 +28,12 @@ import javax.servlet.http.HttpServletResponse;
 import java.security.Principal;
 import java.util.Map;
 
+import org.forgerock.http.Context;
+import org.forgerock.http.context.RootContext;
 import org.forgerock.jaspi.exceptions.JaspiAuthException;
 import org.forgerock.jaspi.runtime.AuditTrail;
 import org.forgerock.json.resource.ResourceResponse;
+import org.forgerock.json.resource.SecurityContext;
 import org.forgerock.openidm.jaspi.auth.Authenticator;
 import org.forgerock.openidm.jaspi.auth.AuthenticatorFactory;
 import org.forgerock.openidm.jaspi.config.OSGiAuthnFilterBuilder;
@@ -165,8 +168,13 @@ public class DelegatedAuthModule implements ServerAuthModule {
         securityContextMapper.setAuthenticationId(credential.username);
 
         try {
+            // construct a rudimentary context chain to validate the auth credentials
+            Context context = new SecurityContext(
+                    new RootContext(),
+                    securityContextMapper.getAuthenticationId(),
+                    securityContextMapper.getAuthorizationId());
             Authenticator.AuthenticatorResult result = authenticator.authenticate(
-                    credential.username, credential.password, authnFilterHelper.getRouter().createServerContext());
+                    credential.username, credential.password, context);
             final ResourceResponse resource = result.getResource();
             if (resource != null) {
                 final JsonValue messageMap = new JsonValue(messageInfo.getMap());

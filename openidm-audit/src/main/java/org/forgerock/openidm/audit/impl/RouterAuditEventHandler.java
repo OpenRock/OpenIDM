@@ -26,9 +26,7 @@ package org.forgerock.openidm.audit.impl;
 import static org.forgerock.json.resource.Requests.copyOfQueryRequest;
 import static org.forgerock.json.resource.Requests.copyOfReadRequest;
 import static org.forgerock.json.resource.Requests.newCreateRequest;
-import static org.forgerock.openidm.util.ResourceUtil.adapt;
 import static org.forgerock.openidm.util.ResourceUtil.notSupported;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
 import static org.forgerock.util.promise.Promises.newResultPromise;
 
 import org.forgerock.audit.DependencyProvider;
@@ -39,6 +37,7 @@ import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.ConnectionFactory;
 import org.forgerock.json.resource.CreateRequest;
+import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResourceHandler;
 import org.forgerock.json.resource.QueryResponse;
@@ -95,7 +94,7 @@ public class RouterAuditEventHandler extends AuditEventHandlerBase<RouterAuditEv
      */
     @Override
     public Promise<ActionResponse, ResourceException> actionCollection(Context context, ActionRequest actionRequest) {
-        return newExceptionPromise(notSupported(actionRequest));
+        return notSupported(actionRequest).asPromise();
     }
 
     /**
@@ -104,7 +103,7 @@ public class RouterAuditEventHandler extends AuditEventHandlerBase<RouterAuditEv
     @Override
     public Promise<ActionResponse, ResourceException> actionInstance(Context context, String resourceId,
             ActionRequest actionRequest) {
-        return newExceptionPromise(notSupported(actionRequest));
+        return notSupported(actionRequest).asPromise();
     }
 
     /**
@@ -113,14 +112,15 @@ public class RouterAuditEventHandler extends AuditEventHandlerBase<RouterAuditEv
     @Override
     public Promise<ResourceResponse, ResourceException> createInstance(Context context, CreateRequest request) {
         try {
-
             return newResultPromise(getConnectionFactory().getConnection().create(new AuditContext(context),
                     newCreateRequest(
                             resourcePath.child(request.getResourcePath()),
                             request.getNewResourceId(),
                             request.getContent())));
-        } catch (Exception e) {
-            return newExceptionPromise(adapt(e));
+        } catch (ClassNotFoundException e) {
+            return new InternalServerErrorException(e).asPromise();
+        } catch (ResourceException e) {
+            return e.asPromise();
         }
     }
 
@@ -143,9 +143,10 @@ public class RouterAuditEventHandler extends AuditEventHandlerBase<RouterAuditEv
                                     return queryResourceHandler.handleResource(resourceResponse);
                                 }
                             }));
-
-        } catch (Exception e) {
-            return newExceptionPromise(adapt(e));
+        } catch (ClassNotFoundException e) {
+            return new InternalServerErrorException(e).asPromise();
+        } catch (ResourceException e) {
+            return e.asPromise();
         }
     }
 
@@ -158,9 +159,11 @@ public class RouterAuditEventHandler extends AuditEventHandlerBase<RouterAuditEv
         try {
             final ReadRequest newRequest = copyOfReadRequest(request);
             newRequest.setResourcePath(resourcePath.child(request.getResourcePath()).child(resourceId));
-            return newResultPromise(getConnectionFactory().getConnection().read(new AuditContext(context), newRequest));
-        } catch (Exception e) {
-            return newExceptionPromise(adapt(e));
+            return getConnectionFactory().getConnection().read(new AuditContext(context), newRequest).asPromise();
+        } catch (ClassNotFoundException e) {
+            return new InternalServerErrorException(e).asPromise();
+        } catch (ResourceException e) {
+            return e.asPromise();
         }
     }
 

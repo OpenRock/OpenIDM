@@ -22,7 +22,6 @@ import org.forgerock.http.Context;
 import org.forgerock.openidm.jaspi.auth.Authenticator;
 import org.forgerock.openidm.jaspi.auth.Authenticator.AuthenticatorResult;
 import org.forgerock.openidm.jaspi.config.OSGiAuthnFilterHelper;
-import org.forgerock.openidm.router.RouteService;
 import org.mockito.Matchers;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -54,12 +53,7 @@ public class DelegatedAuthModuleTest {
     @BeforeMethod
     public void setUp() throws ResourceException {
         authnFilterHelper = mock(OSGiAuthnFilterHelper.class);
-        RouteService router = mock(RouteService.class);
-        when(router.createServerContext()).thenReturn(mock(Context.class));
-        when(authnFilterHelper.getRouter()).thenReturn(router);
-
         authenticator = mock(Authenticator.class);
-
         module = new DelegatedAuthModule(authnFilterHelper, authenticator);
     }
 

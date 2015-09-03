@@ -26,7 +26,6 @@ package org.forgerock.openidm.audit.impl;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
-import static org.forgerock.json.resource.ResourceException.cast;
 import static org.forgerock.json.resource.Responses.newActionResponse;
 import static org.forgerock.json.resource.Responses.newResourceResponse;
 import static org.forgerock.openidm.audit.impl.AuditLogFilters.AS_SINGLE_FIELD_VALUES_FILTER;
@@ -36,8 +35,6 @@ import static org.forgerock.openidm.audit.impl.AuditLogFilters.newEventTypeFilte
 import static org.forgerock.openidm.audit.impl.AuditLogFilters.newOrCompositeFilter;
 import static org.forgerock.openidm.audit.impl.AuditLogFilters.newReconActionFilter;
 import static org.forgerock.openidm.audit.impl.AuditLogFilters.newScriptedFilter;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
-import static org.forgerock.util.promise.Promises.newResultPromise;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -378,21 +375,21 @@ public class AuditServiceImpl implements AuditService {
     public Promise<ResourceResponse, ResourceException> handleCreate(Context context, CreateRequest request) {
         if (request.getResourcePath() == null) {
             //TODO IGNORE FAILURE PER AUDIT LOGGER?
-            return newExceptionPromise(cast(new BadRequestException(
-                    "Audit service called without specifying which audit log in the identifier")));
+            return new BadRequestException("Audit service called without specifying which audit log in the identifier")
+                .asPromise();
         }
 
         try {
             formatException(request.getContent());
         } catch (Exception e) {
             LOGGER.error("Failed to format audit entry exception", e);
-            return newExceptionPromise(cast(
-                    new InternalServerErrorException("Failed to format audit entry exception", e)));
+            return new InternalServerErrorException("Failed to format audit entry exception", e)
+                .asPromise();
         }
 
         // Don't audit the audit log
         if (context.containsContext(AuditContext.class)) {
-            return newResultPromise(newResourceResponse(null, null, request.getContent()));
+            return newResourceResponse(null, null, request.getContent()).asPromise();
         }
 
         LOGGER.debug("Audit create called for {} with {}", request.getResourcePath(), request.getContent().asMap());
@@ -402,7 +399,7 @@ public class AuditServiceImpl implements AuditService {
                     request.getResourcePath(),
                     request.getNewResourceId(),
                     request.getContent().get(new JsonPointer("resourceOperation/operation/method")));
-            return newResultPromise(newResourceResponse(null, null, request.getContent()));
+            return newResourceResponse(null, null, request.getContent()).asPromise();
         }
 
         return auditService.handleCreate(context, request);
@@ -489,20 +486,16 @@ public class AuditServiceImpl implements AuditService {
                     List<String> changedFields =
                             checkForFields(watchFieldFilters, content.get("before"), content.get("after"));
 
-                    return newResultPromise(newActionResponse(new JsonValue(changedFields)));
+                    return newActionResponse(new JsonValue(changedFields)).asPromise();
 
                 case getChangedPasswordFields:
                     List<String> changedPasswordFields =
                             checkForFields(passwordFieldFilters, content.get("before"), content.get("after"));
 
-                    return newResultPromise(newActionResponse(new JsonValue(changedPasswordFields)));
+                    return newActionResponse(new JsonValue(changedPasswordFields)).asPromise();
 
                 case availableHandlers:
-                    try {
-                        return newResultPromise(newActionResponse(getAvailableAuditEventHandlersWithConfigSchema()));
-                    } catch (ResourceException e) {
-                        return newExceptionPromise(e);
-                    }
+                    return getAvailableAuditEventHandlersWithConfigSchema();
 
                 default:
                     //allow to fall to caud
@@ -625,7 +618,7 @@ public class AuditServiceImpl implements AuditService {
      * @return A json object containing the available audit event handlers and their config schema.
      * @throws AuditException If an error occurs instantiating one of the audit event handlers
      */
-    private JsonValue getAvailableAuditEventHandlersWithConfigSchema() throws ResourceException {
+    private Promise<ActionResponse, ResourceException> getAvailableAuditEventHandlersWithConfigSchema() {
         try {
             final List<String> availableAuditEventHandlers = auditService.getConfig().getAvailableAuditEventHandlers();
             final JsonValue result = new JsonValue(new LinkedList<>());
@@ -640,14 +633,16 @@ public class AuditServiceImpl implements AuditService {
                     ));
                     result.add(entry.getObject());
                 } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
-                    throw new InternalServerErrorException(String.format("An error occurred while trying to instantiate class "
-                            + "for the handler '%s' or its configuration", auditEventHandler), e);
+                    return new InternalServerErrorException(String.format("An error occurred while trying to instantiate class "
+                            + "for the handler '%s' or its configuration", auditEventHandler), e)
+                            .asPromise();
                 }
             }
-            return result;
+            return newActionResponse(result).asPromise();
         } catch (AuditException e) {
-            throw new InternalServerErrorException(
-                    "Unable to get available audit event handlers and their config schema", e);
+            return new InternalServerErrorException(
+                    "Unable to get available audit event handlers and their config schema", e)
+                    .asPromise();
         }
     }
 }

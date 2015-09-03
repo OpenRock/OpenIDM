@@ -15,13 +15,10 @@
  */
 package org.forgerock.openidm.workflow.activiti.impl;
 
-import static org.forgerock.json.resource.ResourceException.newBadRequestException;
-import static org.forgerock.json.resource.ResourceException.newInternalServerErrorException;
-import static org.forgerock.json.resource.ResourceException.newNotFoundException;
 import static org.forgerock.json.resource.Responses.newQueryResponse;
 import static org.forgerock.json.resource.Responses.newResourceResponse;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
-import static org.forgerock.util.promise.Promises.newResultPromise;
+import static org.forgerock.openidm.util.ResourceUtil.notSupportedOnCollection;
+import static org.forgerock.openidm.util.ResourceUtil.notSupportedOnInstance;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
@@ -34,9 +31,12 @@ import org.forgerock.http.Context;
 import org.forgerock.http.routing.UriRouterContext;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
+import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.CollectionResourceProvider;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
+import org.forgerock.json.resource.InternalServerErrorException;
+import org.forgerock.json.resource.NotFoundException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResourceHandler;
@@ -62,7 +62,6 @@ import org.activiti.engine.impl.identity.Authentication;
 import org.activiti.engine.impl.persistence.entity.ProcessDefinitionEntity;
 import org.activiti.engine.impl.task.TaskDefinition;
 import org.forgerock.json.JsonValue;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.openidm.workflow.activiti.impl.mixin.DateFormTypeMixIn;
 import org.forgerock.openidm.workflow.activiti.impl.mixin.EnumFormTypeMixIn;
 import org.forgerock.openidm.workflow.activiti.impl.mixin.FormPropertyHandlerMixIn;
@@ -98,27 +97,27 @@ public class TaskDefinitionResource implements CollectionResourceProvider {
 
     @Override
     public Promise<ActionResponse, ResourceException> actionCollection(Context context, ActionRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnCollection(request));
+        return notSupportedOnCollection(request).asPromise();
     }
 
     @Override
     public Promise<ActionResponse, ResourceException> actionInstance(Context context, String resourceId, ActionRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> createInstance(Context context, CreateRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> deleteInstance(Context context, String resourceId, DeleteRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> patchInstance(Context context, String resourceId, PatchRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     @Override
@@ -136,12 +135,12 @@ public class TaskDefinitionResource implements CollectionResourceProvider {
                     r.getContent().add(ActivitiConstants.ACTIVITI_FORMRESOURCEKEY, taskFormHandler.getFormKey());
                     handler.handleResource(r);
                 }
-                return newResultPromise(newQueryResponse());
+                return newQueryResponse().asPromise();
             } else {
-                return newExceptionPromise(newBadRequestException("Unknown query-id"));
+                return new BadRequestException("Unknown query-id").asPromise();
             }
         } catch (IllegalArgumentException ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 
@@ -157,7 +156,7 @@ public class TaskDefinitionResource implements CollectionResourceProvider {
                 ResourceResponse r = newResourceResponse(taskDefinition.getKey(), null, new JsonValue(value));
                 FormService formService = processEngine.getFormService();
                 String taskFormKey = formService.getTaskFormKey(processDefinitionId, resourceId);
-                if (taskFormKey != null){
+                if (taskFormKey != null) {
                     r.getContent().add(ActivitiConstants.ACTIVITI_FORMRESOURCEKEY, taskFormKey);
                     ByteArrayInputStream startForm = (ByteArrayInputStream) ((RepositoryServiceImpl) processEngine.getRepositoryService()).getResourceAsStream(procdef.getDeploymentId(), taskFormKey);
                     Reader reader = new InputStreamReader(startForm);
@@ -169,22 +168,23 @@ public class TaskDefinitionResource implements CollectionResourceProvider {
                         reader.close();
                     }
                 }
-                return newResultPromise(r);
+                return r.asPromise();
             } else {
-                return newExceptionPromise(
-                        newNotFoundException("Task definition for " + resourceId + " was not found"));
+                throw new NotFoundException("Task definition for " + resourceId + " was not found");
             }
+        } catch (ResourceException ex) {
+            return ex.asPromise();
         } catch (ActivitiObjectNotFoundException ex) {
-            return newExceptionPromise(newNotFoundException(ex.getMessage()));
+            return new NotFoundException(ex.getMessage()).asPromise();
         } catch (IllegalArgumentException ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         } catch (Exception ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> updateInstance(Context context, String resourceId, UpdateRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 }

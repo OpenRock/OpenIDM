@@ -18,8 +18,7 @@ package org.forgerock.openidm.scheduler.impl;
 
 import static org.forgerock.json.resource.Responses.newActionResponse;
 import static org.forgerock.json.resource.Responses.newResourceResponse;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
-import static org.forgerock.util.promise.Promises.newResultPromise;
+import static org.forgerock.openidm.util.ResourceUtil.notSupported;
 
 import javax.script.ScriptException;
 import java.io.IOException;
@@ -64,7 +63,6 @@ import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.quartz.impl.ExecutionException;
 import org.forgerock.openidm.quartz.impl.ScheduledService;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.script.ScriptEntry;
 import org.forgerock.script.ScriptRegistry;
 import org.forgerock.util.promise.Promise;
@@ -137,27 +135,23 @@ public class TaskScannerService implements RequestHandler, ScheduledService {
 
     @Override
     public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
-        try {
-            String id = request.getResourcePath();
-            Map<String, Object> result = new LinkedHashMap<String, Object>();
-            if (request.getResourcePathObject().isEmpty()) {
-                List<Map<String, Object>> taskList = new ArrayList<Map<String, Object>>();
-                for (TaskScannerContext entry : taskScanRuns.values()) {
-                    Map<String, Object> taskData = buildTaskData(entry);
-                    taskList.add(taskData);
-                }
-                result.put("tasks", taskList);
-            } else {
-                TaskScannerContext foundRun = taskScanRuns.get(request.getResourcePath());
-                if (foundRun == null) {
-                    throw new NotFoundException("Task with id '" + request.getResourcePath() + "' not found." );
-                }
-                result = buildTaskData(foundRun);
+        String id = request.getResourcePath();
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
+        if (request.getResourcePathObject().isEmpty()) {
+            List<Map<String, Object>> taskList = new ArrayList<Map<String, Object>>();
+            for (TaskScannerContext entry : taskScanRuns.values()) {
+                Map<String, Object> taskData = buildTaskData(entry);
+                taskList.add(taskData);
             }
-            return newResultPromise(newResourceResponse(id, null, new JsonValue(result)));
-        } catch (Exception e) {
-        	return newExceptionPromise(ResourceUtil.adapt(e));
+            result.put("tasks", taskList);
+        } else {
+            TaskScannerContext foundRun = taskScanRuns.get(request.getResourcePath());
+            if (foundRun == null) {
+                return new NotFoundException("Task with id '" + request.getResourcePath() + "' not found.").asPromise();
+            }
+            result = buildTaskData(foundRun);
         }
+        return newResourceResponse(id, null, new JsonValue(result)).asPromise();
     }
 
     // TODO maybe move this into TaskScannerContext?
@@ -172,53 +166,53 @@ public class TaskScannerService implements RequestHandler, ScheduledService {
 
     @Override
     public Promise<ActionResponse, ResourceException>  handleAction(Context context, ActionRequest request) {
-        try {
-            Map<String, String> params = request.getAdditionalParameters();
-            Map<String, Object> result = new LinkedHashMap<String, Object>();
+        Map<String, String> params = request.getAdditionalParameters();
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
 
-            String action = request.getAction();
-            if (request.getResourcePathObject().isEmpty()) {
-                try {
-                    if ("execute".equalsIgnoreCase(action)) {
-                        try {
-                            result.put("_id", onExecute(context, request.getResourcePath(), params));
-                        } catch (JsonProcessingException e) {
-                            throw new InternalServerErrorException(e);
-                        } catch (IOException e) {
-                            throw new InternalServerErrorException(e);
-                        }
-                    } else {
-                        throw new BadRequestException("Unknown action: " + action);
+        String action = request.getAction();
+        if (request.getResourcePathObject().isEmpty()) {
+            try {
+                if ("execute".equalsIgnoreCase(action)) {
+                    try {
+                        result.put("_id", onExecute(context, request.getResourcePath(), params));
+                    } catch (JsonProcessingException e) {
+                        return new InternalServerErrorException(e).asPromise();
+                    } catch (IOException e) {
+                        return new InternalServerErrorException(e).asPromise();
                     }
-                } catch (ExecutionException e) {
-                    logger.warn(e.getMessage());
-                    throw new BadRequestException(e.getMessage(), e);
-                }
-            } else {
-                // operation on individual resource
-                TaskScannerContext foundRun = taskScanRuns.get(request.getResourcePath());
-                if (foundRun == null) {
-                    throw new NotFoundException("Task with id '" + request.getResourcePath() + "' not found." );
-                }
-
-                if ("cancel".equalsIgnoreCase(action)) {
-                    if (foundRun.isCompleted()) {
-                        result.put("status", "FAILURE");
-                    } else {
-                        foundRun.cancel();
-                        result.put("status", "SUCCESS");
-                    }
-                    result.put("_id", foundRun.getTaskScanID());
-                    result.put("action", action);
                 } else {
-                    throw new BadRequestException("Action '" + action + "' on Task '" + request.getResourcePath() + "' not supported " + params);
+                    return new BadRequestException("Unknown action: " + action).asPromise();
                 }
+            } catch (ScriptException e) {
+                return new InternalServerErrorException(e).asPromise();
+            } catch (ExecutionException e) {
+                logger.warn(e.getMessage());
+                return new BadRequestException(e.getMessage(), e).asPromise();
+            }
+        } else {
+            // operation on individual resource
+            TaskScannerContext foundRun = taskScanRuns.get(request.getResourcePath());
+            if (foundRun == null) {
+                return new NotFoundException("Task with id '" + request.getResourcePath() + "' not found.").asPromise();
             }
 
-            return newResultPromise(newActionResponse(new JsonValue(result)));
-        } catch (Exception e) {
-        	return newExceptionPromise(ResourceUtil.adapt(e));
+            if ("cancel".equalsIgnoreCase(action)) {
+                if (foundRun.isCompleted()) {
+                    result.put("status", "FAILURE");
+                } else {
+                    foundRun.cancel();
+                    result.put("status", "SUCCESS");
+                }
+                result.put("_id", foundRun.getTaskScanID());
+                result.put("action", action);
+            } else {
+                return new BadRequestException("Action '" + action + "' on Task '" + request.getResourcePath()
+                        + "' not supported " + params)
+                        .asPromise();
+            }
         }
+
+        return newActionResponse(new JsonValue(result)).asPromise();
     }
 
     /**
@@ -294,26 +288,26 @@ public class TaskScannerService implements RequestHandler, ScheduledService {
 
     @Override
     public Promise<ResourceResponse, ResourceException> handleCreate(Context context, CreateRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handleDelete(Context context, DeleteRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
     public Promise<QueryResponse, ResourceException> handleQuery(Context context, QueryRequest request, QueryResourceHandler handler) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, UpdateRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 }

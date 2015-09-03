@@ -17,12 +17,10 @@ package org.forgerock.openidm.workflow.activiti.impl;
 
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
-import static org.forgerock.json.resource.ResourceException.*;
 import static org.forgerock.json.resource.Responses.newActionResponse;
 import static org.forgerock.json.resource.Responses.newQueryResponse;
 import static org.forgerock.json.resource.Responses.newResourceResponse;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
-import static org.forgerock.util.promise.Promises.newResultPromise;
+import static org.forgerock.openidm.util.ResourceUtil.*;
 
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,9 +30,12 @@ import org.activiti.engine.task.IdentityLink;
 import org.forgerock.http.Context;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
+import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.CollectionResourceProvider;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
+import org.forgerock.json.resource.InternalServerErrorException;
+import org.forgerock.json.resource.NotFoundException;
 import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
@@ -64,7 +65,6 @@ import org.activiti.engine.task.DelegationState;
 import org.activiti.engine.task.Task;
 import org.activiti.engine.task.TaskQuery;
 import org.forgerock.json.JsonValue;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.openidm.workflow.activiti.impl.mixin.TaskEntityMixIn;
 import org.forgerock.util.promise.Promise;
 
@@ -94,7 +94,7 @@ public class TaskInstanceResource implements CollectionResourceProvider {
 
     @Override
     public Promise<ActionResponse, ResourceException> actionCollection(Context context, ActionRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnCollection(request));
+        return notSupportedOnCollection(request).asPromise();
     }
 
     @Override
@@ -104,27 +104,27 @@ public class TaskInstanceResource implements CollectionResourceProvider {
             TaskService taskService = processEngine.getTaskService();
             Task task = processEngine.getTaskService().createTaskQuery().taskId(resourceId).singleResult();
             if (task == null) {
-                return newExceptionPromise(newNotFoundException());
+                return new NotFoundException().asPromise();
             } else {
                 if ("claim".equals(request.getAction())) {
                     taskService.claim(resourceId, request.getContent().expect(Map.class).asMap().get("userId").toString());
                 } else if ("complete".equals(request.getAction())) {
                     taskService.complete(resourceId, request.getContent().expect(Map.class).asMap());
                 } else {
-                    return newExceptionPromise(newBadRequestException("Unknown action"));
+                    return new BadRequestException("Unknown action").asPromise();
                 }
                 Map<String, String> result = new HashMap<String, String>(1);
                 result.put("Task action performed", request.getAction());
-                return newResultPromise(newActionResponse(new JsonValue(result)));
+                return newActionResponse(new JsonValue(result)).asPromise();
             }
         } catch (Exception ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> createInstance(Context context, CreateRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     @Override
@@ -134,23 +134,23 @@ public class TaskInstanceResource implements CollectionResourceProvider {
 
             Task task = processEngine.getTaskService().createTaskQuery().taskId(resourceId).singleResult();
             if (task == null) {
-                return newExceptionPromise(newNotFoundException("Task " + resourceId + " not found."));
+                return new NotFoundException("Task " + resourceId + " not found.").asPromise();
             }
 
             Map<String, Object> deletedTask = mapper.convertValue(task, Map.class);
             processEngine.getTaskService()
                     .deleteTask(resourceId, request.getAdditionalParameter(ActivitiConstants.ACTIVITI_DELETEREASON));
-            return newResultPromise(newResourceResponse(task.getId(), null, new JsonValue(deletedTask)));
+            return newResourceResponse(task.getId(), null, new JsonValue(deletedTask)).asPromise();
         } catch (ActivitiObjectNotFoundException ex) {
-            return newExceptionPromise(newNotFoundException(ex.getMessage()));
+            return new NotFoundException(ex.getMessage()).asPromise();
         } catch (Exception ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> patchInstance(Context context, String resourceId, PatchRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     @Override
@@ -175,14 +175,14 @@ public class TaskInstanceResource implements CollectionResourceProvider {
                     }
                     handler.handleResource(r);
                 }
-                return newResultPromise(newQueryResponse());
+                return newQueryResponse().asPromise();
             } else {
-                return newExceptionPromise(newBadRequestException("Unknown query-id"));
+                return new BadRequestException("Unknown query-id").asPromise();
             }
         } catch (NotSupportedException e) {
-            return newExceptionPromise(cast(e));
+            return e.asPromise();
         } catch (Exception ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 
@@ -194,7 +194,7 @@ public class TaskInstanceResource implements CollectionResourceProvider {
             query.taskId(resourceId);
             Task task = query.singleResult();
             if (task == null) {
-                return newExceptionPromise(newNotFoundException());
+                return new NotFoundException().asPromise();
             } else {
                 Map value = mapper.convertValue(task, HashMap.class);
                 TaskFormData data = processEngine.getFormService().getTaskFormData(task.getId());
@@ -219,10 +219,10 @@ public class TaskInstanceResource implements CollectionResourceProvider {
                 value.put(ActivitiConstants.ACTIVITI_VARIABLES, variables);
                 value.put("candidates", getCandidateIdentities(task).getObject());
 
-                return newResultPromise(newResourceResponse(task.getId(), null, new JsonValue(value)));
+                return newResourceResponse(task.getId(), null, new JsonValue(value)).asPromise();
             }
         } catch (Exception ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 
@@ -254,7 +254,7 @@ public class TaskInstanceResource implements CollectionResourceProvider {
             Authentication.setAuthenticatedUserId(context.asContext(SecurityContext.class).getAuthenticationId());
             Task task = processEngine.getTaskService().createTaskQuery().taskId(resourceId).singleResult();
             if (task == null) {
-                return newExceptionPromise(newNotFoundException());
+                return new NotFoundException().asPromise();
             } else {
                 Map value = request.getContent().expect(Map.class).asMap();
                 if (value.containsKey(ActivitiConstants.ACTIVITI_ASSIGNEE)) {
@@ -273,10 +273,10 @@ public class TaskInstanceResource implements CollectionResourceProvider {
                 processEngine.getTaskService().saveTask(task);
                 Map<String, String> result = new HashMap<String, String>(1);
                 result.put("Task updated", resourceId);
-                return newResultPromise(newResourceResponse(resourceId, null, new JsonValue(result)));
+                return newResourceResponse(resourceId, null, new JsonValue(result)).asPromise();
             }
         } catch (Exception ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 

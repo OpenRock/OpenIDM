@@ -546,11 +546,11 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             		SynchronizationService.SyncServiceAction.notifyCreate,
                     new JsonValue(null), createResponse.getContent());
 
-            return newResultPromise(prepareResponse(context, createResponse, request.getFields()));
+            return prepareResponse(context, createResponse, request.getFields()).asPromise();
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         } catch (Exception e) {
-        	return newExceptionPromise(ResourceException.newInternalServerErrorException(e.getMessage(), e));
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -568,11 +568,11 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             activityLogger.log(context, request, "read", managedId(readResponse.getId()).toString(),
                     null, readResponse.getContent(), Status.SUCCESS);
 
-            return newResultPromise(prepareResponse(context, readResponse, request.getFields()));
+            return prepareResponse(context, readResponse, request.getFields()).asPromise();
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         } catch (Exception e) {
-        	return newExceptionPromise(ResourceException.newInternalServerErrorException(e.getMessage(), e));
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -599,11 +599,11 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             activityLogger.log(context, request, "update", managedId(readResponse.getId()).toString(), 
             		readResponse.getContent(), updatedResponse.getContent(), Status.SUCCESS);
 
-            return newResultPromise(prepareResponse(context, updatedResponse, request.getFields()));
+            return prepareResponse(context, updatedResponse, request.getFields()).asPromise();
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         } catch (Exception e) {
-        	return newExceptionPromise(ResourceException.newInternalServerErrorException(e.getMessage(), e));
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -636,11 +636,11 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             performSyncAction(context, request, resourceId, SynchronizationService.SyncServiceAction.notifyDelete,
                     resource.getContent(), new JsonValue(null));
 
-            return newResultPromise(prepareResponse(context, deletedResource, request.getFields()));
+            return prepareResponse(context, deletedResource, request.getFields()).asPromise();
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         } catch (Exception e) {
-        	return newExceptionPromise(ResourceException.newInternalServerErrorException(e.getMessage(), e));
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -651,7 +651,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
         	return newResultPromise(patchResourceById(context, request, resourceId, request.getRevision(), 
             		request.getPatchOperations()));
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         }
     }
 
@@ -803,17 +803,17 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             });
         	
         	if(ex[0] != null) {
-            	return newExceptionPromise(ex[0]);
+            	return ex[0].asPromise();
         	}
         	
             activityLogger.log(context, request, 
             		"query: " + request.getQueryId() + ", parameters: " + request.getAdditionalParameters(), 
             		request.getQueryId(), null, new JsonValue(results), Status.SUCCESS);
             
-        	return newResultPromise(queryResponse);
+        	return queryResponse.asPromise();
 
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         }
     }
 
@@ -828,7 +828,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
                 case patch:
                     final List<PatchOperation> operations = PatchOperation.valueOfList(request.getContent());
                     ResourceResponse patchResponse = patchResourceById(context, request, resourceId, null, operations);
-                    return newResultPromise(newActionResponse(patchResponse.getContent()));
+                    return newActionResponse(patchResponse.getContent()).asPromise();
                 case triggerSyncCheck:
                     // Sync changes if required, in particular virtual/calculated attribute changes
                     final ReadRequest readRequest = Requests.newReadRequest(managedId(resourceId).toString());
@@ -838,17 +838,17 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
                     		currentResource.getContent());
                     ResourceResponse updateResponse = updateInstance(context, resourceId, updateRequest).get();
                     logger.debug("Sync of {} complete", readRequest.getResourcePath());
-                    return newResultPromise(Responses.newActionResponse(updateResponse.getContent()));
+                    return Responses.newActionResponse(updateResponse.getContent()).asPromise();
                 default:
                     throw new BadRequestException("Action " + request.getAction() + " is not supported.");
             }
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         } catch (IllegalArgumentException e) { 
         	// from getActionAsEnum
-        	return newExceptionPromise(ResourceException.newBadRequestException(e.getMessage(), e));
+        	return new BadRequestException(e.getMessage(), e).asPromise();
         } catch (Exception e) {
-        	return newExceptionPromise(ResourceException.newInternalServerErrorException(e.getMessage(), e));
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -869,15 +869,15 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
                     request.getResourcePath(), null, null, Status.SUCCESS);
             switch (request.getActionAsEnum(Action.class)) {
                 case patch:
-                    return newResultPromise(newActionResponse(patchAction(context, request).getContent()));
+                    return newActionResponse(patchAction(context, request).getContent()).asPromise();
                 default:
                     throw new BadRequestException("Action " + request.getAction() + " is not supported.");
             }
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         } catch (IllegalArgumentException e) { 
         	// from getActionAsEnum
-        	return newExceptionPromise(ResourceException.newBadRequestException(e.getMessage(), e));
+        	return new BadRequestException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -1078,7 +1078,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
 				details = e.getDetail();
 			} catch (Exception e) {
 				success = false;
-				details = ResourceException.newInternalServerErrorException(e.getMessage(), e).getDetail();
+				details = new InternalServerErrorException(e.getMessage(), e).getDetail();
 			}
             
             try {

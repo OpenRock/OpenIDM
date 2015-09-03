@@ -16,7 +16,7 @@
 package org.forgerock.openidm.workflow.activiti.impl;
 
 import static org.forgerock.json.resource.Router.uriTemplate;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
+import static org.forgerock.openidm.util.ResourceUtil.notSupported;
 
 import org.activiti.engine.ProcessEngine;
 import org.activiti.engine.history.HistoricProcessInstanceQuery;
@@ -35,7 +35,6 @@ import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.Router;
 import org.forgerock.json.resource.UpdateRequest;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.util.Function;
 import org.forgerock.util.promise.NeverThrowsException;
 import org.forgerock.util.promise.Promise;
@@ -71,61 +70,37 @@ public class ActivitiResource implements RequestHandler {
 
     @Override
     public Promise<ActionResponse, ResourceException> handleAction(Context context, ActionRequest request) {
-        try {
-            return resources.handleAction(context, request);
-        } catch (Exception ex) {
-            return newExceptionPromise(ResourceUtil.adapt(ex));
-        }
+        return resources.handleAction(context, request);
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handleCreate(Context context, CreateRequest request) {
-        try {
-            return resources.handleCreate(context, request);
-        } catch (Exception ex) {
-            return newExceptionPromise(ResourceUtil.adapt(ex));
-        }
+        return resources.handleCreate(context, request);
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handleDelete(Context context, DeleteRequest request) {
-        try {
-            return resources.handleDelete(context, request);
-        } catch (Exception ex) {
-            return newExceptionPromise(ResourceUtil.adapt(ex));
-        }
+        return resources.handleDelete(context, request);
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
     public Promise<QueryResponse, ResourceException> handleQuery(
             Context context, QueryRequest request, QueryResourceHandler handler) {
-        try {
-            return resources.handleQuery(context, request, handler);
-        } catch (Exception ex) {
-            return newExceptionPromise(ResourceUtil.adapt(ex));
-        }
+        return resources.handleQuery(context, request, handler);
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
-        try {
-            return resources.handleRead(context, request);
-        } catch (Exception ex) {
-            return newExceptionPromise(ResourceUtil.adapt(ex));
-        }
+        return resources.handleRead(context, request);
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, UpdateRequest request) {
-        try {
-            return resources.handleUpdate(context, request);
-        } catch (Exception ex) {
-            return newExceptionPromise(ResourceUtil.adapt(ex));
-        }
+        return resources.handleUpdate(context, request);
     }
 }

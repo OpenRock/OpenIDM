@@ -1,36 +1,26 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright 2011-2015 ForgeRock AS. All Rights Reserved
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 package org.forgerock.openidm.provisioner.openicf.impl;
 
 import static org.forgerock.json.JsonValue.array;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
-import static org.forgerock.json.resource.ResourceException.*;
 import static org.forgerock.json.resource.Responses.newActionResponse;
 import static org.forgerock.json.resource.Responses.newQueryResponse;
 import static org.forgerock.json.resource.Responses.newResourceResponse;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
 import static org.forgerock.util.promise.Promises.newResultPromise;
 import static org.identityconnectors.framework.common.objects.filter.FilterBuilder.and;
 import static org.identityconnectors.framework.common.objects.filter.FilterBuilder.contains;
@@ -116,7 +106,6 @@ import org.forgerock.openidm.audit.util.NullActivityLogger;
 import org.forgerock.openidm.audit.util.RouterActivityLogger;
 import org.forgerock.openidm.audit.util.Status;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
-import org.forgerock.openidm.config.enhanced.InvalidException;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.crypto.CryptoService;
 import org.forgerock.openidm.provisioner.ProvisionerService;
@@ -129,14 +118,12 @@ import org.forgerock.openidm.provisioner.openicf.commons.AttributeMissingExcepti
 import org.forgerock.openidm.provisioner.openicf.commons.ConnectorUtil;
 import org.forgerock.openidm.provisioner.openicf.commons.ObjectClassInfoHelper;
 import org.forgerock.openidm.provisioner.openicf.commons.OperationOptionInfoHelper;
-import org.forgerock.openidm.provisioner.openicf.internal.ConnectorFacadeCallback;
 import org.forgerock.openidm.provisioner.openicf.internal.SystemAction;
 import org.forgerock.openidm.provisioner.openicf.syncfailure.SyncFailureHandler;
 import org.forgerock.openidm.provisioner.openicf.syncfailure.SyncFailureHandlerFactory;
 import org.forgerock.openidm.provisioner.openicf.syncfailure.SyncHandlerException;
 import org.forgerock.openidm.router.RouteBuilder;
 import org.forgerock.openidm.router.RouteEntry;
-import org.forgerock.openidm.router.RouteService;
 import org.forgerock.openidm.router.RouterRegistry;
 import org.forgerock.openidm.smartevent.EventEntry;
 import org.forgerock.openidm.smartevent.Publisher;
@@ -238,7 +225,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
 
     private SimpleSystemIdentifier systemIdentifier = null;
     private OperationHelperBuilder operationHelperBuilder = null;
-    private ConnectorFacadeCallback connectorFacadeCallback = null;
+    private Promise<ConnectorInfo, RuntimeException> connectorFacadeCallback = null;
     private boolean serviceAvailable = false;
     private JsonValue jsonConfiguration = null;
     private ConnectorReference connectorReference = null;
@@ -290,21 +277,6 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
         this.connectionFactory = null;
         // ConnectionFactory has gone away, use null activity logger
         this.activityLogger = NullActivityLogger.INSTANCE;
-    }
-
-    // TODO-crest3 routerContext is a bad name
-    @Reference(target = "(" + ServerConstants.ROUTER_PREFIX + "=/*)")
-    RouteService routeService;
-    Context routerContext = null;
-
-    protected void bindRouteService(final RouteService service) throws ResourceException {
-        routeService = service;
-        routerContext = service.createServerContext();
-    }
-
-    private void unbindRouteService(final RouteService service) {
-        routeService = null;
-        routerContext = null;
     }
 
     /**
@@ -361,104 +333,75 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
             connectorReference = ConnectorUtil.getConnectorReference(jsonConfiguration);
 
             syncFailureHandler = syncFailureHandlerFactory.create(jsonConfiguration.get("syncFailureHandler"));
+            
+            connectorInfoProvider.findConnectorInfoAsync(connectorReference).thenOnResult(
+                    new org.forgerock.util.promise.ResultHandler<ConnectorInfo>() {
+                        public void handleResult(ConnectorInfo connectorInfo) {
+                            try {
+                                APIConfiguration config = connectorInfo.createDefaultAPIConfiguration();
+                                operationHelperBuilder =
+                                        new OperationHelperBuilder(systemIdentifier.getName(), jsonConfiguration,
+                                                config, cryptoService);
+                                try {
+                                    Map<String, Map<Class<? extends APIOperation>, OperationOptionInfoHelper>> objectOperations =
+                                            ConnectorUtil.getOperationOptionConfiguration(jsonConfiguration);
 
-            if (connectorInfoProvider.findConnectorInfo(connectorReference) == null) {
-                if (connectorReference.getConnectorLocation().isLocal()) {
-                    // Not possible to satisfy the connector reference, bail out
-                    throw new InvalidException("Connector not found: " + connectorReference.getConnectorKey());
-                } else {
-                    // Connector may become available later
-                    logger.warn("Remote OpenICF Connector {} could not be located, may not yet be connected to " +
-                            "the remote connector server.", connectorReference);
-                }
-            }
+                                    objectTypes = ConnectorUtil.getObjectTypes(jsonConfiguration);
 
-            connectorFacadeCallback = new ConnectorFacadeCallback() {
-                @Override
-                public void addingConnectorInfo(ConnectorInfo connectorInfo,
-                                                ConnectorFacadeFactory facadeFactory) {
-                    try {
-                        APIConfiguration config = connectorInfo.createDefaultAPIConfiguration();
-                        operationHelperBuilder = new OperationHelperBuilder(systemIdentifier.getName(), jsonConfiguration,
-                                config, cryptoService);
-                        try {
-                            // TODO Iterate over the supported type and register
-                            boolean allowModification = !jsonConfiguration.get("readOnly").defaultTo(false).asBoolean();
-                            if (!allowModification) {
-                                logger.debug("OpenICF Provisioner Service {} is running in read-only mode", systemIdentifier.getName());
-                            }
+                                    for (Map.Entry<String, ObjectClassInfoHelper> entry :
+                                            objectTypes.entrySet()) {
 
-                            Map<String, Map<Class<? extends APIOperation>, OperationOptionInfoHelper>> objectOperations =
-                                    ConnectorUtil.getOperationOptionConfiguration(jsonConfiguration);
-
-                            objectTypes = ConnectorUtil.getObjectTypes(jsonConfiguration);
-
-                            for (Map.Entry<String, ObjectClassInfoHelper> entry :
-                                    objectTypes.entrySet()) {
-
-                                objectClassHandlers.put(entry.getKey(),
-                                        Resources.newCollection(
-                                                new ObjectClassResourceProvider(
-                                                        entry.getKey(),
-                                                        entry.getValue(),
-                                                        objectOperations.get(entry.getKey()),
-                                                        allowModification)));
-                            }
-
-                            // TODO Fix this Map
-                            // ValidateApiOp
-                            // TestApiOp
-                            // ScriptOnConnectorApiOp
-                            // ScriptOnResourceApiOp
-                            // SchemaApiOp
-                            systemOperations = Collections.emptyMap();
-                        } catch (Exception e) {
-                            logger.error("OpenICF connector jsonConfiguration of {} has errors.", systemIdentifier.getName(), e);
-                            throw new ComponentException(
-                                    "OpenICF connector jsonConfiguration has errors and the service can not be initiated.", e);
-                        }
-
-                        ConnectorUtil.configureDefaultAPIConfiguration(jsonConfiguration, config, cryptoService);
-
-                        final ConnectorFacade facade = facadeFactory.newInstance(config);
-
-                        if (null == facade) {
-                            logger.warn("OpenICF ConnectorFacade of {} is not available", connectorReference);
-                        } else {
-                            facade.validate();
-                            if (connectorFacade.compareAndSet(null, facade)) {
-                                if (facade.getSupportedOperations().contains(TestApiOp.class)) {
-                                    try {
-                                        facade.test();
-                                        logger.debug("OpenICF connector test of {} succeeded!", systemIdentifier);
-                                        serviceAvailable = true;
-                                    } catch (Exception e) {
-                                        logger.error("OpenICF connector test of {} failed!", systemIdentifier, e);
+                                        objectClassHandlers.put(entry.getKey(),
+                                                Resources.newCollection(
+                                                        new ObjectClassResourceProvider(
+                                                                entry.getKey(),
+                                                                entry.getValue(),
+                                                                objectOperations.get(entry.getKey()))));
                                     }
-                                } else {
-                                    logger.debug("OpenICF connector of {} does not support test.", connectorReference);
-                                    serviceAvailable = true;
+
+                                    // TODO Fix this Map
+                                    // ValidateApiOp
+                                    // TestApiOp
+                                    // ScriptOnConnectorApiOp
+                                    // ScriptOnResourceApiOp
+                                    // SchemaApiOp
+                                    systemOperations = Collections.emptyMap();
+                                } catch (Exception e) {
+                                    logger.error("OpenICF connector jsonConfiguration of {} has errors.", systemIdentifier.getName(), e);
+                                    throw new ComponentException(
+                                            "OpenICF connector jsonConfiguration has errors and the service can not be initiated.", e);
                                 }
+
+                                ConnectorUtil.configureDefaultAPIConfiguration(jsonConfiguration, config, cryptoService);
+
+                                final ConnectorFacade facade = connectorInfoProvider.createConnectorFacade(config);
+
+                                if (null == facade) {
+                                    logger.warn("OpenICF ConnectorFacade of {} is not available", connectorReference);
+                                } else {
+                                    facade.validate();
+                                    if (connectorFacade.compareAndSet(null, facade)) {
+                                        if (facade.getSupportedOperations().contains(TestApiOp.class)) {
+                                            try {
+                                                facade.test();
+                                                logger.debug("OpenICF connector test of {} succeeded!", systemIdentifier);
+                                                serviceAvailable = true;
+                                            } catch (Exception e) {
+                                                logger.error("OpenICF connector test of {} failed!", systemIdentifier, e);
+                                            }
+                                        } else {
+                                            logger.debug("OpenICF connector of {} does not support test.", connectorReference);
+                                            serviceAvailable = true;
+                                        }
+                                    }
+                                }
+                                logger.info("OpenICF Provisioner Service component {} is activated.",
+                                        systemIdentifier.getName());
+                            } catch (Throwable t) {
+                                logger.warn(t.getMessage());
                             }
                         }
-                    } catch (Throwable t) {
-                        logger.warn(t.getMessage());
-                    } finally {
-                        logger.info("OpenICF Provisioner Service component {} is activated{}",
-                                systemIdentifier.getName(),
-                                (null != connectorFacade.get()
-                                        ? "."
-                                        : " although the service is not available yet."));
-                    }
-                }
-
-                @Override
-                public void removedConnectorInfo(ConnectorInfo connectorInfo) {
-                    connectorFacade.set(null);
-                }
-            };
-
-            connectorInfoProvider.addConnectorFacadeCallback(connectorReference, connectorFacadeCallback);
+                    });
 
             routeEntry = routerRegistry.addRoute(RouteBuilder.newBuilder()
                     .withTemplate(ProvisionerService.ROUTER_PREFIX + "/" + systemIdentifier.getName())
@@ -469,7 +412,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                     .withRequestHandler(new ObjectClassRequestHandler())
                     .seal());
 
-            logger.info("OpenICF Provisioner Service component {} is activated{}", systemIdentifier.getName(),
+            logger.info("OpenICF Provisioner Service component {} route enabled{}", systemIdentifier.getName(),
                     (null != connectorFacade.get()
                             ? "."
                             : " although the service is not available yet."));
@@ -482,7 +425,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
     @Deactivate
     protected void deactivate(ComponentContext context) {
         if (null != connectorFacadeCallback) {
-            connectorInfoProvider.deleteConnectorFacadeCallback(connectorFacadeCallback);
+            connectorFacadeCallback.cancel(false);
             connectorFacadeCallback = null;
         }
         if (null != routeEntry) {
@@ -780,7 +723,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
 
     @Override
     public Promise<ResourceResponse, ResourceException> readInstance(Context context, ReadRequest request) {
-        return newExceptionPromise(newNotSupportedException("Read operations are not supported"));
+        return new NotSupportedException("Read operations are not supported").asPromise();
     }
 
     @Override
@@ -795,44 +738,41 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 case livesync:
                     return handleLiveSyncAction(context, request);
                 default:
-                    return newExceptionPromise(newBadRequestException("Unsupported action: " + request.getAction()));
+                    return new BadRequestException("Unsupported action: " + request.getAction()).asPromise();
             }
-        } catch (ResourceException e) {
-            return newExceptionPromise(e);
         } catch (ConnectorException e) {
-             return newExceptionPromise(adaptConnectorException(context, request, e, null,
-                     request.getResourcePath(), null, null, activityLogger));
+             return adaptConnectorException(context, request, e, null, request.getResourcePath(), null, null,
+                     activityLogger)
+                     .asPromise();
         } catch (JsonValueException e) {
-            return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+            return new BadRequestException(e.getMessage(), e).asPromise();
         } catch (IllegalArgumentException e) {
             // from request.getActionAsEnum
-            return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+            return new BadRequestException(e.getMessage(), e).asPromise();
         } catch (Exception e) {
-            return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> patchInstance(Context context, PatchRequest request) {
-        return newExceptionPromise(newNotSupportedException("Patch operations are not supported"));
+        return new NotSupportedException("Patch operations are not supported").asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> updateInstance(Context context, UpdateRequest request) {
-        return newExceptionPromise(newNotSupportedException("Update operations are not supported"));
+        return new NotSupportedException("Update operations are not supported").asPromise();
     }
 
-    private Promise<ActionResponse, ResourceException> handleScriptAction(final ActionRequest request)
-            throws ResourceException {
+    private Promise<ActionResponse, ResourceException> handleScriptAction(final ActionRequest request) {
         try {
             final String scriptId = request.getAdditionalParameter(SystemAction.SCRIPT_ID);
             if (StringUtils.isBlank(scriptId)) {
-                return newExceptionPromise(newBadRequestException("Missing required parameter: "
-                        + SystemAction.SCRIPT_ID));
+                return new BadRequestException("Missing required parameter: " + SystemAction.SCRIPT_ID).asPromise();
             }
 
             if (!localSystemActionCache.containsKey(scriptId)) {
-                return newExceptionPromise(newBadRequestException("Script ID: " + scriptId + " is not defined."));
+                return new BadRequestException("Script ID: " + scriptId + " is not defined.").asPromise();
             }
 
             SystemAction action = localSystemActionCache.get(scriptId);
@@ -841,8 +781,9 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
             final List<ScriptContextBuilder> scriptContextBuilderList = action.getScriptContextBuilders(systemType);
 
             if (scriptContextBuilderList.isEmpty()) {
-                return newExceptionPromise(newBadRequestException("Script ID: " + scriptId +
-                        " for systemType " + systemType + " is not defined."));
+                return new BadRequestException("Script ID: " + scriptId + " for systemType " + systemType
+                        + " is not defined.")
+                        .asPromise();
             }
 
             JsonValue result = new JsonValue(new HashMap<String, Object>());
@@ -874,22 +815,22 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                             if (value instanceof String) {
                                 newValue = new GuardedString(((String) value).toCharArray());
                             } else {
-                                return newExceptionPromise(newBadRequestException("Invalid type for password."));
+                                return new BadRequestException("Invalid type for password.").asPromise();
                             }
                         }
                         if ("username".equalsIgnoreCase(key)) {
                             if (value instanceof String == false) {
-                                return newExceptionPromise(newBadRequestException("Invalid type for username."));
+                                return new BadRequestException("Invalid type for username.").asPromise();
                             }
                         }
                         if ("workingdir".equalsIgnoreCase(key)) {
                             if (value instanceof String == false) {
-                                return newExceptionPromise(newBadRequestException("Invalid type for workingdir."));
+                                return new BadRequestException("Invalid type for workingdir.").asPromise();
                             }
                         }
                         if ("timeout".equalsIgnoreCase(key)) {
                             if (!(value instanceof String) && !(value instanceof Number)) {
-                                return newExceptionPromise(newBadRequestException("Invalid type for timeout."));
+                                return new BadRequestException("Invalid type for timeout.").asPromise();
                             }
                         }
                         contextBuilder.addScriptArgument(key, newValue);
@@ -930,7 +871,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                         contextBuilder.addScriptArgument(entry.getKey(), entry.getValue());
                     }
                 } else if (!content.isNull()) {
-                    return newExceptionPromise(newBadRequestException("Content is not of type Map"));
+                    return new BadRequestException("Content is not of type Map").asPromise();
                 }
 
                 // ScriptContext scriptContext = script.getScriptContextBuilder().build();
@@ -958,31 +899,35 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 }
                 resultList.add(actionResult);
             }
-            return newResultPromise(newActionResponse(result));
+            return newActionResponse(result).asPromise();
         } catch (ResourceException e) {
-            return newExceptionPromise(e);
+            return e.asPromise();
         } catch (Exception e) {
-            return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
     private Promise<ActionResponse, ResourceException> handleTestAction(Context context, ActionRequest request) {
-        return newResultPromise(newActionResponse(new JsonValue(getStatus(context))));
+        return newActionResponse(new JsonValue(getStatus(context))).asPromise();
     }
 
     private Promise<ActionResponse, ResourceException> handleLiveSyncAction(
-            final Context context, final ActionRequest request) throws ResourceException {
+            final Context context, final ActionRequest request) {
 
         final String objectTypeName = getObjectTypeName(ObjectClass.ALL);
 
         if (objectTypeName == null) {
-            throw new BadRequestException("__ALL__ object class is not configured");
+            return new BadRequestException("__ALL__ object class is not configured").asPromise();
         }
 
         final ActionRequest forwardRequest = Requests.newActionRequest(getSource(objectTypeName), request.getAction());
 
         // forward request to be handled in ObjectClassResourceProvider#actionCollection
-        return newResultPromise(connectionFactory.getConnection().action(context, forwardRequest));
+        try {
+            return connectionFactory.getConnection().action(context, forwardRequest).asPromise();
+        } catch (ResourceException e) {
+            return e.asPromise();
+        }
     }
 
     /**
@@ -1036,12 +981,12 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 if (null != delegate) {
                     return delegate.handleAction(context, request);
                 } else {
-                    return newExceptionPromise(newNotFoundException("Not found: " + objectClass));
+                    throw new NotFoundException("Not found: " + objectClass);
                 }
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1052,12 +997,12 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 if (null != delegate) {
                     return delegate.handleCreate(context, request);
                 } else {
-                    return newExceptionPromise(newNotFoundException("Not found: " + objectClass));
+                    throw new NotFoundException("Not found: " + objectClass);
                 }
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1068,12 +1013,12 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 if (null != delegate) {
                     return delegate.handleDelete(context, request);
                 } else {
-                    return newExceptionPromise(newNotFoundException("Not found: " + objectClass));
+                    throw new NotFoundException("Not found: " + objectClass);
                 }
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1084,12 +1029,12 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 if (null != delegate) {
                     return delegate.handlePatch(context, request);
                 } else {
-                    return newExceptionPromise(newNotFoundException("Not found: " + objectClass));
+                    throw new NotFoundException("Not found: " + objectClass);
                 }
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1101,12 +1046,12 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 if (null != delegate) {
                     return delegate.handleQuery(context, request, handler);
                 } else {
-                    return newExceptionPromise(newNotFoundException("Not found: " + objectClass));
+                    throw new NotFoundException("Not found: " + objectClass);
                 }
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1117,12 +1062,12 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 if (null != delegate) {
                     return delegate.handleRead(context, request);
                 } else {
-                    return newExceptionPromise(newNotFoundException("Not found: " + objectClass));
+                    throw new NotFoundException("Not found: " + objectClass);
                 }
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1133,12 +1078,12 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 if (null != delegate) {
                     return delegate.handleUpdate(context, request);
                 } else {
-                    return newExceptionPromise(newNotFoundException("Not found: " + objectClass));
+                    throw new NotFoundException("Not found: " + objectClass);
                 }
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
     }
@@ -1159,15 +1104,12 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
 
         private final ObjectClassInfoHelper objectClassInfoHelper;
         private final Map<Class<? extends APIOperation>, OperationOptionInfoHelper> operations;
-        private final boolean allowModification;
         private final String objectClass;
 
         private ObjectClassResourceProvider(String objectClass, ObjectClassInfoHelper objectClassInfoHelper,
-                Map<Class<? extends APIOperation>, OperationOptionInfoHelper> operations,
-                boolean allowModification) {
+                Map<Class<? extends APIOperation>, OperationOptionInfoHelper> operations) {
             this.objectClassInfoHelper = objectClassInfoHelper;
             this.operations = operations;
-            this.allowModification = allowModification;
             this.objectClass = objectClass;
         }
 
@@ -1216,17 +1158,16 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                     case liveSync:
                         return handleLiveSync(context, request);
                     default:
-                        return newExceptionPromise(
-                                newBadRequestException("Unsupported action: " + request.getAction()));
+                        throw new BadRequestException("Unsupported action: " + request.getAction());
                 }
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (JsonValueException e) {
-                return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+                return new BadRequestException(e.getMessage(), e).asPromise();
             } catch (IllegalArgumentException e) { // from request.getActionAsEnum
-                return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+                return new BadRequestException(e.getMessage(), e).asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1251,13 +1192,13 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 if (null != uid.getRevision()) {
                     result.put(ResourceResponse.FIELD_CONTENT_REVISION, uid.getRevision());
                 }
-                return newResultPromise(newActionResponse(result));
+                return newActionResponse(result).asPromise();
             } catch (ConnectorException e) {
                 // handle ConnectorException from facade.authenticate:
                 // log to activity log only if this is an external request
                 // (let internal requests do their own logging upon the handleError...)
-                return newExceptionPromise(adaptConnectorException(context, request, e, null, null, null, null,
-                        ContextUtil.isExternal(context) ? activityLogger : NullActivityLogger.INSTANCE));
+                throw adaptConnectorException(context, request, e, null, null, null, null,
+                        ContextUtil.isExternal(context) ? activityLogger : NullActivityLogger.INSTANCE);
             }
         }
 
@@ -1268,14 +1209,14 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                             .setAdditionalParameter("source", getSource(objectClass));
 
             // forward request to be handled in SystemObjectSetService#actionInstance
-            return newResultPromise(connectionFactory.getConnection().action(context, forwardRequest));
+            return connectionFactory.getConnection().action(context, forwardRequest).asPromise();
 
         }
 
         @Override
         public Promise<ActionResponse, ResourceException> actionInstance(
                 Context context, String resourceId, ActionRequest request) {
-            return newExceptionPromise(newNotSupportedException("Actions are not supported for resource instances"));
+            return new NotSupportedException("Actions are not supported for resource instances").asPromise();
         }
 
         @Override
@@ -1295,17 +1236,17 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ResourceResponse resource = getCurrentResource(facade, uid, null);
                 activityLogger.log(context, request, "message", getSource(objectClass, uid.getUidValue()),
                         null, resource.getContent(), Status.SUCCESS);
-                return newResultPromise(resource);
+                return resource.asPromise();
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (ConnectorException e) {
-                return newExceptionPromise(adaptConnectorException(context, request, e, getSource(objectClass),
-                        objectClassInfoHelper
-                                .getCreateResourceId(request), request.getContent(), null, activityLogger));
+                return adaptConnectorException(context, request, e, getSource(objectClass),
+                        objectClassInfoHelper.getCreateResourceId(request), request.getContent(), null, activityLogger)
+                        .asPromise();
             } catch (JsonValueException e) {
-                return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+                return new BadRequestException(e.getMessage(), e).asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1334,16 +1275,17 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 }
                 activityLogger.log(context, request, "message", getSource(objectClass,
                         uid.getUidValue()), before.getContent(), null, Status.SUCCESS);
-                return newResultPromise(newResourceResponse(uid.getUidValue(), uid.getRevision(), result));
+                return newResourceResponse(uid.getUidValue(), uid.getRevision(), result).asPromise();
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (ConnectorException e) {
-                return newExceptionPromise(adaptConnectorException(context, request, e,
-                        getSource(objectClass), resourceId, null, null, activityLogger));
+                return adaptConnectorException(context, request, e,
+                        getSource(objectClass), resourceId, null, null, activityLogger)
+                        .asPromise();
             } catch (JsonValueException e) {
-                return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+                return new BadRequestException(e.getMessage(), e).asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1422,16 +1364,17 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ResourceResponse resource = getCurrentResource(facade, uid, null);
                 activityLogger.log(context, request, "message", getSource(objectClass, uid.getUidValue()),
                         beforeValue, resource.getContent(), Status.SUCCESS);
-                return newResultPromise(resource);
+                return resource.asPromise();
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (ConnectorException e) {
-                return newExceptionPromise(adaptConnectorException(context, request, e, getSource(objectClass),
-                        resourceId, beforeValue, null, activityLogger));
+                return adaptConnectorException(context, request, e, getSource(objectClass),
+                        resourceId, beforeValue, null, activityLogger)
+                        .asPromise();
             } catch (JsonValueException e) {
-                return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+                return new BadRequestException(e.getMessage(), e).asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1490,7 +1433,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 }
 
                 final JsonValue logValue = json(array());
-                final Exception[] ex = new Exception[]{null};
+                final Exception[] ex = new Exception[] { null };
                 SearchResult searchResult = facade.search(objectClassInfoHelper.getObjectClass(), filter,
                         new ResultsHandler() {
                             @Override
@@ -1501,13 +1444,13 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                                     return handler.handleResource(resource);
                                 } catch (Exception e) {
                                     ex[0] = e;
-                                    // TODO-crest3 handle error
+                                    // TODO ICF needs a way to handle exceptions through the facade
                                     return false;
                                 }
                             }
                         }, operationOptionsBuilder.build());
-                if(ex[0] != null) {
-                    return newExceptionPromise(newInternalServerErrorException(ex[0].getMessage(), ex[0]));
+                if (ex[0] != null) {
+                    throw new InternalServerErrorException(ex[0].getMessage(), ex[0]);
                 }
                 activityLogger.log(context, request,
                         "query: " + request.getQueryId()
@@ -1520,18 +1463,17 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 return newResultPromise(
                         newQueryResponse(searchResult != null ? searchResult.getPagedResultsCookie() : null));
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (ConnectorException e) {
-                return newExceptionPromise(
-                        adaptConnectorException(context, request, e, null, null, null, null, activityLogger));
+                return adaptConnectorException(context, request, e, null, null, null, null, activityLogger).asPromise();
             } catch (JsonValueException e) {
-                return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+                return new BadRequestException(e.getMessage(), e).asPromise();
             } catch (AttributeMissingException e) {
-                return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+                return new BadRequestException(e.getMessage(), e).asPromise();
             } catch (IllegalArgumentException e) {
-                return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+                return new BadRequestException(e.getMessage(), e).asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             } finally {
                 measure.end();
             }
@@ -1549,24 +1491,24 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                     ResourceResponse resource = objectClassInfoHelper.build(connectorObject, cryptoService);
                     activityLogger.log(context, request, "message", getSource(objectClass, uid.getUidValue()),
                             resource.getContent(), resource.getContent(), Status.SUCCESS);
-                    return newResultPromise(resource);
+                    return resource.asPromise();
                 } else {
                     final String matchedUri = context.containsContext(UriRouterContext.class)
                             ? context.asContext(UriRouterContext.class).getMatchedUri()
                             : "unknown path";
-                    return newExceptionPromise(
-                            newNotFoundException("Object " + resourceId + " not found on " + matchedUri));
+                    throw new NotFoundException("Object " + resourceId + " not found on " + matchedUri);
 
                 }
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (ConnectorException e) {
-                return newExceptionPromise(adaptConnectorException(context, request, e,
-                        getSource(objectClass), resourceId, null, null, activityLogger));
+                return adaptConnectorException(context, request, e,
+                        getSource(objectClass), resourceId, null, null, activityLogger)
+                        .asPromise();
             } catch (JsonValueException e) {
-                return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+                return new BadRequestException(e.getMessage(), e).asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1586,8 +1528,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 // TODO Fix for http://bugster.forgerock.org/jira/browse/CREST-29
                 final Name newName = null;
                 final Set<Attribute> replaceAttributes =
-                        objectClassInfoHelper.getUpdateAttributes(request, newName,
-                                cryptoService);
+                        objectClassInfoHelper.getUpdateAttributes(request, newName, cryptoService);
 
                 OperationOptions operationOptions;
                 OperationOptionsBuilder operationOptionsBuilder = operations.get(UpdateApiOp.class)
@@ -1618,16 +1559,17 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                 ResourceResponse resource = getCurrentResource(facade, uid, null);
                 activityLogger.log(context, request, "message", getSource(objectClass, uid.getUidValue()),
                         before.getContent(), resource.getContent(), Status.SUCCESS);
-                return newResultPromise(resource);
+                return resource.asPromise();
             } catch (ResourceException e) {
-                return newExceptionPromise(e);
+                return e.asPromise();
             } catch (ConnectorException e) {
-                return newExceptionPromise(adaptConnectorException(context, request, e, getSource(objectClass),
-                        resourceId, content, null, activityLogger));
+                return adaptConnectorException(context, request, e, getSource(objectClass),
+                        resourceId, content, null, activityLogger)
+                        .asPromise();
             } catch (JsonValueException e) {
-                return newExceptionPromise(newBadRequestException(e.getMessage(), e));
+                return new BadRequestException(e.getMessage(), e).asPromise();
             } catch (Exception e) {
-                return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+                return new InternalServerErrorException(e.getMessage(), e).asPromise();
             }
         }
 
@@ -1635,7 +1577,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
         private String getReauthPassword(Context context) {
             try {
                 // get reauth password
-                return  context.asContext(HttpContext.class).getHeaderAsString(REAUTH_HEADER);
+                return context.asContext(HttpContext.class).getHeaderAsString(REAUTH_HEADER);
             } catch (Exception e) {
                 // there will not always be a HttpContext and this is acceptable so catch exception to
                 // prevent the exception from  stopping the remaining update
@@ -1744,22 +1686,22 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
 
         @Override
         public Promise<ResourceResponse, ResourceException> readInstance(Context context, ReadRequest request) {
-            return newResultPromise(schema);
+            return schema.asPromise();
         }
 
         @Override
         public Promise<ActionResponse, ResourceException> actionInstance(Context context, ActionRequest request) {
-            return newExceptionPromise(newNotSupportedException("Actions are not supported for resource instances"));
+            return new NotSupportedException("Actions are not supported for resource instances").asPromise();
         }
 
         @Override
         public Promise<ResourceResponse, ResourceException> patchInstance(Context context, PatchRequest request) {
-            return newExceptionPromise(newNotSupportedException("Patch operations are not supported"));
+            return new NotSupportedException("Patch operations are not supported").asPromise();
         }
 
         @Override
         public Promise<ResourceResponse, ResourceException> updateInstance(Context context, UpdateRequest request) {
-            return newExceptionPromise(newNotSupportedException("Update operations are not supported"));
+            return new NotSupportedException("Update operations are not supported").asPromise();
         }
     }
     
@@ -2173,6 +2115,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
      * The {@code previousStage} object is the previously returned value of this
      * method.
      *
+     * @param context the request context associated with the invocation
      * @param previousStage
      *            The previously returned object. If null then it's the first
      *            execution.
@@ -2189,7 +2132,8 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
      * @see {@link ConnectorUtil#convertToSyncToken(org.forgerock.json.JsonValue)}
      *      or any exception happed inside the connector.
      */
-    public JsonValue liveSynchronize(final String objectType, final JsonValue previousStage) throws ResourceException {
+    public JsonValue liveSynchronize(final Context context, final String objectType, final JsonValue previousStage)
+            throws ResourceException {
 
         if (!serviceAvailable) {
             return previousStage;
@@ -2272,9 +2216,9 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                                                             .setAdditionalParameter("resourceContainer", resourceContainer)
                                                             .setAdditionalParameter("resourceId", resourceId)
                                                             .setContent(content);
-                                                    connectionFactory.getConnection().action(routerContext, onCreateRequest);
+                                                    connectionFactory.getConnection().action(context, onCreateRequest);
 
-                                                    activityLogger.log(routerContext, onCreateRequest,
+                                                    activityLogger.log(context, onCreateRequest,
                                                                     "sync-create", onCreateRequest.getResourcePath(),
                                                                     deltaObject, deltaObject, Status.SUCCESS);
                                                     break;
@@ -2292,9 +2236,9 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                                                             .setAdditionalParameter("resourceContainer", resourceContainer)
                                                             .setAdditionalParameter("resourceId", resourceId)
                                                             .setContent(content);
-                                                    connectionFactory.getConnection().action(routerContext, onUpdateRequest);
+                                                    connectionFactory.getConnection().action(context, onUpdateRequest);
 
-                                                    activityLogger.log(routerContext, onUpdateRequest,
+                                                    activityLogger.log(context, onUpdateRequest,
                                                             "sync-update", onUpdateRequest.getResourcePath(),
                                                             deltaObject, deltaObject, Status.SUCCESS);
                                                     break;
@@ -2307,9 +2251,9 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                                                             .setAdditionalParameter("resourceContainer", resourceContainer)
                                                             .setAdditionalParameter("resourceId", resourceId)
                                                             .setContent(content);
-                                                    connectionFactory.getConnection().action(routerContext, onDeleteRequest);
+                                                    connectionFactory.getConnection().action(context, onDeleteRequest);
 
-                                                    activityLogger.log(routerContext, onDeleteRequest,
+                                                    activityLogger.log(context, onDeleteRequest,
                                                             "sync-delete", onDeleteRequest.getResourcePath(),
                                                             null, null, Status.SUCCESS);
                                                     break;
@@ -2325,7 +2269,7 @@ public class OpenICFProvisionerService implements ProvisionerService, SingletonR
                                             syncFailureMap.put("uid", syncDelta.getUid().getUidValue());
                                             syncFailureMap.put("failedRecord", failedRecord[0]);
                                             try {
-                                                syncFailureHandler.invoke(syncFailureMap, e);
+                                                syncFailureHandler.invoke(context, syncFailureMap, e);
                                             } catch (SyncHandlerException syncHandlerException) {
                                                 // Current contract of the failure handler is that throwing this exception indicates 
                                                 // that it should retry for this entry

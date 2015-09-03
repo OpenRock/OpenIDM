@@ -26,7 +26,7 @@ package org.forgerock.openidm.cluster;
 
 import static org.forgerock.json.JsonValue.*;
 import static org.forgerock.json.resource.Responses.*;
-import static org.forgerock.util.promise.Promises.*;
+import static org.forgerock.openidm.util.ResourceUtil.notSupported;
 
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -71,7 +71,6 @@ import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.repo.RepositoryService;
 import org.forgerock.openidm.util.DateUtil;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.util.promise.Promise;
 import org.osgi.framework.Constants;
 import org.osgi.service.component.ComponentContext;
@@ -265,41 +264,37 @@ public class ClusterManager implements RequestHandler, ClusterManagementService 
     @Override
     public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
         try {
-            try {
-                Map<String, Object> resultMap = new HashMap<String, Object>();
-                String resourcePath = request.getResourcePath();
-                logger.debug("Resource Name: " + request.getResourcePath()); 
-                JsonValue result = null; 
-                if (resourcePath.isEmpty()) {
-                    // Return a list of all nodes in the cluster
-                    QueryRequest queryRequest = Requests.newQueryRequest(REPO_RESOURCE_CONTAINER.toString());
-                    queryRequest.setQueryId(QUERY_INSTANCES);
-                    queryRequest.setAdditionalParameter("fields", "*");
-                    logger.debug("Attempt query {}", QUERY_INSTANCES);
-                    final List<Object> list = new ArrayList<Object>();
-                    connectionFactory.getConnection().query(context, queryRequest, new QueryResourceHandler() {
-                    	
-						@Override
-						public boolean handleResource(ResourceResponse resource) {
-                            list.add(getInstanceMap(resource.getContent()));
-                            return true;
-						}
-						
-                    });
-                    resultMap.put("results", list);
-                    result = new JsonValue(resultMap);
-                } else {
-                    logger.debug("Attempting to read instance {} from the database", resourcePath);
-                    ReadRequest readRequest = Requests.newReadRequest(REPO_RESOURCE_CONTAINER.child(resourcePath).toString());
-                    ResourceResponse instanceValue = connectionFactory.getConnection().read(context, readRequest);
-                    result = new JsonValue(getInstanceMap(instanceValue.getContent()));
-                }
-                return newResultPromise(newResourceResponse(request.getResourcePath(), null, result));
-            } catch (ResourceException e) {
-                return newExceptionPromise(e);
+            Map<String, Object> resultMap = new HashMap<String, Object>();
+            String resourcePath = request.getResourcePath();
+            logger.debug("Resource Name: " + request.getResourcePath());
+            JsonValue result = null;
+            if (resourcePath.isEmpty()) {
+                // Return a list of all nodes in the cluster
+                QueryRequest queryRequest = Requests.newQueryRequest(REPO_RESOURCE_CONTAINER.toString());
+                queryRequest.setQueryId(QUERY_INSTANCES);
+                queryRequest.setAdditionalParameter("fields", "*");
+                logger.debug("Attempt query {}", QUERY_INSTANCES);
+                final List<Object> list = new ArrayList<Object>();
+                connectionFactory.getConnection().query(context, queryRequest, new QueryResourceHandler() {
+
+                    @Override
+                    public boolean handleResource(ResourceResponse resource) {
+                        list.add(getInstanceMap(resource.getContent()));
+                        return true;
+                    }
+
+                });
+                resultMap.put("results", list);
+                result = new JsonValue(resultMap);
+            } else {
+                logger.debug("Attempting to read instance {} from the database", resourcePath);
+                ReadRequest readRequest = Requests.newReadRequest(REPO_RESOURCE_CONTAINER.child(resourcePath).toString());
+                ResourceResponse instanceValue = connectionFactory.getConnection().read(context, readRequest);
+                result = new JsonValue(getInstanceMap(instanceValue.getContent()));
             }
-        } catch (Throwable t) {
-        	return newExceptionPromise(ResourceUtil.adapt(t));
+            return newResourceResponse(request.getResourcePath(), null, result).asPromise();
+        } catch (ResourceException e) {
+            return e.asPromise();
         }
     }
 
@@ -839,31 +834,31 @@ public class ClusterManager implements RequestHandler, ClusterManagementService 
 
     @Override
     public Promise<ActionResponse, ResourceException>  handleAction(Context context, ActionRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handleCreate(Context context, CreateRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handleDelete(Context context, DeleteRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
     public Promise<QueryResponse, ResourceException> handleQuery(Context context, QueryRequest request, QueryResourceHandler handler) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, UpdateRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 }

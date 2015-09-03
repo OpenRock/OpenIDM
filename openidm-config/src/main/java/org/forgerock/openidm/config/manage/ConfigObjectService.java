@@ -25,9 +25,8 @@
 package org.forgerock.openidm.config.manage;
 
 import static org.forgerock.json.JsonValue.*;
-import static org.forgerock.json.resource.ResourceException.*;
 import static org.forgerock.json.resource.Responses.newResourceResponse;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
+import static org.forgerock.openidm.util.ResourceUtil.notSupported;
 import static org.forgerock.util.promise.Promises.newResultPromise;
 
 import java.io.IOException;
@@ -62,7 +61,6 @@ import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.ForbiddenException;
 import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.NotFoundException;
-import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.PreconditionFailedException;
 import org.forgerock.json.resource.QueryResourceHandler;
@@ -87,7 +85,6 @@ import org.forgerock.openidm.config.installer.JSONConfigInstaller;
 import org.forgerock.openidm.config.persistence.ConfigBootstrapHelper;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.metadata.WaitForMetaData;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.osgi.framework.Constants;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.service.cm.Configuration;
@@ -169,11 +166,11 @@ public class ConfigObjectService implements RequestHandler, ClusterEventListener
     @Override
     public Promise<ResourceResponse, ResourceException>  handleRead(final Context context, final ReadRequest request) {
         try {
-        	return newResultPromise(newResourceResponse(request.getResourcePath(), null, new JsonValue(read(request.getResourcePathObject()))));
+        	return newResourceResponse(request.getResourcePath(), null, new JsonValue(read(request.getResourcePathObject()))).asPromise();
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         } catch (Exception e) {
-        	return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
     
@@ -251,11 +248,11 @@ public class ConfigObjectService implements RequestHandler, ClusterEventListener
             create(request.getResourcePathObject(), request.getNewResourceId(), content.asMap(), false);
             // Create and send the ClusterEvent for the created configuration 
             sendClusterEvent(ConfigAction.CREATE, request.getResourcePathObject(), request.getNewResourceId(), content.asMap());
-            return newResultPromise(newResourceResponse(request.getNewResourceId(), null, content));
+            return newResourceResponse(request.getNewResourceId(), null, content).asPromise();
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         } catch (Exception e) {
-        	return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -331,11 +328,11 @@ public class ConfigObjectService implements RequestHandler, ClusterEventListener
             update(request.getResourcePathObject(), rev, content.asMap());
             // Create and send the ClusterEvent for the updated configuration 
             sendClusterEvent(ConfigAction.UPDATE, request.getResourcePathObject(), null, content.asMap());
-            return newResultPromise(newResourceResponse(request.getResourcePath(), null, content));
+            return newResourceResponse(request.getResourcePath(), null, content).asPromise();
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         } catch (Exception e) {
-        	return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -401,11 +398,11 @@ public class ConfigObjectService implements RequestHandler, ClusterEventListener
             JsonValue result = delete(request.getResourcePathObject(), rev);
             // Create and send the ClusterEvent for the deleted configuration 
             sendClusterEvent(ConfigAction.DELETE, request.getResourcePathObject(), null, null);
-            return newResultPromise(newResourceResponse(request.getResourcePath(), null, result));
+            return newResourceResponse(request.getResourcePath(), null, result).asPromise();
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         } catch (Exception e) {
-        	return newExceptionPromise(newInternalServerErrorException(e.getMessage(), e));
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -453,7 +450,7 @@ public class ConfigObjectService implements RequestHandler, ClusterEventListener
 
     @Override
     public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
@@ -482,13 +479,13 @@ public class ConfigObjectService implements RequestHandler, ClusterEventListener
                 
             }));
         } catch (ResourceException e) {
-        	return newExceptionPromise(e);
+        	return e.asPromise();
         }
     }
 
     @Override
     public Promise<ActionResponse, ResourceException>  handleAction(Context context, ActionRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     /**

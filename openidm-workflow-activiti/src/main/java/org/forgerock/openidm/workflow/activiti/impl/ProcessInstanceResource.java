@@ -15,13 +15,10 @@
  */
 package org.forgerock.openidm.workflow.activiti.impl;
 
-import static org.forgerock.json.resource.ResourceException.newBadRequestException;
-import static org.forgerock.json.resource.ResourceException.newInternalServerErrorException;
-import static org.forgerock.json.resource.ResourceException.newNotFoundException;
 import static org.forgerock.json.resource.Responses.newQueryResponse;
 import static org.forgerock.json.resource.Responses.newResourceResponse;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
-import static org.forgerock.util.promise.Promises.newResultPromise;
+import static org.forgerock.openidm.util.ResourceUtil.notSupportedOnCollection;
+import static org.forgerock.openidm.util.ResourceUtil.notSupportedOnInstance;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -45,9 +42,12 @@ import org.activiti.engine.impl.persistence.entity.ProcessDefinitionEntity;
 import org.forgerock.http.Context;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
+import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.CollectionResourceProvider;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
+import org.forgerock.json.resource.InternalServerErrorException;
+import org.forgerock.json.resource.NotFoundException;
 import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
@@ -69,7 +69,6 @@ import org.activiti.engine.impl.identity.Authentication;
 import org.activiti.engine.impl.persistence.entity.HistoricProcessInstanceEntity;
 import org.activiti.engine.runtime.ProcessInstance;
 import org.forgerock.json.JsonValue;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.openidm.workflow.activiti.impl.mixin.HistoricProcessInstanceMixIn;
 import org.forgerock.openidm.workflow.activiti.impl.mixin.HistoricTaskInstanceEntityMixIn;
 import org.forgerock.util.Function;
@@ -111,12 +110,12 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
 
     @Override
     public Promise<ActionResponse, ResourceException> actionCollection(Context context, ActionRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnCollection(request));
+        return notSupportedOnCollection(request).asPromise();
     }
 
     @Override
     public Promise<ActionResponse, ResourceException> actionInstance(Context context, String resourceId, ActionRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     @Override
@@ -142,16 +141,14 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
                 resultMap.put(ActivitiConstants.ACTIVITI_PROCESSDEFINITIONID, instance.getProcessDefinitionId());
                 resultMap.put(ActivitiConstants.ID, instance.getId());
                 JsonValue content = new JsonValue(resultMap);
-                return newResultPromise(newResourceResponse(instance.getId(), null, content));
-
+                return newResourceResponse(instance.getId(), null, content).asPromise();
             } else {
-                return newExceptionPromise(
-                        newInternalServerErrorException("The process instance could not be created"));
+                return new InternalServerErrorException("The process instance could not be created").asPromise();
             }
         } catch (ActivitiObjectNotFoundException ex) {
-            return newExceptionPromise(newNotFoundException(ex.getMessage(), ex));
+            return new NotFoundException(ex.getMessage(), ex).asPromise();
         } catch (Exception ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 
@@ -164,20 +161,20 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
                 Map value = MAPPER.convertValue(process, HashMap.class);
                 ResourceResponse r = newResourceResponse(process.getId(), null, new JsonValue(value));
                 processEngine.getRuntimeService().deleteProcessInstance(resourceId, "Deleted by Openidm");
-                return newResultPromise(r);
+                return r.asPromise();
             } else {
-                return newExceptionPromise(newNotFoundException());
+                return new NotFoundException().asPromise();
             }
         } catch (ActivitiObjectNotFoundException ex) {
-            return newExceptionPromise(newNotFoundException(ex.getMessage(), ex));
+            return new NotFoundException(ex.getMessage(), ex).asPromise();
         } catch (Exception ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> patchInstance(Context context, String resourceId, PatchRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     @Override
@@ -194,7 +191,7 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
                     ResourceResponse r = newResourceResponse(i.getId(), null, new JsonValue(value));
                     handler.handleResource(r);
                 }
-                return newResultPromise(newQueryResponse());
+                return newQueryResponse().asPromise();
             } else if (ActivitiConstants.QUERY_FILTERED.equals(request.getQueryId())) {
                 setProcessInstanceParams(query, request);
                 setSortKeys(query, request);
@@ -204,12 +201,12 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
                     value.put(ActivitiConstants.ACTIVITI_PROCESSDEFINITIONRESOURCENAME, getProcessDefName(processinstance));
                     handler.handleResource(newResourceResponse(processinstance.getId(), null, new JsonValue(value)));
                 }
-                return newResultPromise(newQueryResponse());
+                return newQueryResponse().asPromise();
             } else {
-                return newExceptionPromise(newBadRequestException("Unknown query-id"));
+                return new BadRequestException("Unknown query-id").asPromise();
             }
         } catch (Exception ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 
@@ -221,7 +218,7 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
                     processEngine.getHistoryService().createHistoricProcessInstanceQuery().processInstanceId(resourceId).singleResult();
 
             if (instance == null) {
-                return newExceptionPromise(newNotFoundException());
+                return new NotFoundException().asPromise();
             } else {
                 JsonValue content = new JsonValue(MAPPER.convertValue(instance, Map.class));
                 // TODO OPENIDM-3603 add relationship support
@@ -238,7 +235,7 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
                             .processInstanceId(resourceId)
                             .singleResult();
                     if (executionEntity == null) {
-                        throw new ActivitiObjectNotFoundException(
+                         new ActivitiObjectNotFoundException(
                                 "Process instance with id" + resourceId + " could not be found", ProcessInstance.class);
                     }
 
@@ -255,10 +252,10 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
                         }
                     }
                 }
-                return newResultPromise(newResourceResponse(instance.getId(), null, content));
+                return newResourceResponse(instance.getId(), null, content).asPromise();
             }
         } catch (Exception ex) {
-            return newExceptionPromise(newInternalServerErrorException(ex.getMessage(), ex));
+            return new InternalServerErrorException(ex.getMessage(), ex).asPromise();
         }
     }
 
@@ -280,7 +277,7 @@ public class ProcessInstanceResource implements CollectionResourceProvider {
     @Override
     public Promise<ResourceResponse, ResourceException> updateInstance(
             Context context, String resourceId, UpdateRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupportedOnInstance(request));
+        return notSupportedOnInstance(request).asPromise();
     }
 
     /**

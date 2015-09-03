@@ -1,6 +1,4 @@
 /*
- * Copyright 2013-2015 ForgeRock, AS.
- *
  * The contents of this file are subject to the terms of the Common Development and
  * Distribution License (the License). You may not use this file except in compliance with the
  * License.
@@ -12,27 +10,10 @@
  * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
- */
-package org.forgerock.openidm.provisioner.openicf.syncfailure;
-
-import java.util.Map;
-
-import org.forgerock.http.Context;
-
-/**
- * A handler interface for liveSync failures.
  *
+ * Copyright 2015 ForgeRock AS.
  */
-public interface SyncFailureHandler
-{
-    /**
-     * Handle the sync failure.
-     *
-     * @param context the request context associated with the invocation
-     * @param syncFailure contains the sync failure data
-     * @param failureCause the cause of the exception
-     * @throws SyncHandlerException when retries are not exceeded
-     */
-    void invoke(Context context, Map<String, Object> syncFailure, Exception failureCause)
-        throws SyncHandlerException;
-}
+/**
+ * Helper classes to setup pax-web with a jetty configuration.
+ */
+package org.forgerock.openidm.jetty;

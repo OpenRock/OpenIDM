@@ -38,7 +38,6 @@ import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.forgerock.http.Context;
-import org.forgerock.http.context.RootContext;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.JsonValueException;
 import org.forgerock.json.resource.ConnectionFactory;
@@ -46,7 +45,6 @@ import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.NotFoundException;
 import org.forgerock.json.resource.PreconditionFailedException;
-import org.forgerock.json.resource.RequestHandler;
 import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.UpdateRequest;
@@ -54,7 +52,7 @@ import org.forgerock.openidm.cluster.ClusterEvent;
 import org.forgerock.openidm.cluster.ClusterEventListener;
 import org.forgerock.openidm.cluster.ClusterManagementService;
 import org.forgerock.openidm.core.IdentityServer;
-import org.forgerock.openidm.router.RouteService;
+import org.forgerock.openidm.util.ContextUtil;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.InvalidSyntaxException;
@@ -177,24 +175,7 @@ public class RepoJobStore implements JobStore, ClusterEventListener {
      */
     public Context getContext() throws JobPersistenceException {
         if (context == null) {
-            BundleContext ctx = FrameworkUtil.getBundle(RouteService.class).getBundleContext();
-            ServiceReference serviceReference = null;
-            try {
-                serviceReference = ctx.getServiceReferences(RouteService.class, "(openidm.router.prefix=/repo*)").iterator().next();
-            } catch (InvalidSyntaxException e) {
-                /* ignore the filter is correct */
-            }
-            RouteService repoService = RouteService.class.cast(ctx.getService(serviceReference));
-            if (repoService != null) {
-                try {
-                	context = repoService.createServerContext();
-                } catch (ResourceException e) {
-                    /* ignore */
-                }
-            }
-            if (context == null) {
-                throw new JobPersistenceException("Repo router is null");
-            }
+            context = ContextUtil.createInternalContext();
         }
         return context;
     }

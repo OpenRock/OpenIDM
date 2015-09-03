@@ -1,25 +1,17 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright 2011-2015 ForgeRock AS. All Rights Reserved
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 package org.forgerock.openidm.provisioner.openicf.impl;
 
@@ -28,10 +20,8 @@ import static org.assertj.core.api.Assertions.fail;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
-import static org.forgerock.json.resource.ResourceException.newNotSupportedException;
 import static org.forgerock.json.resource.Responses.newActionResponse;
 import static org.forgerock.json.resource.Router.uriTemplate;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
 import static org.forgerock.util.promise.Promises.newResultPromise;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -55,7 +45,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.forgerock.audit.events.AuditEvent;
 import org.forgerock.http.Context;
 import org.forgerock.http.context.RootContext;
 import org.forgerock.http.routing.RouteMatcher;
@@ -72,6 +61,7 @@ import org.forgerock.json.resource.ForbiddenException;
 import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.MemoryBackend;
 import org.forgerock.json.resource.NotFoundException;
+import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchOperation;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.PermanentException;
@@ -91,19 +81,17 @@ import org.forgerock.json.resource.ServiceUnavailableException;
 import org.forgerock.json.resource.SingletonResourceProvider;
 import org.forgerock.json.resource.SortKey;
 import org.forgerock.json.resource.UpdateRequest;
+import org.forgerock.openicf.framework.ConnectorFrameworkFactory;
 import org.forgerock.openidm.audit.util.NullActivityLogger;
 import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.PropertyAccessor;
 import org.forgerock.openidm.provisioner.impl.SystemObjectSetService;
 import org.forgerock.openidm.provisioner.openicf.commons.ConnectorUtil;
-import org.forgerock.openidm.provisioner.openicf.connector.TestConfiguration;
-import org.forgerock.openidm.provisioner.openicf.connector.TestConnector;
 import org.forgerock.openidm.provisioner.openicf.internal.SystemAction;
 import org.forgerock.openidm.provisioner.openicf.syncfailure.NullSyncFailureHandler;
 import org.forgerock.openidm.provisioner.openicf.syncfailure.SyncFailureHandler;
 import org.forgerock.openidm.provisioner.openicf.syncfailure.SyncFailureHandlerFactory;
-import org.forgerock.openidm.quartz.impl.ExecutionException;
 import org.forgerock.openidm.router.RouteBuilder;
 import org.forgerock.openidm.router.RouteEntry;
 import org.forgerock.openidm.router.RouteService;
@@ -113,27 +101,10 @@ import org.forgerock.util.promise.Promise;
 import org.forgerock.util.query.QueryFilter;
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.common.logging.impl.NoOpLogger;
-import org.identityconnectors.framework.api.APIConfiguration;
-import org.identityconnectors.framework.api.ConnectorFacade;
-import org.identityconnectors.framework.api.ConnectorFacadeFactory;
-import org.identityconnectors.framework.api.ConnectorInfo;
-import org.identityconnectors.framework.api.ConnectorInfoManager;
-import org.identityconnectors.framework.api.ConnectorKey;
-import org.identityconnectors.framework.common.FrameworkUtil;
-import org.identityconnectors.framework.common.exceptions.ConnectorException;
 import org.identityconnectors.framework.common.objects.Name;
 import org.identityconnectors.framework.common.objects.SyncToken;
-import org.identityconnectors.framework.impl.api.APIConfigurationImpl;
-import org.identityconnectors.framework.impl.api.AbstractConnectorInfo;
-import org.identityconnectors.framework.impl.api.ConfigurationPropertiesImpl;
-import org.identityconnectors.framework.impl.api.local.ConnectorPoolManager;
-import org.identityconnectors.framework.impl.api.local.JavaClassProperties;
-import org.identityconnectors.framework.impl.api.local.LocalConnectorFacadeImpl;
-import org.identityconnectors.framework.impl.api.local.LocalConnectorInfoImpl;
-import org.identityconnectors.framework.impl.test.TestHelpersImpl;
 import org.identityconnectors.framework.server.ConnectorServer;
 import org.identityconnectors.framework.server.impl.ConnectorServerImpl;
-import org.identityconnectors.framework.spi.PoolableConnector;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -146,8 +117,7 @@ import org.testng.annotations.Test;
  * A NAME does ...
  *
  */
-public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implements
-        RouterRegistry, ConnectorInfoManager, SyncFailureHandlerFactory {
+public class OpenICFProvisionerServiceTest implements RouterRegistry, SyncFailureHandlerFactory {
 
     public static final String LAUNCHER_INSTALL_LOCATION = "launcher.install.location";
     public static final String LAUNCHER_INSTALL_URL = "launcher.install.url";
@@ -193,16 +163,6 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     protected final Router router = new Router();
 
     final RouteService routeService = new RouteService() {
-
-        @Override
-        public Context createServerContext() throws ResourceException {
-            return new RootContext();
-        }
-
-        @Override
-        public Context createServerContext(Context parentContext) throws ResourceException {
-            return new RootContext();
-        }
     };
 
     public OpenICFProvisionerServiceTest() {
@@ -243,87 +203,12 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     public RouteEntry addRoute(RouteBuilder routeBuilder) {
 
         final RouteMatcher[] routes = routeBuilder.register(router);
-        // TODO-crest3
         return new RouteEntry() {
             @Override
             public boolean removeRoute() {
                 return router.removeRoute(routes);
             }
-
-            @Override
-            public Context createServerContext() throws ResourceException {
-                return new RootContext();
-            }
-
-            @Override
-            public Context createServerContext(Context parentContext)
-                    throws ResourceException {
-                return parentContext;
-            }
         };
-    }
-
-    // ----- Implementation of ConnectorInfoManager interface
-
-    @Override
-    public List<ConnectorInfo> getConnectorInfos() {
-        return null;
-    }
-
-    @Override
-    public ConnectorInfo findConnectorInfo(ConnectorKey connectorKey) {
-        LocalConnectorInfoImpl info = new LocalConnectorInfoImpl();
-        info.setConnectorConfigurationClass(TestConfiguration.class);
-        info.setConnectorClass(TestConnector.class);
-        info.setConnectorDisplayNameKey("DUMMY_DISPLAY_NAME");
-        info.setConnectorKey(connectorKey);
-        info.setMessages(new TestHelpersImpl().createDummyMessages());
-
-        APIConfigurationImpl rv = new APIConfigurationImpl();
-        rv.setConnectorPoolingSupported(PoolableConnector.class
-                .isAssignableFrom(TestConnector.class));
-        ConfigurationPropertiesImpl properties =
-                JavaClassProperties.createConfigurationProperties(new TestConfiguration());
-        rv.setConfigurationProperties(properties);
-        rv.setConnectorInfo(info);
-        rv.getResultsHandlerConfiguration().setEnableAttributesToGetSearchResultsHandler(false);
-        rv.getResultsHandlerConfiguration().setEnableFilteredResultsHandler(false);
-        rv.setSupportedOperations(FrameworkUtil.getDefaultSupportedOperations(TestConnector.class));
-        info.setDefaultAPIConfiguration(rv);
-        return info;
-    }
-
-    // ----- Implementation of ConnectorFacadeFactory interface
-
-    @Override
-    public void dispose() {
-        ConnectorPoolManager.dispose();
-    }
-
-    @Override
-    public ConnectorFacade newInstance(APIConfiguration configuration) {
-        ConnectorFacade ret = null;
-        APIConfigurationImpl impl = (APIConfigurationImpl) configuration;
-        AbstractConnectorInfo connectorInfo = impl.getConnectorInfo();
-        if (connectorInfo instanceof LocalConnectorInfoImpl) {
-            LocalConnectorInfoImpl localInfo = (LocalConnectorInfoImpl) connectorInfo;
-            try {
-                ret = new LocalConnectorFacadeImpl(localInfo, impl);
-            } catch (Exception ex) {
-                logger.error("Failed to create new connector facade: {}, {}", impl
-                        .getConnectorInfo().getConnectorKey(), configuration, ex);
-                throw ConnectorException.wrap(ex);
-            }
-        } else {
-            throw new ConnectorException("RemoteConnector not supported!");
-        }
-        return ret;
-    }
-
-    // this implementation not used
-    @Override
-    public ConnectorFacade newInstance(ConnectorInfo info, String configuration) {
-        return null;
     }
 
     @DataProvider(name = "dp")
@@ -388,8 +273,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
         when(context.getProperties()).thenReturn(properties);
 
         provider = Pair.of(new ConnectorInfoProviderService(), context);
-        provider.getLeft().bindConnectorFacadeFactory(this);
-        provider.getLeft().bindConnectorInfoManager(this);
+        provider.getLeft().connectorFrameworkFactory = new ConnectorFrameworkFactory();
         provider.getLeft().bindEnhancedConfig(new JSONEnhancedConfig());
         provider.getLeft().activate(context);
 
@@ -420,7 +304,6 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
             service.bindRouterRegistry(this);
             service.bindSyncFailureHandlerFactory(this);
             service.bindEnhancedConfig(new JSONEnhancedConfig());
-            service.bindRouteService(routeService);
             service.bindConnectionFactory(Resources.newInternalConnectionFactory(router));
 
             //set as NullActivityLogger to be the mock logger.
@@ -454,7 +337,6 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
                     for (Pair<OpenICFProvisionerService, ComponentContext> pair : systems) {
                         bindProvisionerService(pair.getLeft(),(Map) null);
                     }
-                    bindRouteService(routeService);
                 }};
 
         router.addRoute(uriTemplate("system"), systemObjectSetService);
@@ -549,19 +431,19 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
 
         public Promise<ActionResponse, ResourceException> actionInstance(Context context, ActionRequest request) {
             requests.add(request);
-            return newResultPromise(newActionResponse(new JsonValue(true)));
+            return newActionResponse(new JsonValue(true)).asPromise();
         }
 
         public Promise<ResourceResponse, ResourceException> patchInstance(Context context, PatchRequest request) {
-            return newExceptionPromise(newNotSupportedException());
+            return new NotSupportedException().asPromise();
         }
 
         public Promise<ResourceResponse, ResourceException> readInstance(Context context, ReadRequest request) {
-            return newExceptionPromise(newNotSupportedException());
+            return new NotSupportedException().asPromise();
         }
 
         public Promise<ResourceResponse, ResourceException> updateInstance(Context context, UpdateRequest request) {
-            return newExceptionPromise(newNotSupportedException());
+            return new NotSupportedException().asPromise();
         }
     }
 

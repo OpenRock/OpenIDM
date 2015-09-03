@@ -15,7 +15,7 @@
  */
 package org.forgerock.openidm.workflow.activiti.impl;
 
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
+import static org.forgerock.openidm.util.ResourceUtil.notSupported;
 
 import java.io.File;
 import java.io.IOException;
@@ -65,7 +65,6 @@ import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.crypto.CryptoService;
 import org.forgerock.openidm.router.RouteService;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.script.ScriptRegistry;
 import org.forgerock.openidm.workflow.activiti.impl.session.OpenIDMSessionFactory;
 import org.forgerock.util.promise.Promise;
@@ -147,10 +146,8 @@ public class ActivitiServiceImpl implements RequestHandler {
     target = "(osgi.jndi.service.name=jdbc/openidm)")
     private DataSource dataSource;
 
-    @Reference(target = "(" + ServerConstants.ROUTER_PREFIX + "=/managed)",
-            bind = "bindRouteService", unbind = "unbindRouteService"
-    )
-    RouteService repositoryRoute;
+    @Reference(target = "(" + ServerConstants.ROUTER_PREFIX + "=/managed)")
+    private RouteService routeService;
 
     @Reference(policy = ReferencePolicy.DYNAMIC,
             bind = "bindCryptoService", unbind = "unbindCryptoService"
@@ -209,7 +206,7 @@ public class ActivitiServiceImpl implements RequestHandler {
 
     @Override
     public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
-        return newExceptionPromise(ResourceUtil.notSupported(request));
+        return notSupported(request).asPromise();
     }
 
     @Override
@@ -463,16 +460,6 @@ public class ActivitiServiceImpl implements RequestHandler {
         logger.info("ProcessEngine stopped.");
     }
  
-    protected void bindRouteService(RouteService route) {
-        repositoryRoute = route;
-        this.identityService.setRouter(route);
-    }
-
-    protected void unbindRouteService(RouteService route) {
-        repositoryRoute = null;
-        this.identityService.setRouter(null);
-    }
-
     protected void bindScriptRegistry(ScriptRegistry scriptRegistry) {
         this.idmSessionFactory.setScriptRegistry(scriptRegistry);
     }

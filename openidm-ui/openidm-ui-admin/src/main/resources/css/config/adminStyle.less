@@ -42,9 +42,14 @@
   border-bottom: 1px solid #eee;
 }
 
-.no-border{
+.no-border {
   border: none;
 }
+
+.no-margin-bottom {
+  margin-bottom:0px;
+}
+
 
 .alert-warning .fa,
 .alert-danger .fa {
@@ -124,6 +129,9 @@
   width:550px;
 }
 
+.popover-info {
+  overflow:hidden;
+}
 /*
   Selectize styles
 */
@@ -134,21 +142,17 @@
 /*
   Panel Styles
 */
+.panel-description.inline-description {
+  margin-bottom:0px;
+  margin-left:33px;
+  margin-top:10px;
+}
+
 .panel-collapse h4.panel-title {
   font-size: 18px;
   text-transform: none;
   letter-spacing: 0;
   font-weight: 600;
-}
-.panel-heading {
-  padding: 30px 30px 30px 15px !important;
-}
-.panel-body {
-  padding: 30px;
-}
-
-.collapse > .panel-body {
-  padding: 0 30px 30px;
 }
 
 .panel-collapse-group .panel {
@@ -157,6 +161,16 @@
 
 .panel-body.panel-collapse-body {
   padding-bottom:0px;
+}
+
+.panel-collapse-group .panel-default.panel-collapse {
+  border-left:none;
+  border-right:none;
+  border-top:none;
+}
+
+.panel-collapse-group .panel-collapse.no-bottom-border {
+  border-bottom:0px;
 }
 
 /*
@@ -217,7 +231,7 @@ table.placeholder {
   }
 
   .form-group {
-    margin-right:20px;
+    margin-right:15px;
   }
 
   .toolbar-search {
@@ -248,13 +262,6 @@ table.placeholder {
 }
 
 /*
-  Popover
-*/
-.popover-info {
-  overflow:hidden;
-}
-
-/*
   Page Header
 */
 .page-header-button-group a:hover {
@@ -267,6 +274,10 @@ table.placeholder {
   margin-bottom:20px;
   border-bottom: 1px solid #ddd;
   border-top: 1px solid #ddd;
+
+  .btn-group.left-group {
+    margin-left:15px;
+  }
 
   &.no-top-border {
     border-top:0px;
@@ -304,11 +315,7 @@ table.placeholder {
   Script List Styles
 */
 .scripts-container {
-  margin-top: 15px;
-
   .table {
-    margin-top: 15px;
-
     td,th {
       border-top: none;
       border-bottom: 1px solid #eee;
@@ -643,21 +650,6 @@ Dialog Catch
 
 .tab-content {
   background-color: #fff;
-}
-
-.tab-pane-button-footer {
-  height:35px;
-}
-
-.tab-pane-button-footer .tab-button-bar {
-  margin-right:10px;
-  position:relative;
-  bottom:10px;
-}
-
-
-.tab-content {
-  background-color: #fff;
   margin-bottom: 50px;
 }
 
@@ -730,8 +722,8 @@ Dialog Catch
   .well:not(.detailTable) {
     background-color: transparent;
     border-color: transparent;
-    -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,0.05);
-    box-shadow: inset 0 1px 1px rgba(0,0,0,0.05);
+    -webkit-box-shadow: none;
+    box-shadow: none;
   }
 
   li.resourceListItem:hover {
@@ -766,6 +758,77 @@ Dialog Catch
 
 }
 
+/*
+  Inline JSONEditor styles
+
+  This should be used for when you need multiple JSONEditors in a row. For example script widget variables.
+*/
+.list-table .list-group {
+  .compactJSON,
+  .compactJSON div {
+    display: inline;
+  }
+
+  .compactJSON {
+    div[data-schemapath="root"]>label {
+      display: none !important;
+    }
+
+    div[data-schemapath] {
+      margin-left: 5px;
+    }
+
+    .form-control {
+      display: inline;
+      width: auto;
+    }
+
+    select {
+      height: 35px !important;
+    }
+
+    .btn-group {
+      float: right;
+    }
+
+    .well {
+      background-color: transparent;
+    }
+
+    h3 {
+      display: none;
+    }
+
+    div[data-schematype="object"]>h3 {
+      display: inline;
+      margin: 0;
+    }
+
+    div[data-schematype="object"]>h3>div>div {
+      top: 40px !important;
+    }
+
+    div[data-schematype="object"] {
+      div.checkbox {
+        display: block;
+      }
+    }
+
+    div[data-schematype="object"]>div,
+    div[data-schematype="array"]>div {
+      border: none !important;
+    }
+
+    div[data-schematype="object"]>div>div,
+    div[data-schematype="array"]>div>div>div {
+      display: block;
+    }
+
+    div[data-schemapath="root"]>select {
+      margin-bottom: 5px !important;
+    }
+  }
+}
 /*
   Table Styles
 */

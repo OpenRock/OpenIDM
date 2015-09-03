@@ -24,11 +24,7 @@
 
 package org.forgerock.openidm.security.impl;
 
-import static org.forgerock.json.resource.ResourceException.newBadRequestException;
-import static org.forgerock.json.resource.ResourceException.newNotSupportedException;
 import static org.forgerock.json.resource.Responses.newResourceResponse;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
-import static org.forgerock.util.promise.Promises.newResultPromise;
 
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -46,7 +42,10 @@ import org.forgerock.http.Context;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
+import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.ConflictException;
+import org.forgerock.json.resource.InternalServerErrorException;
+import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.ResourceException;
@@ -84,9 +83,7 @@ public class KeystoreResourceProvider extends SecurityResourceProvider implement
             if (ACTION_GENERATE_CERT.equalsIgnoreCase(request.getAction()) ||
                     ACTION_GENERATE_CSR.equalsIgnoreCase(request.getAction())) {
                 if (alias == null) {
-                    return newExceptionPromise(
-                            newBadRequestException(
-                                    "A valid resource ID must be specified in the request"));
+                    return new BadRequestException("A valid resource ID must be specified in the request").asPromise();
                 }
                 String algorithm = request.getContent().get("algorithm").defaultTo(DEFAULT_ALGORITHM).asString();
                 String signatureAlgorithm = request.getContent().get("signatureAlgorithm")
@@ -96,10 +93,9 @@ public class KeystoreResourceProvider extends SecurityResourceProvider implement
                 if (ACTION_GENERATE_CERT.equalsIgnoreCase(request.getAction())) {
                     // Generate self-signed certificate
                     if (store.getStore().containsAlias(alias)) {
-                        // TODO-crest3 remove the cast
-                        return newExceptionPromise((ResourceException) new ConflictException(
-                                "The resource with ID '" + alias + "' could not be created because there is already " +
-                                        "another resource with the same ID"));
+                        return new ConflictException("The resource with ID '" + alias
+                                + "' could not be created because there is already another resource with the same ID")
+                                .asPromise();
                     } else {
                         logger.info("Generating a new self-signed certificate with the alias {}", alias);
                         String domainName = request.getContent().get("domainName").required().asString();
@@ -135,18 +131,18 @@ public class KeystoreResourceProvider extends SecurityResourceProvider implement
                         result.put("privateKey", getKeyMap(csr.getRight()));
                     }
                 }
-                return newResultPromise(Responses.newActionResponse(result));
+                return Responses.newActionResponse(result).asPromise();
             } else {
-                return newExceptionPromise(newBadRequestException("Unsupported action " + request.getAction()));
+                return new BadRequestException("Unsupported action " + request.getAction()).asPromise();
             }
         } catch (Exception e) {
-            return newExceptionPromise(ResourceUtil.adapt(e));
+            return new InternalServerErrorException(e).asPromise();
         }
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> patchInstance(Context context, PatchRequest request) {
-        return newExceptionPromise(newNotSupportedException("Patch operations are not supported"));
+        return new NotSupportedException("Patch operations are not supported").asPromise();
     }
 
     @Override
@@ -161,14 +157,14 @@ public class KeystoreResourceProvider extends SecurityResourceProvider implement
                 aliasList.add(aliases.nextElement());
             }
             content.put("aliases", aliasList);
-            return newResultPromise(newResourceResponse(resourceName, null, content));
+            return newResourceResponse(resourceName, null, content).asPromise();
         } catch (KeyStoreException e) {
-            return newExceptionPromise(ResourceUtil.adapt(e));
+            return new InternalServerErrorException(e).asPromise();
         }
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> updateInstance(Context context, UpdateRequest request) {
-        return newExceptionPromise(newNotSupportedException("Update operations are not supported"));
+        return new NotSupportedException("Update operations are not supported").asPromise();
     }
 }

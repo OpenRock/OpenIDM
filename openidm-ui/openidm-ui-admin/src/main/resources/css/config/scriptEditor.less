@@ -1,7 +1,24 @@
-.event-hook-window {
+/*
+  Gives the code dialog a larger size
+*/
+@media (min-width: 768px) {
+  .script-large-dialog .modal-dialog {
+    width:600px;
+    margin: 30px auto;
+  }
+}
 
+@media (min-width: 1024px) {
+  .script-large-dialog .modal-dialog {
+    width:1024px;
+  }
+}
+
+.event-hook-window {
   .panel {
     border: none;
+    box-shadow:none;
+    -webkit-box-shadow: none;
     margin-left: 6px;
   }
   .panel-heading {
@@ -29,14 +46,6 @@
       .CodeMirror {
         border: 1px solid #ddd;
       }
-
-      .code-collapse {
-        display: none;
-      }
-    }
-
-    .file-code {
-
     }
   }
 

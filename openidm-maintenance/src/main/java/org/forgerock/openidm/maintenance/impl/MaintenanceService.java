@@ -26,11 +26,7 @@ package org.forgerock.openidm.maintenance.impl;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
-import static org.forgerock.json.resource.ResourceException.newInternalServerErrorException;
-import static org.forgerock.json.resource.ResourceException.newNotSupportedException;
 import static org.forgerock.json.resource.Responses.newActionResponse;
-import static org.forgerock.util.promise.Promises.newResultPromise;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
 
 import java.util.Arrays;
 import java.util.List;
@@ -50,6 +46,7 @@ import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.InternalServerErrorException;
+import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResourceHandler;
@@ -195,10 +192,10 @@ public class MaintenanceService implements RequestHandler {
                     disableMaintenanceMode();
                     return handleMaintenanceStatus();
                 default:
-                    return newExceptionPromise(newNotSupportedException(request.getAction() + " is not supported"));
+                    return new NotSupportedException(request.getAction() + " is not supported").asPromise();
             }
         } catch (ResourceException e) {
-            return newExceptionPromise(newInternalServerErrorException("Error processing Action request", e));
+            return new InternalServerErrorException("Error processing Action request", e).asPromise();
         }
     }
 
@@ -269,7 +266,7 @@ public class MaintenanceService implements RequestHandler {
     }
 
     private Promise<ActionResponse, ResourceException> handleMaintenanceStatus() {
-        return newResultPromise(newActionResponse(json(object(field("maintenanceEnabled", maintenanceEnabled)))));
+        return newActionResponse(json(object(field("maintenanceEnabled", maintenanceEnabled)))).asPromise();
     }
 
     /**
@@ -277,7 +274,7 @@ public class MaintenanceService implements RequestHandler {
      */
     @Override
     public Promise<ResourceResponse, ResourceException> handleCreate(Context context, CreateRequest request) {
-        return newExceptionPromise(newNotSupportedException("Not allowed on maintenance service"));
+        return new NotSupportedException("Not allowed on maintenance service").asPromise();
     }
 
     /**
@@ -285,7 +282,7 @@ public class MaintenanceService implements RequestHandler {
      */
     @Override
     public Promise<ResourceResponse, ResourceException> handleDelete(Context context, DeleteRequest request) {
-        return newExceptionPromise(newNotSupportedException("Not allowed on maintenance service"));
+        return new NotSupportedException("Not allowed on maintenance service").asPromise();
     }
 
     /**
@@ -293,7 +290,7 @@ public class MaintenanceService implements RequestHandler {
      */
     @Override
     public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
-        return newExceptionPromise(newNotSupportedException("Not allowed on maintenance service"));
+        return new NotSupportedException("Not allowed on maintenance service").asPromise();
     }
 
     /**
@@ -302,7 +299,7 @@ public class MaintenanceService implements RequestHandler {
     @Override
     public Promise<QueryResponse, ResourceException> handleQuery(Context context, QueryRequest request,
             QueryResourceHandler handler) {
-        return newExceptionPromise(newNotSupportedException("Not allowed on maintenance service"));
+        return new NotSupportedException("Not allowed on maintenance service").asPromise();
     }
 
     /**
@@ -310,7 +307,7 @@ public class MaintenanceService implements RequestHandler {
      */
     @Override
     public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
-        return newExceptionPromise(newNotSupportedException("Not allowed on maintenance service"));
+        return new NotSupportedException("Not allowed on maintenance service").asPromise();
     }
 
 
@@ -319,6 +316,6 @@ public class MaintenanceService implements RequestHandler {
      */
     @Override
     public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, UpdateRequest request) {
-        return newExceptionPromise(newNotSupportedException("Not allowed on maintenance service"));
+        return new NotSupportedException("Not allowed on maintenance service").asPromise();
     }
 }

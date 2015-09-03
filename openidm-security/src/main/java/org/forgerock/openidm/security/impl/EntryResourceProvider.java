@@ -24,20 +24,20 @@
 
 package org.forgerock.openidm.security.impl;
 
-import static org.forgerock.json.resource.ResourceException.newBadRequestException;
-import static org.forgerock.json.resource.ResourceException.newNotSupportedException;
 import static org.forgerock.json.resource.Responses.newResourceResponse;
-import static org.forgerock.util.promise.Promises.newExceptionPromise;
-import static org.forgerock.util.promise.Promises.newResultPromise;
 
 import org.forgerock.http.Context;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
+import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.CollectionResourceProvider;
 import org.forgerock.json.resource.ConflictException;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
+import org.forgerock.json.resource.InternalServerErrorException;
+import org.forgerock.json.resource.NotFoundException;
+import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResourceHandler;
@@ -49,12 +49,10 @@ import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.repo.RepositoryService;
 import org.forgerock.openidm.security.KeyStoreHandler;
 import org.forgerock.openidm.security.KeyStoreManager;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.util.promise.Promise;
 
 /**
  * A generic collection resource provider servicing requests on entries in a keystore
- * 
  */
 public abstract class EntryResourceProvider extends SecurityResourceProvider implements CollectionResourceProvider {
 
@@ -69,24 +67,22 @@ public abstract class EntryResourceProvider extends SecurityResourceProvider imp
         try {
             if (null != request.getNewResourceId()) {
                 if (store.getStore().containsAlias(request.getNewResourceId())) {
-                    // TODO-crest3 Remove cast
-                    return newExceptionPromise((ResourceException) new ConflictException(
-                            "The resource with ID '" + request.getNewResourceId() + "' could not be created because "
-                                    + "there is already another resource with the same ID"));
+                    return new ConflictException("The resource with ID '" + request.getNewResourceId()
+                            + "' could not be created because there is already another resource with the same ID")
+                            .asPromise();
                 } else {
                     String resourceId = request.getNewResourceId();
                     storeEntry(request.getContent(), resourceId);
                     manager.reload();
                     // Save the store to the repo (if clustered)
                     saveStore();
-                    return newResultPromise(newResourceResponse(resourceId, null, request.getContent()));
+                    return newResourceResponse(resourceId, null, request.getContent()).asPromise();
                 }
             } else {
-                return newExceptionPromise(newBadRequestException(
-                        "A valid resource ID must be specified in the request"));
+                return new BadRequestException("A valid resource ID must be specified in the request").asPromise();
             }
         } catch (Exception e) {
-            return newExceptionPromise(ResourceUtil.adapt(e));
+            return new InternalServerErrorException(e).asPromise();
         }
     }
 
@@ -95,13 +91,13 @@ public abstract class EntryResourceProvider extends SecurityResourceProvider imp
             final ReadRequest request) {
         try {
             if (!store.getStore().containsAlias(resourceId)) {
-                return newExceptionPromise(ResourceException.newNotFoundException());
+                return new NotFoundException().asPromise();
             } else {
                 JsonValue result = readEntry(resourceId);
-                return newResultPromise(newResourceResponse(resourceId, null, result));
+                return newResourceResponse(resourceId, null, result).asPromise();
             }
         } catch (Exception e) {
-            return newExceptionPromise(ResourceUtil.adapt(e));
+            return new InternalServerErrorException(e).asPromise();
         }
     }
 
@@ -113,9 +109,9 @@ public abstract class EntryResourceProvider extends SecurityResourceProvider imp
             manager.reload();
             // Save the store to the repo (if clustered)
             saveStore();
-            return newResultPromise(newResourceResponse(resourceId, null, request.getContent()));
+            return newResourceResponse(resourceId, null, request.getContent()).asPromise();
         } catch (Exception e) {
-            return newExceptionPromise(ResourceUtil.adapt(e));
+            return new InternalServerErrorException(e).asPromise();
         }
     }
 
@@ -124,41 +120,41 @@ public abstract class EntryResourceProvider extends SecurityResourceProvider imp
             final DeleteRequest request) {
         try {
             if (!store.getStore().containsAlias(resourceId)) {
-                return newExceptionPromise(ResourceException.newNotFoundException());
+                return new NotFoundException().asPromise();
             } else {
                 store.getStore().deleteEntry(resourceId);
                 store.store();
                 manager.reload();
                 // Save the store to the repo (if clustered)
                 saveStore();
-                return newResultPromise(newResourceResponse(resourceId, null, new JsonValue(null)));
+                return newResourceResponse(resourceId, null, new JsonValue(null)).asPromise();
             }
         } catch (Exception e) {
-            return newExceptionPromise(ResourceUtil.adapt(e));
+            return new InternalServerErrorException(e).asPromise();
         }
     }
     
     @Override
     public Promise<ActionResponse, ResourceException> actionCollection(Context context, ActionRequest request) {
-        return newExceptionPromise(newNotSupportedException("Action operations are not supported"));
+        return new NotSupportedException("Action operations are not supported").asPromise();
     }
 
     @Override
     public Promise<ActionResponse, ResourceException> actionInstance(Context context, String resourceId,
             ActionRequest request) {
-        return newExceptionPromise(newNotSupportedException("Action operations are not supported"));
+        return new NotSupportedException("Action operations are not supported").asPromise();
     }
 
     @Override
     public Promise<ResourceResponse, ResourceException> patchInstance(Context context, String resourceId,
             PatchRequest request) {
-        return newExceptionPromise(newNotSupportedException("Patch operations are not supported"));
+        return new NotSupportedException("Patch operations are not supported").asPromise();
     }
 
     @Override
     public Promise<QueryResponse, ResourceException> queryCollection(Context context, QueryRequest request,
             QueryResourceHandler queryResourceHandler) {
-        return newExceptionPromise(newNotSupportedException("Query operations are not supported"));
+        return new NotSupportedException("Query operations are not supported").asPromise();
     }
     
     public abstract void createDefaultEntry(String alias) throws Exception;

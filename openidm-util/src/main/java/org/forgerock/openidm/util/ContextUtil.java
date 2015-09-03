@@ -15,8 +15,16 @@
  */
 package org.forgerock.openidm.util;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.forgerock.http.Context;
+import org.forgerock.http.context.RootContext;
 import org.forgerock.json.resource.ClientContext;
+import org.forgerock.json.resource.InternalContext;
+import org.forgerock.json.resource.SecurityContext;
 
 /**
  */
@@ -42,5 +50,26 @@ public class ContextUtil {
     public static boolean isExternal(Context context) {
         return context.containsContext(ClientContext.class)
                 && context.asContext(ClientContext.class).isExternal();
+    }
+    /**
+     * Create a internal context used for trusted, internal calls.
+     * <p>
+     * If the request is initiated in a non-authenticated location (
+     * {@code BundleActivator}, {@code Scheduler}, {@code ConfigurationAdmin})
+     * this context should be used. The AUTHORIZATION module grants full access
+     * to this context.
+     *
+     * @return a new {@link InternalContext}
+     */
+    public static Context createInternalContext() {
+        // Ideally, we would have an internal system user that we could point to;
+        // point to it now and build it later
+        final Map<String, Object> authzid = new HashMap<String, Object>();
+        authzid.put(SecurityContext.AUTHZID_ID, "system");
+        List<String> roles = new ArrayList<String>();
+        roles.add("system");
+        authzid.put(SecurityContext.AUTHZID_ROLES, roles);
+        authzid.put(SecurityContext.AUTHZID_COMPONENT, "internal/user");
+        return new InternalContext(new SecurityContext(new RootContext(), "system", authzid));
     }
 }

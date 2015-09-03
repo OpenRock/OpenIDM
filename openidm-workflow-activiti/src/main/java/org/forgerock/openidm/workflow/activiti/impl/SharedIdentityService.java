@@ -28,14 +28,13 @@ import org.activiti.engine.impl.identity.Authentication;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
 import org.activiti.engine.identity.NativeGroupQuery;
 import org.activiti.engine.identity.NativeUserQuery;
 import org.forgerock.http.Context;
 import org.forgerock.json.resource.*;
 import org.forgerock.openidm.crypto.CryptoService;
-import org.forgerock.openidm.router.RouteService;
+import org.forgerock.openidm.util.ContextUtil;
 
 /**
  * @version $Revision$ $Date$
@@ -82,25 +81,13 @@ public class SharedIdentityService implements IdentityService {
     public static final String SCIM_X509CERTIFICATES = "x509Certificates";
     //SCIM Group Schema
     public static final String SCIM_MEMBERS = "members";
-    private RouteService repositoryRoute;
-    private Context context;
+    private Context context = ContextUtil.createInternalContext();
     private CryptoService cryptoService;
     private ConnectionFactory connectionFactory;
     
     public static final String USER_PATH = "managed/user/";
     public static final String GROUP_PATH = "managed/group/";
 
-    public void setRouter(RouteService router) {
-        repositoryRoute = router;
-        if (router != null) {
-            try {
-                this.context = repositoryRoute.createServerContext();
-            } catch (ResourceException ex) {
-                Logger.getLogger(SharedIdentityService.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-    }
-    
     public void setCryptoService(CryptoService service) {
         this.cryptoService = service;
     }
