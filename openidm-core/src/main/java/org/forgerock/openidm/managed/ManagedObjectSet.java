@@ -18,20 +18,11 @@ package org.forgerock.openidm.managed;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
-import static org.forgerock.json.resource.Responses.*;
-import static org.forgerock.json.resource.ResourceResponse.*;
-import static org.forgerock.util.promise.Promises.*;
-
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
-
-import javax.management.relation.Relation;
-import javax.script.ScriptException;
+import static org.forgerock.json.resource.ResourceResponse.FIELD_CONTENT_ID;
+import static org.forgerock.json.resource.Responses.newActionResponse;
+import static org.forgerock.json.resource.Responses.newResourceResponse;
+import static org.forgerock.util.promise.Promises.newResultPromise;
+import static org.forgerock.util.promise.Promises.when;
 
 import org.forgerock.services.context.Context;
 import org.forgerock.json.resource.ResourcePath;
@@ -81,9 +72,18 @@ import org.forgerock.script.exception.ScriptThrownException;
 import org.forgerock.util.Function;
 import org.forgerock.util.Pair;
 import org.forgerock.util.promise.Promise;
-import org.forgerock.util.promise.Promises;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.script.ScriptException;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Provides access to a set of managed objects of a given type: managed/[type]/{id}.
@@ -502,7 +502,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
                         new Function<JsonValue, JsonValue, ResourceException>() {
                             @Override
                             public JsonValue apply(JsonValue jsonValue) throws ResourceException {
-                                return json(object(field(relationshipField.toString(), jsonValue)));
+                                return json(object(field(relationshipField.leaf(), jsonValue.getObject())));
                             }
                         }
                 ));
@@ -660,14 +660,14 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      * @param resourceId The id of the resource to fetch relationships of
      * @return A {@link JsonValue} map containing all relationship fields and their values
      */
-    private JsonValue fetchRelationshipFields(Context context, String resourceId) {
+    private JsonValue fetchRelationshipFields(Context context, String resourceId) throws ExecutionException, InterruptedException {
         final JsonValue joined = json(object());
 
         for (Map.Entry<JsonPointer, RelationshipProvider> entry : relationshipProviders.entrySet()) {
             final JsonPointer field = entry.getKey();
             final RelationshipProvider provider = entry.getValue();
 
-            joined.put(field, provider.fetchJson(context, resourceId));
+            joined.put(field, provider.fetchJson(context, resourceId).get().getObject());
         }
 
         return joined;
