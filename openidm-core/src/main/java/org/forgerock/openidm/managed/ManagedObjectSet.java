@@ -498,7 +498,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
 
             if (relationshipValue != null) {
                 RelationshipProvider provider = relationshipProviders.get(relationshipField);
-                persisted.add(provider.persistJson(context, resourceId, relationshipValue).then(
+                persisted.add(provider.setRelationshipValueForResource(context, resourceId, relationshipValue).then(
                         new Function<JsonValue, JsonValue, ResourceException>() {
                             @Override
                             public JsonValue apply(JsonValue jsonValue) throws ResourceException {
@@ -667,7 +667,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             final JsonPointer field = entry.getKey();
             final RelationshipProvider provider = entry.getValue();
 
-            joined.put(field, provider.fetchJson(context, resourceId).get().getObject());
+            joined.put(field, provider.getRelationshipValueForResource(context, resourceId).get().getObject());
         }
 
         return joined;
@@ -889,7 +889,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
         final ResourceException[] ex = new ResourceException[]{null};
         try {
         	
-        	QueryResponse queryResponse = connectionFactory.getConnection().query(context, repoRequest, 
+        	QueryResponse queryResponse = connectionFactory.getConnection().query(context, repoRequest,
             		new QueryResourceHandler() {
                 @Override
                 public boolean handleResource(ResourceResponse resource) {
