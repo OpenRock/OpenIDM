@@ -24,16 +24,21 @@
  */
 package org.forgerock.openidm.cluster;
 
-import static org.forgerock.json.JsonValue.*;
-import static org.forgerock.json.resource.Responses.*;
+import static org.forgerock.json.JsonValue.field;
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.json.resource.Responses.newResourceResponse;
 import static org.forgerock.openidm.util.ResourceUtil.notSupported;
 
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -49,7 +54,6 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
 import org.forgerock.http.Context;
-import org.forgerock.http.ResourcePath;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
@@ -66,6 +70,7 @@ import org.forgerock.json.resource.RequestHandler;
 import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.ResourceResponse;
+import org.forgerock.json.resource.ResourcePath;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
@@ -82,7 +87,7 @@ import org.slf4j.LoggerFactory;
  *
  */
 @Component(name = ClusterManager.PID, policy = ConfigurationPolicy.REQUIRE, metatype = true,
-        description = "OpenIDM Policy Service", immediate = true)
+        description = "OpenIDM Cluster Management Service", immediate = true)
 @Service
 @Properties({
     @Property(name = Constants.SERVICE_VENDOR, value = ServerConstants.SERVER_VENDOR_NAME),
@@ -651,7 +656,7 @@ public class ClusterManager implements RequestHandler, ClusterManagementService 
      */
     private boolean sendEventToListeners(ClusterEvent event) {
         boolean success = true;
-        for (String listenerId : listeners.keySet()) {
+        for (String listenerId : Collections.unmodifiableSet(listeners.keySet())) {
             logger.debug("Notifying listener {} of event {} for instance {}", new Object[] {
                 listenerId, event.getType(), instanceId });
             ClusterEventListener listener = listeners.get(listenerId);
