@@ -347,7 +347,31 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`uinotification` (
   `notificationSubtype` VARCHAR(255) NULL ,
   PRIMARY KEY (`objectid`) );
 
-INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`) 
+CREATE  TABLE IF NOT EXISTS `openidm`.`updates` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT ,
+  `status` VARCHAR(64) NOT NULL ,
+  `statusMessage` VARCHAR(256) NOT NULL ,
+  `completedTasks` INT DEFAULT 0,
+  `totalTasks` INT DEFAULT 0,
+  `startDate` VARCHAR(29) NOT NULL,
+  `endDate` VARCHAR(29) NULL,
+  `userName` VARCHAR(256) NOT NULL,
+  `nodeId` VARCHAR(64) NULL ,
+  PRIMARY KEY (`id`) );
+
+CREATE  TABLE IF NOT EXISTS `openidm`.`updatefile` (
+  `updateId` BIGINT UNSIGNED NOT NULL ,
+  `filePath` TEXT NOT NULL ,
+  `fileState` VARCHAR(64) NOT NULL ,
+  `backupFile` TEXT NULL ,
+  `stockFile` TEXT NULL ,
+  CONSTRAINT `fk_updatefileupdatesid_updatesid`
+  FOREIGN KEY (`updateId` )
+    REFERENCES `openidm`.`updates` (`id` )
+  ON DELETE CASCADE
+  ON UPDATE NO ACTION);
+
+INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`)
 SELECT 'openidm-admin', '0', 'openidm-admin', '["openidm-admin","openidm-authorized"]' 
 WHERE NOT EXISTS (SELECT * FROM `openidm`.`internaluser` WHERE `objectid` = 'openidm-admin');
 
