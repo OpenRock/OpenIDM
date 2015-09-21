@@ -365,9 +365,11 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`updatefile` (
   `fileState` VARCHAR(64) NOT NULL ,
   `backupFile` TEXT NULL ,
   `stockFile` TEXT NULL ,
-  PRIMARY KEY (`id`) );
-
-CREATE INDEX IF NOT EXISTS `fk_updatefileupdateid_updatesid` ON `openidm`.`updatefile` (`updateId` ASC);
+  CONSTRAINT `fk_updatefileupdatesid_updatesid`
+  FOREIGN KEY (`updateId` )
+    REFERENCES `openidm`.`updates` (`id` )
+  ON DELETE CASCADE
+  ON UPDATE NO ACTION);
 
 INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`)
 SELECT 'openidm-admin', '0', 'openidm-admin', '["openidm-admin","openidm-authorized"]' 
