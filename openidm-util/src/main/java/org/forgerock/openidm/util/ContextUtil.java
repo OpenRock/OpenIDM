@@ -15,20 +15,23 @@
  */
 package org.forgerock.openidm.util;
 
+import static org.forgerock.services.context.ClientContext.newInternalClientContext;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.forgerock.http.Context;
-import org.forgerock.http.context.RootContext;
-import org.forgerock.json.resource.ClientContext;
-import org.forgerock.json.resource.InternalContext;
-import org.forgerock.json.resource.SecurityContext;
+import org.forgerock.services.context.Context;
+import org.forgerock.services.context.ClientContext;
+import org.forgerock.services.context.RootContext;
+import org.forgerock.services.context.SecurityContext;
 
 /**
  */
 public class ContextUtil {
+
+    public static final String INTERNAL_AUTHENTICATION_ID = "system";
 
     /**
      * {@code ContextUtil} instances should NOT be constructed in standard
@@ -59,17 +62,17 @@ public class ContextUtil {
      * this context should be used. The AUTHORIZATION module grants full access
      * to this context.
      *
-     * @return a new {@link InternalContext}
+     * @return a new {@link ClientContext}
      */
     public static Context createInternalContext() {
         // Ideally, we would have an internal system user that we could point to;
         // point to it now and build it later
         final Map<String, Object> authzid = new HashMap<String, Object>();
-        authzid.put(SecurityContext.AUTHZID_ID, "system");
+        authzid.put(SecurityContext.AUTHZID_ID, INTERNAL_AUTHENTICATION_ID);
         List<String> roles = new ArrayList<String>();
         roles.add("system");
         authzid.put(SecurityContext.AUTHZID_ROLES, roles);
         authzid.put(SecurityContext.AUTHZID_COMPONENT, "internal/user");
-        return new InternalContext(new SecurityContext(new RootContext(), "system", authzid));
+        return newInternalClientContext(new SecurityContext(new RootContext(), INTERNAL_AUTHENTICATION_ID, authzid));
     }
 }

@@ -27,8 +27,8 @@ import static org.mockito.Mockito.when;
 import java.util.Collection;
 
 import org.assertj.core.data.MapEntry;
-import org.forgerock.http.Context;
-import org.forgerock.http.ResourcePath;
+import org.forgerock.services.context.Context;
+import org.forgerock.json.resource.ResourcePath;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.Connection;
 import org.forgerock.json.resource.ConnectionFactory;

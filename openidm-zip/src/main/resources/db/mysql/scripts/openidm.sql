@@ -263,6 +263,29 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
+-- Table `openidm`.`auditconfig`
+-- -----------------------------------------------------
+CREATE  TABLE IF NOT EXISTS `openidm`.`auditconfig` (
+  `objectid` VARCHAR(38) NOT NULL ,
+  `activitydate` VARCHAR(29) NOT NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
+  `transactionid` VARCHAR(56) NOT NULL ,
+  `eventname` VARCHAR(255) NULL ,
+  `userid` VARCHAR(255) NULL ,
+  `runas` VARCHAR(255) NULL ,
+  `resource_uri` VARCHAR(255) NULL ,
+  `resource_protocol` VARCHAR(10) NULL ,
+  `resource_method` VARCHAR(10) NULL ,
+  `resource_detail` VARCHAR(255) NULL ,
+  `before` MEDIUMTEXT NULL ,
+  `after` MEDIUMTEXT NULL ,
+  `changedfields` VARCHAR(255) NULL ,
+  `rev` VARCHAR(255) NULL,
+  PRIMARY KEY (`objectid`) ,
+  INDEX `idx_auditconfig_transactionid` (`transactionid` ASC)
+)
+  ENGINE = InnoDB;
+
+-- -----------------------------------------------------
 -- Table `openidm`.`auditactivity`
 -- -----------------------------------------------------
 CREATE  TABLE IF NOT EXISTS `openidm`.`auditactivity` (
@@ -334,11 +357,11 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`auditaccess` (
   `auth_component` VARCHAR(255) NULL ,
   `resource_uri` VARCHAR(255) NULL ,
   `resource_protocol` VARCHAR(10) NULL ,
-  `resource_method` VARCHAR(10) NULL ,
+  `resource_method` VARCHAR(14) NULL ,
   `resource_detail` VARCHAR(255) NULL ,
   `http_method` VARCHAR(10) NULL ,
   `http_path` VARCHAR(255) NULL ,
-  `http_querystring` VARCHAR(255) NULL ,
+  `http_querystring` TEXT NULL ,
   `http_headers` TEXT ,
   `status` VARCHAR(20) NULL ,
   `elapsedtime` VARCHAR(13) NULL ,

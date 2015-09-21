@@ -29,7 +29,10 @@ import static org.forgerock.json.JsonValue.object;
 import static org.forgerock.json.resource.Responses.newActionResponse;
 import static org.forgerock.json.resource.Responses.newResourceResponse;
 import static org.forgerock.openidm.audit.impl.AuditLogFilters.AS_SINGLE_FIELD_VALUES_FILTER;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newActivityActionFilter;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.NEVER_FILTER;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.TYPE_ACTIVITY;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.TYPE_CONFIG;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.newActionFilter;
 import static org.forgerock.openidm.audit.impl.AuditLogFilters.newAndCompositeFilter;
 import static org.forgerock.openidm.audit.impl.AuditLogFilters.newEventTypeFilter;
 import static org.forgerock.openidm.audit.impl.AuditLogFilters.newOrCompositeFilter;
@@ -55,8 +58,8 @@ import org.forgerock.audit.AuditServiceConfiguration;
 import org.forgerock.audit.DependencyProviderBase;
 import org.forgerock.audit.events.handlers.AuditEventHandler;
 import org.forgerock.audit.json.AuditJsonConfig;
-import org.forgerock.http.Context;
-import org.forgerock.http.context.RootContext;
+import org.forgerock.services.context.Context;
+import org.forgerock.services.context.RootContext;
 import org.forgerock.json.JsonPointer;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
@@ -133,7 +136,7 @@ public class AuditServiceImpl implements AuditService {
     /** the script to execute to format exceptions */
     private static ScriptEntry exceptionFormatterScript = null;
 
-    private AuditLogFilter auditFilter = AuditLogFilters.NEVER;
+    private AuditLogFilter auditFilter = NEVER_FILTER;
 
     private List<JsonPointer> watchFieldFilters = new ArrayList<>();
     private List<JsonPointer> passwordFieldFilters = new ArrayList<>();
@@ -147,13 +150,40 @@ public class AuditServiceImpl implements AuditService {
             EXTENDED_EVENT_TYPES + "/activity/watchedFields");
     private static final String CUSTOM_EVENT_TYPES = "customEventTypes";
 
+    private final JsonValueObjectConverter<AuditLogFilter> fieldJsonValueObjectConverter =
+            new JsonValueObjectConverter<AuditLogFilter>() {
+        @Override
+        public AuditLogFilter apply(JsonValue fieldsConfig) {
+            List<AuditLogFilter> filters = new ArrayList<>();
+            // the glob in the JsonPointer will return a map of matched entry types to field
+            // configurations
+            for (String eventType : fieldsConfig.keys()) {
+                // fieldConfig is something like { "field" : "type", "values" : [
+                // "summary" ] }
+                JsonValue fieldConfig = fieldsConfig.get(eventType);
+                filters.add(newEventTypeFilter(eventType,
+                        newAndCompositeFilter(fieldConfig.asList
+                                (AS_SINGLE_FIELD_VALUES_FILTER))));
+            }
+            return newOrCompositeFilter(filters);
+        }
+    };
+
     private final AuditLogFilterBuilder auditLogFilterBuilder = new AuditLogFilterBuilder()
+            /* filter config events on configured actions to include */
+            .add("extendedEventTypes/config/filter/actions",
+                    new JsonValueObjectConverter<AuditLogFilter>() {
+                        @Override
+                        public AuditLogFilter apply(JsonValue actions) {
+                            return newActionFilter(TYPE_CONFIG, actions);
+                        }
+                    })
             /* filter activity events on configured actions to include */
             .add("extendedEventTypes/activity/filter/actions",
                     new JsonValueObjectConverter<AuditLogFilter>() {
                         @Override
                         public AuditLogFilter apply(JsonValue actions) {
-                            return newActivityActionFilter(actions);
+                            return newActionFilter(TYPE_ACTIVITY, actions);
                         }
                     })
             /* filter activity events on configured actions to include when a particular trigger context is in scope */
@@ -163,7 +193,7 @@ public class AuditServiceImpl implements AuditService {
                         public AuditLogFilter apply(JsonValue triggers) {
                             List<AuditLogFilter> filters = new ArrayList<>();
                             for (String trigger : triggers.keys()) {
-                                filters.add(newActivityActionFilter(triggers.get(trigger), trigger));
+                                filters.add(newActionFilter(TYPE_ACTIVITY, triggers.get(trigger), trigger));
                             }
                             return newOrCompositeFilter(filters);
                         }
@@ -189,22 +219,8 @@ public class AuditServiceImpl implements AuditService {
                         }
                     })
             /* filter events with specific field values for any event type */
-            .add("*/*/filter/fields",
-                    new JsonValueObjectConverter<AuditLogFilter>() {
-                        @Override
-                        public AuditLogFilter apply(JsonValue fieldsConfig) {
-                            List<AuditLogFilter> filters = new ArrayList<>();
-                            // the glob in the JsonPointer will return a map of matched entry types to field
-                            // configurations
-                            for (String eventType : fieldsConfig.keys()) {
-                                // fieldConfig is something like { "field" : "type", "values" : [ "summary" ] }
-                                JsonValue fieldConfig = fieldsConfig.get(eventType);
-                                filters.add(newEventTypeFilter(eventType,
-                                        newAndCompositeFilter(fieldConfig.asList(AS_SINGLE_FIELD_VALUES_FILTER))));
-                            }
-                            return newOrCompositeFilter(filters);
-                        }
-                    });
+            .add("extendedEventTypes/*/filter/fields", fieldJsonValueObjectConverter)
+            .add("customEventTypes/*/filter/fields", fieldJsonValueObjectConverter);
 
     @Activate
     void activate(ComponentContext compContext) throws Exception {
@@ -342,7 +358,7 @@ public class AuditServiceImpl implements AuditService {
         LOGGER.debug("Deactivating Service {}", compContext.getProperties());
         auditService = null;
         config = null;
-        auditFilter = AuditLogFilters.NEVER;
+        auditFilter = NEVER_FILTER;
         watchFieldFilters.clear();
         passwordFieldFilters.clear();
         LOGGER.info("Audit service stopped.");

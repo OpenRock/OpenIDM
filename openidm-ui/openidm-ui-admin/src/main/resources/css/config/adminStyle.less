@@ -25,6 +25,12 @@
 /*
   Base Page Styles
 */
+.no-well-border .well {
+  border: none;
+}
+.transparent-well .well {
+  background-color: transparent;
+}
 
 .add-item-inline {
   .form-group {
@@ -105,33 +111,10 @@
   }
 }
 
-/*
-  Popover styling
-*/
-.popover .popover-header {
-  margin-left:15px;
-  margin-top:10px;
-  margin-bottom:0px;
+.section-help {
+  margin-bottom:20px;
 }
 
-.popover-content .code-tooltip {
-  max-height:200px;
-  white-space:pre;
-}
-
-.popover-info {
-  max-width:250px;
-  width:250px;
-}
-
-.popover-info.popover-large {
-  max-width:550px;
-  width:550px;
-}
-
-.popover-info {
-  overflow:hidden;
-}
 /*
   Selectize styles
 */
@@ -843,22 +826,6 @@ Dialog Catch
     color: #999;
   }
 
-  .descending .sort-caret {
-    bottom:3px;
-
-    &:before {
-      content:@fa-var-sort-desc;
-    }
-  }
-
-  .ascending .sort-caret {
-    top: 3px;
-
-    &:before {
-      content:@fa-var-sort-asc;
-    }
-  }
-
   .empty {
     width:100%;
     text-align:center;
@@ -888,7 +855,7 @@ Dialog Catch
   }
 
   tbody tr td{
-    padding: 12px 15px;
+    padding: 12px 8px;
   }
 
   thead tr th a:hover {
@@ -898,6 +865,28 @@ Dialog Catch
 
 .backgrid-table thead {
   border-bottom: 2px solid #ddd;
+}
+
+.backgrid-table {
+  .descending .sort-caret {
+    bottom:3px;
+
+    &:before {
+      content:@fa-var-sort-desc;
+    }
+  }
+
+  .ascending .sort-caret {
+    top: 3px;
+
+    &:before {
+      content:@fa-var-sort-asc;
+    }
+  }
+}
+
+.backgrid td.checkMarkCell {
+    padding-left:30px;
 }
 
 /*

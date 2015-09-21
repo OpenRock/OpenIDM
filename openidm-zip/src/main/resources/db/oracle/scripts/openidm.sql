@@ -71,9 +71,9 @@ CREATE TABLE auditaccess (
   resource_protocol VARCHAR2(10 CHAR),
   resource_method VARCHAR2(10 CHAR),
   resource_detail VARCHAR2(255 CHAR),
-  http_method VARCHAR2(10 CHAR),
+  http_method VARCHAR2(14 CHAR),
   http_path VARCHAR2(255 CHAR),
-  http_querystring VARCHAR2(255 CHAR),
+  http_querystring CLOB,
   http_headers CLOB,
   status VARCHAR2(20 CHAR),
   elapsedtime VARCHAR2(13 CHAR),
@@ -148,7 +148,48 @@ ENABLE
 ;
 
 
--- DROP TABLE auditactivity CASCADE CONSTRAINTS;
+-- DROP TABLE auditconfig CASCADE CONSTRAINTS;
+
+PROMPT Creating Table auditconfig ...
+CREATE TABLE auditconfig (
+  objectid VARCHAR2(38 CHAR) NOT NULL,
+  activitydate VARCHAR2(29 CHAR) NOT NULL,
+  transactionid VARCHAR2(56 CHAR) NOT NULL,
+  eventname VARCHAR2(255 CHAR),
+  userid VARCHAR2(255 CHAR),
+  runas VARCHAR2(255 CHAR),
+  resource_uri VARCHAR2(255 CHAR),
+  resource_protocol VARCHAR2(10 CHAR),
+  resource_method VARCHAR2(10 CHAR),
+  resource_detail VARCHAR2(255 CHAR),
+  before CLOB,
+  after CLOB,
+  changedfields VARCHAR2(255 CHAR),
+  rev VARCHAR2(255 CHAR)
+);
+
+
+COMMENT ON COLUMN auditconfig.activitydate IS 'Date format: 2011-09-09T14:58:17.654+02:00'
+;
+
+PROMPT Creating Primary Key Constraint PRIMARY_8 on table auditconfig ...
+ALTER TABLE auditconfig
+ADD CONSTRAINT PRIMARY_8 PRIMARY KEY
+(
+  objectid
+)
+ENABLE
+;
+PROMPT Creating Index idx_auditconfig_transactionid on auditconfig ...
+CREATE INDEX idx_auditconfig_transactionid ON auditconfig
+(
+  transactionid
+)
+;
+
+
+
+--  DROP TABLE auditactivity CASCADE CONSTRAINTS;
 
 
 PROMPT Creating Table auditactivity ...

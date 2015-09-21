@@ -24,6 +24,8 @@
 
 package org.forgerock.openidm.router.impl;
 
+import static org.forgerock.services.context.ClientContext.newInternalClientContext;
+
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -33,11 +35,10 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
-import org.forgerock.http.Context;
+import org.forgerock.services.context.Context;
 import org.forgerock.json.resource.AbstractConnectionWrapper;
 import org.forgerock.json.resource.Connection;
 import org.forgerock.json.resource.ConnectionFactory;
-import org.forgerock.json.resource.InternalContext;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.util.promise.Promise;
@@ -121,7 +122,7 @@ public class JsonResourceRouterService implements ConnectionFactory {
                 return new AbstractConnectionWrapper<Connection>(connectionFactory.getConnection()) {
                     @Override
                     protected Context transform(Context context) {
-                        return new InternalContext(context);
+                        return newInternalClientContext(context);
                     }
                 };
             }

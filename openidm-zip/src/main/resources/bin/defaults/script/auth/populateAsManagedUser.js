@@ -26,7 +26,7 @@
  * global security - map of security context details as have been determined thus far
  *
  *      {
- *          "authorizationId": {
+ *          "authorization": {
  *              "id": "jsmith",
  *              "component": "passthrough",
  *              "roles": [ "openidm-authorized" ]
@@ -95,12 +95,12 @@
             };
         }
 
-        security.authorizationId = {
+        security.authorization = {
             "id": managedUser._id,
             "component": "managed/user",
             "roles": managedUser.authzRoles ?
                          _.uniq(
-                             security.authorizationId.roles.concat(
+                             security.authorization.roles.concat(
                                  _.chain(managedUser.authzRoles)
                                      .filter(function (r) {
                                          return org.forgerock.json.resource.ResourceName.valueOf(r._ref).startsWith("repo/internal/role");
@@ -112,7 +112,7 @@
                                      .value()
                             )
                         ) :
-                         security.authorizationId.roles
+                         security.authorization.roles
         };
 
     }
