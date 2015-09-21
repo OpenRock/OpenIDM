@@ -16,6 +16,8 @@
 
 package org.forgerock.openidm.scheduler;
 
+import static org.forgerock.json.JsonValue.array;
+import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
 import static org.forgerock.json.resource.QueryResponse.FIELD_RESULT;
@@ -36,7 +38,6 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.UUID;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -81,6 +82,7 @@ import org.osgi.util.tracker.ServiceTracker;
 import org.quartz.CronTrigger;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.JobExecutionContext;
 import org.quartz.ObjectAlreadyExistsException;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
@@ -90,6 +92,8 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.simpl.CascadingClassLoadHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Scheduler service using Quartz.
@@ -136,6 +140,16 @@ public class SchedulerService implements RequestHandler {
     final static String GROUP_NAME = "scheduler-service-group";
 
     final static String CONFIG = "schedule.config";
+    
+    /**
+     * Supported actions on the scheduer service.
+     */
+    private enum SchedulerAction { 
+        create,
+        listCurrentlyExecutingJobs,
+        pauseJobs,
+        resumeJobs
+    };
 
     private static Scheduler inMemoryScheduler;
     private static Scheduler persistentScheduler = null;
@@ -618,13 +632,10 @@ public class SchedulerService implements RequestHandler {
     public Promise<ActionResponse, ResourceException> handleAction(Context context, ActionRequest request) {
         try {
             Map<String, String> params = request.getAdditionalParameters();
+            String action = request.getAction();
 
-            if (params.get("_action") == null) {
-                throw new BadRequestException("Expecting _action parameter");
-            }
-
-            String action = params.get("_action");
-            if ("create".equals(action)) {
+            switch (request.getActionAsEnum(SchedulerAction.class)) {
+            case create:
                 String id = UUID.randomUUID().toString();
                 params.put("_id", id);
                 if (jobExists(id)) {
@@ -633,12 +644,32 @@ public class SchedulerService implements RequestHandler {
                 CreateRequest createRequest = Requests.newCreateRequest(id, new JsonValue(params));
                 ResourceResponse response = handleCreate(context, createRequest).getOrThrow();
                 return newActionResponse(response.getContent()).asPromise();
-            } else {
+            case listCurrentlyExecutingJobs:
+                JsonValue currentlyExecutingJobs = json(array());
+                List<?> jobs = persistentScheduler.getCurrentlyExecutingJobs();
+                for (Object job : jobs) {
+                    JsonValue config = parseStringified((String)((JobExecutionContext)job).getJobDetail().getJobDataMap().get(CONFIG));
+                    currentlyExecutingJobs.add(new ScheduleConfig(config).getConfig().getObject());
+                }
+                jobs = inMemoryScheduler.getCurrentlyExecutingJobs();
+                for (Object job : jobs) {
+                    JsonValue config = parseStringified((String)((JobExecutionContext)job).getJobDetail().getJobDataMap().get(CONFIG));
+                    currentlyExecutingJobs.add(new ScheduleConfig(config).getConfig().getObject());
+                }
+                return newActionResponse(currentlyExecutingJobs).asPromise();
+            case pauseJobs:
+                persistentScheduler.pauseAll();
+                inMemoryScheduler.pauseAll();
+                return newActionResponse(json(object(field("success",true)))).asPromise();
+            case resumeJobs:
+                persistentScheduler.resumeAll();
+                inMemoryScheduler.resumeAll();
+                return newActionResponse(json(object(field("success",true)))).asPromise();
+            default:
                 throw new BadRequestException("Unknown action: " + action);
             }
         } catch (JsonException e) {
-        	return new BadRequestException("Error performing action " + request.getAction() + " on schedule", e)
-                    .asPromise();
+        	return new BadRequestException("Error performing action " + request.getAction(), e).asPromise();
         } catch (SchedulerException e) {
         	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         } catch (Exception e) {
@@ -716,10 +747,9 @@ public class SchedulerService implements RequestHandler {
         }
         JobDetail job = scheduler.getJobDetail(scheduleName, GROUP_NAME);
         JobDataMap dataMap = job.getJobDataMap();
-        ScheduleConfig config = new ScheduleConfig(parseStringified((String)dataMap.get(CONFIG)));
-        Map<String, Object> resultMap = (Map<String, Object>) config.getConfig().getObject();
+        JsonValue resultMap = new ScheduleConfig(parseStringified((String) dataMap.get(CONFIG))).getConfig();
         resultMap.put("_id", scheduleName);
-        return new JsonValue(resultMap);
+        return resultMap;
     }
 
     private JsonValue parseStringified(String stringified) {
