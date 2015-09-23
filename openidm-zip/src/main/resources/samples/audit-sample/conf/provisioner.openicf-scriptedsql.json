@@ -36,7 +36,7 @@
         "autoCommit" : true,
         "reloadScriptOnExecution" : false,
         "jdbcDriver" : "com.mysql.jdbc.Driver",
-        "classpath" : ["&{launcher.project.location}/tools"],
+        "scriptRoots" : ["&{launcher.project.location}/tools"],
         "createScriptFileName" : "CreateScript.groovy",
         "testScriptFileName" : "TestScript.groovy",
         "searchScriptFileName" : "SearchScript.groovy"
@@ -100,10 +100,10 @@
                     "nativeName" : "client",
                     "nativeType" : "object"
                 },
-                "authorizationId" : {
+                "authorization" : {
                     "type" : "object",
                     "required" : false,
-                    "nativeName" : "authorizationId",
+                    "nativeName" : "authorization",
                     "nativeType" : "object"
                 },
                 "resourceOperation" : {
@@ -380,10 +380,7 @@
                     "type" : "object",
                     "required" : false,
                     "nativeName" : "messagedetail",
-                    "nativeType" : "object",
-                    "flags" : [
-                        "MULTIVALUED"
-                    ]
+                    "nativeType" : "object"
                 },
                 "situation" : {
                     "type" : "string",
@@ -492,7 +489,7 @@
                 "linkQualifier" : {
                     "type" : "string",
                     "required" : false,
-                    "nativeName": "linkqualifier",
+                    "nativeName" : "linkqualifier",
                     "nativeType" : "string"
                 },
                 "mapping" : {
@@ -511,10 +508,7 @@
                     "type" : "object",
                     "required" : false,
                     "nativeName" : "messagedetail",
-                    "nativeType" : "object",
-                    "flags" : [
-                        "MULTIVALUED"
-                    ]
+                    "nativeType" : "object"
                 },
                 "situation" : {
                     "type" : "string",

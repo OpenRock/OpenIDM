@@ -31,7 +31,8 @@
 
         "query-cluster-failed-instances" : "SELECT * FROM cluster_states WHERE timestamp <= ${timestamp} AND (state = '1' OR state = '2')",
         "query-cluster-instances" : "SELECT * FROM cluster_states",
-        "query-cluster-events" : "SELECT * FROM cluster_events WHERE instanceId = ${instanceId}"
+        "query-cluster-events" : "SELECT * FROM cluster_events WHERE instanceId = ${instanceId}",
+        "get-recons" : "SELECT reconId, timestamp, mapping, message FROM audit_recon WHERE mapping LIKE ${includeMapping} AND mapping NOT LIKE ${excludeMapping} AND entryType = 'summary' ORDER BY timestamp DESC"
     },
     "commands" : {
         "purge-by-recon-expired" : "DELETE FROM audit_recon WHERE mapping LIKE ${includeMapping} AND mapping NOT LIKE ${excludeMapping} AND timestamp < ${timestamp}",
@@ -117,17 +118,12 @@
                         "indexType" : "unique"
                     },
                     {
-                        "propertyName" : "reconId",
-                        "propertyType" : "string",
-                        "indexType" : "notunique"
-                    },
-                    {
-                        "propertyNames" : [ "linkType", "firstId" ],
+                        "propertyNames" : [ "linkType", "linkQualifier", "firstId" ],
                         "propertyType" : "string",
                         "indexType" : "unique"
                     },
                     {
-                        "propertyNames" : [ "linkType", "secondId" ],
+                        "propertyNames" : [ "linkType", "linkQualifier", "secondId" ],
                         "propertyType" : "string",
                         "indexType" : "unique"
                     }
@@ -288,6 +284,11 @@
                         "indexType" : "notunique"
                     },
                     {
+                        "propertyName" : "linkQualifier",
+                        "propertyType" : "string",
+                        "indexType" : "notunique"
+                    },
+                    {
                         "propertyName" : "timestamp",
                         "propertyType" : "string",
                         "indexType" : "notunique"
@@ -319,6 +320,7 @@
                     }
                 ]
             },
+            "audit_authentication" : {},
             "audit_activity" : {},
             "audit_access" : {
                 "index" : [
@@ -334,6 +336,8 @@
                     }
                 ]
             },
+            "audit_sync" : {},
+            "audit_config" : {},
             "_studio_bookmark" : {}
         }
     },

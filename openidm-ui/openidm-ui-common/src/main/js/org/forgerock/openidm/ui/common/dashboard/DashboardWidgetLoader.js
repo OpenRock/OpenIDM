@@ -35,7 +35,8 @@ define("org/forgerock/openidm/ui/common/dashboard/DashboardWidgetLoader", [
     "org/forgerock/openidm/ui/common/dashboard/widgets/MemoryUsageWidget",
     "org/forgerock/openidm/ui/common/dashboard/widgets/ReconProcessesWidget",
     "org/forgerock/openidm/ui/common/dashboard/widgets/CPUUsageWidget",
-    "org/forgerock/openidm/ui/common/dashboard/widgets/QuickStartWidget"
+    "org/forgerock/openidm/ui/common/dashboard/widgets/QuickStartWidget",
+    "org/forgerock/openidm/ui/common/dashboard/widgets/FullHealthWidget"
 ], function($, _,
             AbstractView,
             eventManager,
@@ -45,7 +46,8 @@ define("org/forgerock/openidm/ui/common/dashboard/DashboardWidgetLoader", [
             MemoryUsageWidget,
             ReconProcessesWidget,
             CPUUsageWidget,
-            QuickStartWidget) {
+            QuickStartWidget,
+            FullHealthWidget) {
     var dwlInstance = {},
         DashboardWidgetLoader = AbstractView.extend({
             template: "templates/dashboard/DashboardWidgetLoaderTemplate.html",
@@ -60,14 +62,13 @@ define("org/forgerock/openidm/ui/common/dashboard/DashboardWidgetLoader", [
 
             },
             /*
-             Availavble Widgets:
-
-             lifeCycleMemoryHeap - Current heap memory
-             lifeCycleMemoryNonHeap - Current none heap memory
-             lifeCycleMemoryBoth - Displays both heap and none heap memory charts
-             reconUsage - Displays current recons in process. Polls every few seconds with updated information.
-             cpuUsage - Shows current CPU usage of the system
-             quickStart - Widget displaying quick start cards to help users get start with core functionality
+             Available Widgets:
+                lifeCycleMemoryHeap - Current heap memory
+                lifeCycleMemoryNonHeap - Current none heap memory
+                cpuUsage - Shows current CPU usage of the system
+                systemHealthFull - Load full widget of health information
+                reconUsage - Displays current recons in process. Polls every few seconds with updated information.
+                quickStart - Widget displaying quick start cards to help users get start with core functionality
              */
             render: function(args, callback) {
                 this.element = args.element;
@@ -103,7 +104,6 @@ define("org/forgerock/openidm/ui/common/dashboard/DashboardWidgetLoader", [
                 this.data.widget = this.model.widgetList[args.widget.type];
 
                 this.parentRender(_.bind(function(){
-                    args.menu = this.$el.find(".dropdown-menu");
                     args.element = this.$el.find(".widget-body");
 
                     switch(args.widget.type) {
@@ -117,6 +117,9 @@ define("org/forgerock/openidm/ui/common/dashboard/DashboardWidgetLoader", [
                             break;
                         case "cpuUsage":
                             this.model.widget = CPUUsageWidget.generateWidget(args, callback);
+                            break;
+                        case "systemHealthFull":
+                            this.model.widget = FullHealthWidget.generateWidget(args, callback);
                             break;
                         case "quickStart":
                             this.$el.find(".dropdown-toggle").hide();
