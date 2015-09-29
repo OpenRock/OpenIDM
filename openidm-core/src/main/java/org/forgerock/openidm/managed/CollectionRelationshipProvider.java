@@ -18,6 +18,8 @@ package org.forgerock.openidm.managed;
 
 import static org.forgerock.json.JsonValue.array;
 import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.resource.ResourceResponse.FIELD_CONTENT_ID;
+import static org.forgerock.json.resource.ResourceResponse.FIELD_CONTENT_REVISION;
 import static org.forgerock.json.resource.Router.uriTemplate;
 import static org.forgerock.openidm.util.ResourceUtil.notSupportedOnCollection;
 import static org.forgerock.util.promise.Promises.newResultPromise;
@@ -58,11 +60,14 @@ import org.forgerock.util.AsyncFunction;
 import org.forgerock.util.Function;
 import org.forgerock.util.promise.Promise;
 import org.forgerock.util.query.QueryFilter;
+import org.forgerock.util.query.QueryFilterVisitor;
 
 /**
  * A {@link RelationshipProvider} representing a collection (array) of relationships for the given field.
  */
 class CollectionRelationshipProvider extends RelationshipProvider implements CollectionResourceProvider {
+    final static QueryFilterVisitor<QueryFilter<JsonPointer>, Object, JsonPointer> VISITOR = new RelationshipQueryFilterVisitor<>();
+
     private final RequestHandler requestHandler;
 
     /**
@@ -313,7 +318,7 @@ class CollectionRelationshipProvider extends RelationshipProvider implements Col
                     QueryFilter.equalTo(new JsonPointer(REPO_FIELD_FIRST_PROPERTY_NAME), propertyName));
 
             if (request.getQueryFilter() != null) {
-                filter = QueryFilter.and(filter, request.getQueryFilter());
+                filter = QueryFilter.and(filter, asRelationshipQueryFilter(request.getQueryFilter()));
             }
 
             queryRequest.setQueryFilter(filter);
@@ -344,6 +349,135 @@ class CollectionRelationshipProvider extends RelationshipProvider implements Col
             return e.asPromise();
         } catch (Exception e) {
             return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        }
+    }
+
+    static QueryFilter<JsonPointer> asRelationshipQueryFilter(QueryFilter<JsonPointer> filter) {
+        return filter.accept(VISITOR, null);
+    }
+
+    /**
+     * A {@link QueryFilterVisitor} implementation which modifies the {@link JsonPointer} fields by prepending them
+     * with the appropriate key where the full config object is located.
+     */
+    private static class RelationshipQueryFilterVisitor<P> implements QueryFilterVisitor<QueryFilter<JsonPointer>, P, JsonPointer> {
+
+        @Override
+        public QueryFilter<JsonPointer> visitAndFilter(P parameter, List<QueryFilter<JsonPointer>> subFilters) {
+            return QueryFilter.and(visitQueryFilters(subFilters));
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitBooleanLiteralFilter(P parameter, boolean value) {
+            return value ? QueryFilter.<JsonPointer>alwaysTrue() : QueryFilter.<JsonPointer>alwaysFalse();
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitContainsFilter(P parameter, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.contains(getRelationshipPointer(field), valueAssertion);
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitEqualsFilter(P parameter, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.equalTo(getRelationshipPointer(field), valueAssertion);
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitExtendedMatchFilter(P parameter, JsonPointer field, String operator, Object valueAssertion) {
+            return QueryFilter.comparisonFilter(getRelationshipPointer(field), operator, valueAssertion);
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitGreaterThanFilter(P parameter, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.greaterThan(getRelationshipPointer(field), valueAssertion);
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitGreaterThanOrEqualToFilter(P parameter, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.greaterThanOrEqualTo(getRelationshipPointer(field), valueAssertion);
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitLessThanFilter(P parameter, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.lessThan(getRelationshipPointer(field), valueAssertion);
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitLessThanOrEqualToFilter(P parameter, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.lessThanOrEqualTo(getRelationshipPointer(field), valueAssertion);
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitNotFilter(P parameter, QueryFilter<JsonPointer> subFilter) {
+            return QueryFilter.not(subFilter.accept(new RelationshipQueryFilterVisitor<>(), null));
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitOrFilter(P parameter, List<QueryFilter<JsonPointer>> subFilters) {
+            return QueryFilter.or(visitQueryFilters(subFilters));
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitPresentFilter(P parameter, JsonPointer field) {
+            return QueryFilter.present(getRelationshipPointer(field));
+        }
+
+        @Override
+        public QueryFilter<JsonPointer> visitStartsWithFilter(P parameter, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.startsWith(getRelationshipPointer(field), valueAssertion);
+        }
+
+        /**
+         * Visits each {@link QueryFilter} in a list of filters and returns a list of the
+         * visited filters.
+         *
+         * @param subFilters a list of the filters to visit
+         * @return a list of visited filters
+         */
+        private List<QueryFilter<JsonPointer>> visitQueryFilters(List<QueryFilter<JsonPointer>> subFilters) {
+            List<QueryFilter<JsonPointer>> visitedFilters = new ArrayList<>();
+            for (QueryFilter<JsonPointer> filter : subFilters) {
+                visitedFilters.add(asRelationshipQueryFilter(filter));
+            }
+            return visitedFilters;
+        }
+
+        /**
+         * Converts relationship client object pointers to repo format.
+         *
+         * Converts /_refProperties/_id to /_id
+         * Converts /_refProperties/_rev to /_rev
+         * Converts /_ref to /secondId
+         * Converts /_refProperties/... to /properties/...
+         *
+         * @param field a {@link JsonPointer} representing the field to modify.
+         * @return a {@link JsonPointer} representing the modified field
+         */
+        private JsonPointer getRelationshipPointer(JsonPointer field) {
+            // /_revProperties/_id to /_id
+            if (FIELD_ID.equals(field)) {
+                return new JsonPointer(FIELD_CONTENT_ID);
+            }
+            // /_refProperties/_rev to /_rev
+            if (FIELD_REV.equals(field)) {
+                return new JsonPointer(FIELD_CONTENT_REVISION);
+            }
+            // /_ref to /secondId
+            if (FIELD_REFERENCE.equals(field.toString())) {
+                // TODO: OPENIDM-4043 this will need to be updated with bi-directional support
+                return new JsonPointer(REPO_FIELD_SECOND_ID);
+            }
+            // /_refProperties/... to /properties/...
+            if (FIELD_PROPERTIES.leaf().equals(field.get(0))) {
+                JsonPointer ptr = new JsonPointer(REPO_FIELD_PROPERTIES);
+                for (String s : field.relativePointer(field.size() - 1)) {
+                    ptr = ptr.child(s);
+                }
+                return ptr;
+            }
+
+            // TODO: OPENIDM-4153 don't expose direct repo properties
+            return field;
         }
     }
 }
