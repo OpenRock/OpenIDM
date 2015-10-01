@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ConflictException;
 import org.forgerock.openidm.config.enhanced.InvalidException;
+import org.forgerock.openidm.util.RelationshipUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,10 +52,13 @@ import com.orientechnologies.orient.core.metadata.security.OSecurity;
 import com.orientechnologies.orient.core.metadata.security.OUser;
 import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.storage.OStorage;
+
 import java.util.Collection;
 import java.util.Set;
 
+import static org.forgerock.json.JsonValue.array;
 import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.object;
 
 /**
@@ -415,18 +419,18 @@ public class DBHelper {
         String defaultAdminUser = "openidm-admin";
         // Default password needs to be replaced after installation
         String defaultAdminPwd = "openidm-admin";
-        ArrayList defaultAdminRoles = new ArrayList();
-        defaultAdminRoles.add("openidm-admin");
-        defaultAdminRoles.add("openidm-authorized");
-        populateDefaultUser(defaultTableName, db, defaultAdminUser,
-                defaultAdminPwd, defaultAdminRoles);
+        List<Map> defaultAdminRoles = json(array(
+                object(field(RelationshipUtil.REFERENCE_ID, "repo/internal/role/openidm-admin")),
+                object(field(RelationshipUtil.REFERENCE_ID, "repo/internal/role/openidm-authorized"))))
+                .asList(Map.class);
+        populateDefaultUser(defaultTableName, db, defaultAdminUser, defaultAdminPwd, defaultAdminRoles);
         logger.trace("Created default user {}. Please change the assigned default password.",
                 defaultAdminUser);
 
         String anonymousUser = "anonymous";
         String anonymousPwd = "anonymous";
-        ArrayList anonymousRoles = new ArrayList();
-        anonymousRoles.add("openidm-reg");
+        List<Map> anonymousRoles = json(array(
+                object(field(RelationshipUtil.REFERENCE_ID, "repo/internal/role/openidm-reg")))).asList(Map.class);
         populateDefaultUser(defaultTableName, db, anonymousUser, anonymousPwd, anonymousRoles);
         logger.trace("Created default user {} for registration purposes.", anonymousUser);
     }
@@ -438,7 +442,7 @@ public class DBHelper {
         defaultAdmin.put("_openidm_id", user);
         defaultAdmin.put("userName", user);
         defaultAdmin.put("password", pwd);
-        defaultAdmin.put("roles", roles);
+        defaultAdmin.put("authzRoles", roles);
 
         try {
             ODocument newDoc = DocumentUtil.toDocument(defaultAdmin.asMap(), null, db, defaultTableName);
