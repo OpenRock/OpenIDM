@@ -32,6 +32,7 @@
         "query-cluster-failed-instances" : "SELECT * FROM cluster_states WHERE timestamp <= ${timestamp} AND (state = '1' OR state = '2')",
         "query-cluster-instances" : "SELECT * FROM cluster_states",
         "query-cluster-events" : "SELECT * FROM cluster_events WHERE instanceId = ${instanceId}",
+
         "get-recons" : "SELECT reconId, timestamp, mapping, message FROM audit_recon WHERE mapping LIKE ${includeMapping} AND mapping NOT LIKE ${excludeMapping} AND entryType = 'summary' ORDER BY timestamp DESC"
     },
     "commands" : {

@@ -67,12 +67,14 @@ module.exports = function(grunt) {
         less: {
             admin: {
                 files: {
-                    "openidm-ui-admin/target/www/css/styles.css": "openidm-ui-admin/target/www/css/styles.less"
+                    "openidm-ui-admin/target/www/css/theme.css": "openidm-ui-admin/target/www/css/theme.less",
+                    "openidm-ui-admin/target/www/css/structure.css": "openidm-ui-admin/target/www/css/structure.less"
                 }
             },
             enduser: {
                 files: {
-                    "openidm-ui-enduser/target/www/css/styles.css": "openidm-ui-enduser/target/www/css/styles.less"
+                    "openidm-ui-admin/target/www/css/theme.css": "openidm-ui-admin/target/www/css/theme.less",
+                    "openidm-ui-admin/target/www/css/structure.css": "openidm-ui-admin/target/www/css/structure.less"
                 }
             }
         },
@@ -226,13 +228,13 @@ module.exports = function(grunt) {
                     {
                         cwd     : 'openidm-ui-admin/target/www',
                         src     : ['**'],
-                        dest    : '../openidm-zip/target/openidm/ui/default/admin/public'
+                        dest    : '../openidm-zip/target/openidm/ui/admin/default'
                     },
 
                     {
                         cwd     : 'openidm-ui-enduser/target/www',
                         src     : ['**'],
-                        dest    : '../openidm-zip/target/openidm/ui/default/selfservice/public'
+                        dest    : '../openidm-zip/target/openidm/ui/selfservice/default'
                     }
                 ]
             }
