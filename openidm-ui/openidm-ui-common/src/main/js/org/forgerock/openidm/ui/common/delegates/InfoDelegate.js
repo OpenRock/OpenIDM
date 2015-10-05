@@ -1,7 +1,7 @@
 /**
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2015 ForgeRock AS. All rights reserved.
+ * Copyright (c) 2015 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -22,11 +22,20 @@
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
 
-/*global define*/
+/*global define */
 
-define("org/forgerock/openidm/ui/common/main", [
-    "./notifications/NotificationViewHelper", //needed here so that it can register its event in time
-    "./delegates/SiteConfigurationDelegate",
-    "./components/Footer",
-    "./login/InternalLoginHelper"
-]);
+define("org/forgerock/openidm/ui/common/delegates/InfoDelegate", [
+    "org/forgerock/commons/ui/common/util/Constants",
+    "org/forgerock/commons/ui/common/main/AbstractDelegate"
+], function(constants, AbstractDelegate) {
+
+    var obj = new AbstractDelegate(constants.host + "/openidm/info/");
+
+    obj.getVersion = function() {
+        return obj.serviceCall({
+            url: "version",
+            type: "GET"
+        });
+    };
+    return obj;
+});

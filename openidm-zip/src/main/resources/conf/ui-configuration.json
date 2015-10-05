@@ -5,6 +5,10 @@
         "siteIdentification" : false,
         "lang" : "en",
         "passwordResetLink" : "",
+        "roles" : {
+            "openidm-authorized": "ui-user",
+            "openidm-admin": "ui-admin"
+        },
         "siteImages" : [
             "images/passphrase/mail.png",
             "images/passphrase/user.png",
@@ -38,12 +42,12 @@
                         {
                             "name" : "dashboard.viewProfile",
                             "icon" : "fa-user",
-                            "href" : "index.html#profile/"
+                            "href" : "#profile/details"
                         },
                         {
                             "name" : "dashboard.changePassword",
                             "icon" : "fa-lock",
-                            "event" : "dialog.EVENT_SHOW_CHANGE_SECURITY_DIALOG"
+                            "href" : "#profile/password"
                         }
                     ]
                 }

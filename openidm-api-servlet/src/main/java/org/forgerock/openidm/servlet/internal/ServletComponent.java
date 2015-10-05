@@ -37,9 +37,11 @@ import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.ReferenceStrategy;
 import org.apache.felix.scr.annotations.Service;
+import org.forgerock.http.Filter;
 import org.forgerock.http.Handler;
 import org.forgerock.http.HttpApplication;
 import org.forgerock.http.HttpApplicationException;
+import org.forgerock.http.handler.Handlers;
 import org.forgerock.http.io.Buffer;
 import org.forgerock.http.servlet.HttpFrameworkServlet;
 import org.forgerock.json.JsonValue;
@@ -85,8 +87,12 @@ public class ServletComponent implements EventHandler {
     /** Setup logging for the {@link ServletComponent}. */
     private final static Logger logger = LoggerFactory.getLogger(ServletComponent.class);
 
+    /** The (external) ConnectionFactory */
     @Reference(policy = ReferencePolicy.DYNAMIC, target = "(service.pid=org.forgerock.openidm.router)")
     protected ConnectionFactory connectionFactory;
+
+    @Reference(policy = ReferencePolicy.STATIC, target = "(service.pid=org.forgerock.openidm.auth.config)")
+    private Filter authFilter;
 
     @Reference
     private ServletRegistration servletRegistration;
@@ -146,7 +152,7 @@ public class ServletComponent implements EventHandler {
                 new HttpApplication() {
                     @Override
                     public Handler start() throws HttpApplicationException {
-                        return handler;
+                        return Handlers.chainOf(handler, authFilter);
                     }
 
                     @Override
