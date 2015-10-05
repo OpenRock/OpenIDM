@@ -27,11 +27,12 @@
 require.config({
     map: {
         "*" : {
-            "UserDelegate": "org/forgerock/openidm/ui/common/util/UserDelegate",
+            "Footer": "org/forgerock/openidm/ui/common/components/Footer",
             "ThemeManager": "org/forgerock/openidm/ui/common/util/ThemeManager",
-            "AuthnDelegate": "org/forgerock/openidm/ui/common/delegates/AuthnDelegate",
             "LoginView": "org/forgerock/openidm/ui/admin/login/LoginView",
-            "LoginDialog": "org/forgerock/commons/ui/common/LoginDialog"
+            "LoginDialog": "org/forgerock/commons/ui/common/LoginDialog",
+            // TODO: Remove this when there are no longer any references to the "underscore" dependency
+            "underscore": "lodash"
         }
     },
     paths: {
@@ -44,7 +45,7 @@ require.config({
         "backgrid-filter": "libs/backgrid-filter.min-0.3.5-min",
         "backgrid-paginator": "libs/backgrid-paginator.min-0.3.5-min",
         "backgrid-selectall": "libs/backgrid-select-all-0.3.5-min",
-        underscore: "libs/lodash-2.4.1-min",
+        lodash: "libs/lodash-3.10.1-min",
         js2form: "libs/js2form-2.0",
         form2js: "libs/form2js-2.0",
         spin: "libs/spin-2.0.1-min",
@@ -66,7 +67,8 @@ require.config({
         moment: "libs/moment-2.8.1-min",
         jsonEditor: "libs/jsoneditor-0.7.9-min",
         "ldapjs-filter": "libs/ldapjs-filter-2253-min",
-        faiconpicker: "libs/fontawesome-iconpicker-1.0.0-min"
+        faiconpicker: "libs/fontawesome-iconpicker-1.0.0-min",
+        dimple : "libs/dimple-2.1.2-min"
     },
 
     shim: {
@@ -150,6 +152,10 @@ require.config({
         },
         d3: {
             exports: "d3"
+        },
+        dimple: {
+            exports: "dimple",
+            deps: ["d3"]
         },
         bootstrap: {
             deps: ["jquery"]

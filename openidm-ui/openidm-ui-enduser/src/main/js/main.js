@@ -27,20 +27,20 @@
 require.config({
     map: {
         "*" : {
-            "UserDelegate": "org/forgerock/openidm/ui/common/util/UserDelegate",
+            "Footer": "org/forgerock/openidm/ui/common/components/Footer",
             "ThemeManager": "org/forgerock/openidm/ui/common/util/ThemeManager",
-            "AuthnDelegate": "org/forgerock/openidm/ui/common/delegates/AuthnDelegate",
             "LoginView": "org/forgerock/openidm/ui/LoginView",
-            "UserProfileView": "org/forgerock/openidm/ui/profile/UserProfileView",
+            "UserProfileView": "org/forgerock/commons/ui/user/profile/UserProfileView",
             "LoginDialog": "org/forgerock/commons/ui/common/LoginDialog",
             "RegisterView": "org/forgerock/openidm/ui/registration/UserRegistrationView",
-            "ChangeSecurityDataDialog": "org/forgerock/openidm/ui/profile/ChangeSecurityDataDialog"
+            // TODO: Remove this when there are no longer any references to the "underscore" dependency
+            "underscore": "lodash"
         }
     },
     paths: {
         i18next: "libs/i18next-1.7.3-min",
         backbone: "libs/backbone-1.1.2-min",
-        underscore: "libs/lodash-2.4.1-min",
+        lodash: "libs/lodash-3.10.1-min",
         js2form: "libs/js2form-2.0",
         form2js: "libs/form2js-2.0",
         spin: "libs/spin-2.0.1-min",

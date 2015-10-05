@@ -37,7 +37,7 @@ define("org/forgerock/openidm/ui/util/delegates/SiteConfigurationDelegate", [
     obj.adminCheck = false;
 
     obj.checkForDifferences = function(){
-        if(_.contains(conf.loggedUser && conf.loggedUser.roles,"ui-admin") && !obj.adminCheck){
+        if(conf.loggedUser && _.contains(conf.loggedUser.get("roles"),"ui-admin") && !obj.adminCheck){
             nav.configuration.userBar.unshift({
                 "id": "admin_link",
                 "href": "/admin",
