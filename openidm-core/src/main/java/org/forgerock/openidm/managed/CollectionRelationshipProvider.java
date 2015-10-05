@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import org.forgerock.http.routing.RoutingMode;
 import org.forgerock.json.JsonPointer;
@@ -46,6 +47,7 @@ import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResourceHandler;
 import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
+import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
 import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.ResourceException;
@@ -58,17 +60,26 @@ import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.json.resource.http.HttpUtils;
 import org.forgerock.openidm.audit.util.ActivityLogger;
 import org.forgerock.openidm.audit.util.Status;
+import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.services.context.Context;
 import org.forgerock.util.AsyncFunction;
 import org.forgerock.util.Function;
 import org.forgerock.util.promise.Promise;
 import org.forgerock.util.query.QueryFilter;
 import org.forgerock.util.query.QueryFilterVisitor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link RelationshipProvider} representing a collection (array) of relationships for the given field.
  */
 class CollectionRelationshipProvider extends RelationshipProvider implements CollectionResourceProvider {
+    
+    /**
+     * Setup logging for the {@link CollectionRelationshipProvider}.
+     */
+    private static final Logger logger = LoggerFactory.getLogger(CollectionRelationshipProvider.class);
+    
     final static QueryFilterVisitor<QueryFilter<JsonPointer>, Object, JsonPointer> VISITOR = new RelationshipQueryFilterVisitor<>();
 
     private final RequestHandler requestHandler;
@@ -324,15 +335,14 @@ class CollectionRelationshipProvider extends RelationshipProvider implements Col
              * the transformed resource response.
              */
             final QueryRequest queryRequest = Requests.newQueryRequest(REPO_RESOURCE_PATH);
+            final boolean queryAllIds = ServerConstants.QUERY_ALL_IDS.equals(request.getQueryId());
 
             if (request.getQueryId() != null) {
-                if ("query-all".equals(request.getQueryId())) {
-                    request.setQueryFilter(QueryFilter.<JsonPointer>alwaysTrue());
-                } else if ("query-all-ids".equals(request.getQueryId())) {
-                    queryRequest.setQueryFilter(QueryFilter.<JsonPointer>alwaysTrue());
+                request.setQueryFilter(QueryFilter.<JsonPointer>alwaysTrue());
+                if (ServerConstants.QUERY_ALL_IDS.equals(request.getQueryId())) {
                     // This should be the only field ever set on queryRequest
-                    queryRequest.addField(FIELD_ID);
-                } else {
+                    request.addField(FIELD_ID);
+                } else if (!"query-all".equals(request.getQueryId())) {
                     return new BadRequestException("Invalid " + HttpUtils.PARAM_QUERY_ID + ": only query-all and query-all-ids supported").asPromise();
                 }
             }
@@ -361,12 +371,19 @@ class CollectionRelationshipProvider extends RelationshipProvider implements Col
                     new QueryResourceHandler() {
                 @Override
                 public boolean handleResource(ResourceResponse resource) {
-                    // Manually filter for query-all-ids
-                    // We must manually filter here post-format since the original fields do not match on the repo
-                    final ResourceResponse filtered = Resources.filterResource(
-                            FORMAT_RESPONSE_NO_EXCEPTION.apply(resource),
-                            queryRequest.getFields());
-                    return handler.handleResource(filtered);
+                    ResourceResponse filteredResourceResponse = FORMAT_RESPONSE_NO_EXCEPTION.apply(resource);
+                    if (queryAllIds) {
+                        // Special case, return just the ids, no expansion
+                        filteredResourceResponse.addField(FIELD_ID);
+                        return handler.handleResource(filteredResourceResponse);
+                    }
+                    try {
+                        filteredResourceResponse = 
+                                expandFields(context, request, filteredResourceResponse).getOrThrow();
+                    } catch (Exception e) {
+                        logger.error("Error expanding resource: " + e.getMessage(), e);
+                    }
+                    return handler.handleResource(filteredResourceResponse);
                 }
             });
             
