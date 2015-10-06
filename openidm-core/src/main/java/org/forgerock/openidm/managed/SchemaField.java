@@ -24,6 +24,8 @@
 
 package org.forgerock.openidm.managed;
 
+import static org.forgerock.guava.common.base.Strings.isNullOrEmpty;
+
 import org.forgerock.json.JsonPointer;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.JsonValueException;
@@ -61,6 +63,12 @@ public class SchemaField {
     
     /** A boolean indicating if the field is an array */
     private boolean isArray = false;
+
+    /** A boolean indicating if the field is a reverse relationship */
+    private boolean isReverseRelationship = false;
+
+    /** Matches against firstPropertyName if this is an inverse relationship */
+    private String reversePropertyName;
     
     /**
      * Constructor
@@ -100,6 +108,14 @@ public class SchemaField {
             if (isRelationship() || isVirtual()) {
                 this.returnByDefault = schema.get("returnByDefault").defaultTo(false).asBoolean();
             }
+
+            if (isRelationship()) {
+                this.isReverseRelationship = schema.get("reverseRelationship").defaultTo(false).asBoolean();
+
+                if (this.isReverseRelationship) {
+                    this.reversePropertyName = schema.get("reversePropertyName").required().asString();
+                }
+            }
         }
     }
     
@@ -112,7 +128,19 @@ public class SchemaField {
             this.type = SchemaFieldType.CORE;
         }
     }
-    
+
+    public SchemaFieldType getType() {
+        return type;
+    }
+
+    public boolean isReverseRelationship() {
+        return isReverseRelationship;
+    }
+
+    public String getReversePropertyName() {
+        return reversePropertyName;
+    }
+
     /**
      * Returns a boolean indicating if the field is returned by default.
      * 

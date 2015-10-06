@@ -59,15 +59,19 @@ class SingletonRelationshipProvider extends RelationshipProvider implements Sing
      * @param connectionFactory Connection factory used to access the repository
      * @param resourcePath      Name of the resource we are handling relationships for eg. managed/user
      * @param propertyName      Name of property on first object represents the relationship
+     * @param uriPropertyName   Property name used on the URI for nested routes
+     * @param isReverse If this provider represents a reverse relationship
+     * @param activityLogger The audit activity logger to use
+     * @param managedObjectSyncService Service to send sync events to
      */
-    public SingletonRelationshipProvider(ConnectionFactory connectionFactory, ResourcePath resourcePath, 
-            JsonPointer propertyName, ActivityLogger activityLogger, 
+    public SingletonRelationshipProvider(final ConnectionFactory connectionFactory, final ResourcePath resourcePath,
+            final JsonPointer propertyName, final String uriPropertyName, final boolean isReverse, final ActivityLogger activityLogger,
             final ManagedObjectSyncService managedObjectSyncService) {
-        super(connectionFactory, resourcePath, propertyName, activityLogger, managedObjectSyncService);
+        super(connectionFactory, resourcePath, propertyName, isReverse, activityLogger, managedObjectSyncService);
 
         final Router router = new Router();
         router.addRoute(STARTS_WITH,
-                uriTemplate(String.format("{%s}/%s", URI_PARAM_FIRST_ID, propertyName.leaf())),
+                uriTemplate(String.format("{%s}/%s", URI_PARAM_FIRST_ID, uriPropertyName)),
                 Resources.newSingleton(this));
         this.requestHandler = router;
     }
@@ -80,7 +84,7 @@ class SingletonRelationshipProvider extends RelationshipProvider implements Sing
 
     /** {@inheritDoc} */
     @Override
-    public Promise<JsonValue, ResourceException> getRelationshipValueForResource(Context context, String resourceId) {
+    public Promise<JsonValue, ResourceException> getRelationshipValueForResource(final Context context, final String resourceId) {
         return queryRelationship(context, resourceId).thenAsync(new AsyncFunction<ResourceResponse, JsonValue, 
                 ResourceException>() {
             @Override
@@ -94,18 +98,17 @@ class SingletonRelationshipProvider extends RelationshipProvider implements Sing
      * Queries relationships, returning the relationship associated with this providers resource path and the specified 
      * relationship field.
      * 
-     * @param context
-     * @param resourceId
+     * @param context The current context
+     * @param managedObjectId The id of the managed object to find relationships associated with
      * @return
      */
-    private Promise<ResourceResponse, ResourceException> queryRelationship(Context context, String managedObjectId) {
+    private Promise<ResourceResponse, ResourceException> queryRelationship(final Context context, final String managedObjectId) {
         try {
             final QueryRequest queryRequest = Requests.newQueryRequest(REPO_RESOURCE_PATH);
-            queryRequest.setAdditionalParameter(PARAM_FIRST_ID, managedObjectId);
             final List<ResourceResponse> relationships = new ArrayList<>();
 
             queryRequest.setQueryFilter(QueryFilter.and(
-                    QueryFilter.equalTo(new JsonPointer(REPO_FIELD_FIRST_ID), resourcePath.child(managedObjectId)),
+                    QueryFilter.equalTo(new JsonPointer(isReverse ? REPO_FIELD_SECOND_ID : REPO_FIELD_FIRST_ID), resourcePath.child(managedObjectId)),
                     QueryFilter.equalTo(new JsonPointer(REPO_FIELD_FIRST_PROPERTY_NAME), propertyName)
             ));
 

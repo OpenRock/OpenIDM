@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
 import org.forgerock.http.routing.RoutingMode;
 import org.forgerock.json.JsonPointer;
@@ -47,7 +46,6 @@ import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResourceHandler;
 import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
-import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
 import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.ResourceException;
@@ -74,13 +72,13 @@ import org.slf4j.LoggerFactory;
  * A {@link RelationshipProvider} representing a collection (array) of relationships for the given field.
  */
 class CollectionRelationshipProvider extends RelationshipProvider implements CollectionResourceProvider {
-    
+
     /**
      * Setup logging for the {@link CollectionRelationshipProvider}.
      */
     private static final Logger logger = LoggerFactory.getLogger(CollectionRelationshipProvider.class);
     
-    final static QueryFilterVisitor<QueryFilter<JsonPointer>, Object, JsonPointer> VISITOR = new RelationshipQueryFilterVisitor<>();
+    final static QueryFilterVisitor<QueryFilter<JsonPointer>, Boolean, JsonPointer> VISITOR = new RelationshipQueryFilterVisitor();
 
     private final RequestHandler requestHandler;
 
@@ -89,14 +87,18 @@ class CollectionRelationshipProvider extends RelationshipProvider implements Col
      * @param connectionFactory Connection factory used to access the repository
      * @param resourcePath Name of the resource we are handling relationships for eg. managed/user
      * @param propertyName Name of property on first object represents the relationship
+     * @param uriPropertyName   Property name used on the URI for nested routes
+     * @param isReverse If this provider represents a reverse relationship
+     * @param activityLogger The audit activity logger to use
+     * @param managedObjectSyncService Service to send sync events to
      */
     public CollectionRelationshipProvider(final ConnectionFactory connectionFactory, final ResourcePath resourcePath, 
-            final JsonPointer propertyName, ActivityLogger activityLogger, 
+            final JsonPointer propertyName, final String uriPropertyName, final boolean isReverse, final ActivityLogger activityLogger,
             final ManagedObjectSyncService managedObjectSyncService) {
-        super(connectionFactory, resourcePath, propertyName, activityLogger,managedObjectSyncService);
+        super(connectionFactory, resourcePath, propertyName, isReverse, activityLogger,managedObjectSyncService);
 
         final Router router = new Router();
-        router.addRoute(RoutingMode.STARTS_WITH, uriTemplate("{firstId}/" + propertyName.leaf()), Resources.newCollection(this));
+        router.addRoute(RoutingMode.STARTS_WITH, uriTemplate("{firstId}/" + uriPropertyName), Resources.newCollection(this));
         this.requestHandler = router;
     }
 
@@ -358,7 +360,7 @@ class CollectionRelationshipProvider extends RelationshipProvider implements Col
             }
 
             QueryFilter<JsonPointer> filter = QueryFilter.and(
-                    QueryFilter.equalTo(new JsonPointer(REPO_FIELD_FIRST_ID), firstResourcePath(context, request)),
+                    QueryFilter.equalTo(new JsonPointer(isReverse ? REPO_FIELD_SECOND_ID : REPO_FIELD_FIRST_ID), firstResourcePath(context, request)),
                     QueryFilter.equalTo(new JsonPointer(REPO_FIELD_FIRST_PROPERTY_NAME), propertyName));
 
             if (request.getQueryFilter() != null) {
@@ -416,71 +418,71 @@ class CollectionRelationshipProvider extends RelationshipProvider implements Col
      * A {@link QueryFilterVisitor} implementation which modifies the {@link JsonPointer} fields by prepending them
      * with the appropriate key where the full config object is located.
      */
-    private static class RelationshipQueryFilterVisitor<P> implements QueryFilterVisitor<QueryFilter<JsonPointer>, P, JsonPointer> {
+    private static class RelationshipQueryFilterVisitor implements QueryFilterVisitor<QueryFilter<JsonPointer>, Boolean, JsonPointer> {
 
         @Override
-        public QueryFilter<JsonPointer> visitAndFilter(P parameter, List<QueryFilter<JsonPointer>> subFilters) {
+        public QueryFilter<JsonPointer> visitAndFilter(Boolean isReverse, List<QueryFilter<JsonPointer>> subFilters) {
             return QueryFilter.and(visitQueryFilters(subFilters));
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitBooleanLiteralFilter(P parameter, boolean value) {
+        public QueryFilter<JsonPointer> visitBooleanLiteralFilter(Boolean isReverse, boolean value) {
             return value ? QueryFilter.<JsonPointer>alwaysTrue() : QueryFilter.<JsonPointer>alwaysFalse();
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitContainsFilter(P parameter, JsonPointer field, Object valueAssertion) {
-            return QueryFilter.contains(getRelationshipPointer(field), valueAssertion);
+        public QueryFilter<JsonPointer> visitContainsFilter(Boolean isReverse, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.contains(getRelationshipPointer(isReverse, field), valueAssertion);
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitEqualsFilter(P parameter, JsonPointer field, Object valueAssertion) {
-            return QueryFilter.equalTo(getRelationshipPointer(field), valueAssertion);
+        public QueryFilter<JsonPointer> visitEqualsFilter(Boolean isReverse, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.equalTo(getRelationshipPointer(isReverse, field), valueAssertion);
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitExtendedMatchFilter(P parameter, JsonPointer field, String operator, Object valueAssertion) {
-            return QueryFilter.comparisonFilter(getRelationshipPointer(field), operator, valueAssertion);
+        public QueryFilter<JsonPointer> visitExtendedMatchFilter(Boolean isReverse, JsonPointer field, String operator, Object valueAssertion) {
+            return QueryFilter.comparisonFilter(getRelationshipPointer(isReverse, field), operator, valueAssertion);
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitGreaterThanFilter(P parameter, JsonPointer field, Object valueAssertion) {
-            return QueryFilter.greaterThan(getRelationshipPointer(field), valueAssertion);
+        public QueryFilter<JsonPointer> visitGreaterThanFilter(Boolean isReverse, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.greaterThan(getRelationshipPointer(isReverse, field), valueAssertion);
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitGreaterThanOrEqualToFilter(P parameter, JsonPointer field, Object valueAssertion) {
-            return QueryFilter.greaterThanOrEqualTo(getRelationshipPointer(field), valueAssertion);
+        public QueryFilter<JsonPointer> visitGreaterThanOrEqualToFilter(Boolean isReverse, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.greaterThanOrEqualTo(getRelationshipPointer(isReverse, field), valueAssertion);
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitLessThanFilter(P parameter, JsonPointer field, Object valueAssertion) {
-            return QueryFilter.lessThan(getRelationshipPointer(field), valueAssertion);
+        public QueryFilter<JsonPointer> visitLessThanFilter(Boolean isReverse, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.lessThan(getRelationshipPointer(isReverse, field), valueAssertion);
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitLessThanOrEqualToFilter(P parameter, JsonPointer field, Object valueAssertion) {
-            return QueryFilter.lessThanOrEqualTo(getRelationshipPointer(field), valueAssertion);
+        public QueryFilter<JsonPointer> visitLessThanOrEqualToFilter(Boolean isReverse, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.lessThanOrEqualTo(getRelationshipPointer(isReverse, field), valueAssertion);
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitNotFilter(P parameter, QueryFilter<JsonPointer> subFilter) {
-            return QueryFilter.not(subFilter.accept(new RelationshipQueryFilterVisitor<>(), null));
+        public QueryFilter<JsonPointer> visitNotFilter(Boolean isReverse, QueryFilter<JsonPointer> subFilter) {
+            return QueryFilter.not(subFilter.accept(new RelationshipQueryFilterVisitor(), null));
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitOrFilter(P parameter, List<QueryFilter<JsonPointer>> subFilters) {
+        public QueryFilter<JsonPointer> visitOrFilter(Boolean isReverse, List<QueryFilter<JsonPointer>> subFilters) {
             return QueryFilter.or(visitQueryFilters(subFilters));
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitPresentFilter(P parameter, JsonPointer field) {
-            return QueryFilter.present(getRelationshipPointer(field));
+        public QueryFilter<JsonPointer> visitPresentFilter(Boolean isReverse, JsonPointer field) {
+            return QueryFilter.present(getRelationshipPointer(isReverse, field));
         }
 
         @Override
-        public QueryFilter<JsonPointer> visitStartsWithFilter(P parameter, JsonPointer field, Object valueAssertion) {
-            return QueryFilter.startsWith(getRelationshipPointer(field), valueAssertion);
+        public QueryFilter<JsonPointer> visitStartsWithFilter(Boolean isReverse, JsonPointer field, Object valueAssertion) {
+            return QueryFilter.startsWith(getRelationshipPointer(isReverse, field), valueAssertion);
         }
 
         /**
@@ -506,10 +508,11 @@ class CollectionRelationshipProvider extends RelationshipProvider implements Col
          * Converts /_ref to /secondId
          * Converts /_refProperties/... to /properties/...
          *
+         * @param isReverse Whether or not this is a reverse relationship
          * @param field a {@link JsonPointer} representing the field to modify.
          * @return a {@link JsonPointer} representing the modified field
          */
-        private JsonPointer getRelationshipPointer(JsonPointer field) {
+        private JsonPointer getRelationshipPointer(Boolean isReverse, JsonPointer field) {
             // /_revProperties/_id to /_id
             if (FIELD_ID.equals(field)) {
                 return new JsonPointer(FIELD_CONTENT_ID);
@@ -518,11 +521,12 @@ class CollectionRelationshipProvider extends RelationshipProvider implements Col
             if (FIELD_REV.equals(field)) {
                 return new JsonPointer(FIELD_CONTENT_REVISION);
             }
-            // /_ref to /secondId
+
+            // /_ref to /firstId or /secondId
             if (FIELD_REFERENCE.equals(field)) {
-                // TODO: OPENIDM-4043 this will need to be updated with bi-directional support
-                return new JsonPointer(REPO_FIELD_SECOND_ID);
+                return new JsonPointer(isReverse ? REPO_FIELD_FIRST_ID : REPO_FIELD_SECOND_ID);
             }
+
             // /_refProperties/... to /properties/...
             if (FIELD_PROPERTIES.leaf().equals(field.get(0))) {
                 JsonPointer ptr = new JsonPointer(REPO_FIELD_PROPERTIES);
