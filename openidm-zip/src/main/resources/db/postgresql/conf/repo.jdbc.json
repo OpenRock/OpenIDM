@@ -3,7 +3,7 @@
         "dbType" : "POSTGRESQL",
         "jndiName" : "",
         "driverClass" : "org.postgresql.Driver",
-        "jdbcUrl" : "jdbc:postgresql://localhost:5432/openidm",
+        "jdbcUrl" : "jdbc:postgresql://localhost:5432/openidm?stringtype=unspecified",
         "username" : "openidm",
         "password" : "openidm",
         "defaultCatalog" : "openidm",
