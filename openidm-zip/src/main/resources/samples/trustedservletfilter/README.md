@@ -26,13 +26,15 @@ perform authentication against another service.
 
 Build the sample servlet filter bundle and copy it to the openidm bundle directory
 
-1. (cd samples/trustedservletfilter/filter && mvn clean install)
-2. cp samples/trustedservletfilter/filter/target/sample-trusted-servletfilter-1.0.jar bundle
+    $ cd /path/to/openidm
+    $ cd samples/trustedservletfilter/filter && mvn clean install
+    $ cp target/sample-trusted-servletfilter-1.0.jar /path/to/openidm/bundle
 
 ### Start OpenIDM
 
+    $ cd /path/to/openidm
     $ ./startup.sh -p samples/trustedservletfilter
-    
+            
 ### Create a user
 
     $ curl --header "Content-Type: application/json" \
