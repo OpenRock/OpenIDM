@@ -16,30 +16,26 @@
 
 package org.forgerock.openidm.repo.crest;
 
-import org.forgerock.json.fluent.JsonValue;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.CollectionResourceProvider;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
-import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResult;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
-import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.ServerContext;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.UpdateRequest;
-import org.forgerock.openidm.repo.RepoBootService;
-import org.forgerock.openidm.repo.RepositoryService;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Vector;
+import org.forgerock.services.context.Context;
+import org.forgerock.util.promise.Promise;
 
 /**
  * CREST-based repository implementation using {@link RequestHandler}'s
@@ -54,168 +50,86 @@ public abstract class CRESTTypeHandler implements TypeHandler {
     public CRESTTypeHandler() {}
 
     protected String getResourceId(final Request request) {
-        return request.getResourceNameObject().leaf();
+        return request.getResourcePathObject().leaf();
     }
 
     protected void setResourceProvider(CollectionResourceProvider provider) {
         this.resourceProvider = provider;
     }
 
-    protected final class BlockingResultHandler<T> implements ResultHandler<T> {
-        private T result = null;
-        private ResourceException exception = null;
+    @Override
+    public ResourceResponse create(CreateRequest request) throws ResourceException {
+        return handleCreate(null, request).getOrThrowUninterruptibly();
+    }
 
-        @Override
-        public synchronized void handleError(ResourceException error) {
-            this.exception = error;
-            notify();
-        }
+    @Override
+    public ResourceResponse read(ReadRequest request) throws ResourceException {
+        return handleRead(null, request).getOrThrowUninterruptibly();
+    }
 
-        @Override
-        public synchronized void handleResult(T result) {
-            this.result = result;
-            notify();
-        }
+    @Override
+    public ResourceResponse update(UpdateRequest request) throws ResourceException {
+        return handleUpdate(null, request).getOrThrowUninterruptibly();
+    }
 
-        public synchronized T get() throws ResourceException {
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                throw new InternalServerErrorException(e.getMessage(), e);
+    @Override
+    public ResourceResponse delete(DeleteRequest request) throws ResourceException {
+        return handleDelete(null, request).getOrThrowUninterruptibly();
+    }
+
+    @Override
+    public List<ResourceResponse> query(QueryRequest request) throws ResourceException {
+        final List<ResourceResponse> results = new ArrayList<>();
+        final QueryResourceHandler handler = new QueryResourceHandler() {
+            @Override
+            public boolean handleResource(ResourceResponse resourceResponse) {
+                results.add(resourceResponse);
+                return true;
             }
+        };
 
-            if (exception != null) {
-                throw exception;
-            } else {
-                return result;
-            }
-        }
-    }
+        handleQuery(null, request, handler).getOrThrowUninterruptibly();
 
-    protected final class BlockingQueryResultHandler implements QueryResultHandler {
-        private List<Resource> results = new ArrayList<>();
-        private ResourceException exception = null;
-
-        @Override
-        public synchronized void handleError(ResourceException error) {
-            this.exception = error;
-            notify();
-        }
-
-        @Override
-        public synchronized boolean handleResource(Resource resource) {
-            results.add(resource);
-
-            /*
-             * TODO - this will go on forever so long as there are more results.
-             *        we may wish to constrain this by returning false eventually.
-             */
-
-            return true;
-        }
-
-        @Override
-        public synchronized void handleResult(QueryResult result) {
-            notify();
-        }
-
-        public synchronized List<Resource> get() throws ResourceException {
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                throw new InternalServerErrorException(e.getMessage(), e);
-            }
-
-            if (exception != null) {
-                throw exception;
-            } else {
-                return results;
-            }
-        }
+        return results;
     }
 
     @Override
-    public Resource create(CreateRequest request) throws ResourceException {
-        BlockingResultHandler<Resource> handler = new BlockingResultHandler<Resource>();
-
-        handleCreate(null, request, handler);
-
-        return handler.get();
+    public Promise<ResourceResponse, ResourceException> handleCreate(final Context context, final CreateRequest createRequest) {
+        return resourceProvider.createInstance(context, createRequest);
     }
 
     @Override
-    public Resource read(ReadRequest request) throws ResourceException {
-        BlockingResultHandler<Resource> handler = new BlockingResultHandler<Resource>();
-
-        handleRead(null, request, handler);
-
-        return handler.get();
+    public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest readRequest) {
+        String resourceId = getResourceId(readRequest);
+        return resourceProvider.readInstance(context, resourceId, readRequest);
     }
 
     @Override
-    public Resource update(UpdateRequest request) throws ResourceException {
-        BlockingResultHandler<Resource> handler = new BlockingResultHandler<Resource>();
-
-        handleUpdate(null, request, handler);
-
-        return handler.get();
+    public Promise<ResourceResponse, ResourceException> handleUpdate(final Context context, final UpdateRequest updateRequest) {
+        String resourceId = getResourceId(updateRequest);
+        return resourceProvider.updateInstance(context, resourceId, updateRequest);
     }
 
     @Override
-    public Resource delete(DeleteRequest request) throws ResourceException {
-        BlockingResultHandler<Resource> handler = new BlockingResultHandler<Resource>();
-
-        handleDelete(null, request, handler);
-
-        return handler.get();
+    public Promise<ResourceResponse, ResourceException> handleDelete(final Context context, final DeleteRequest deleteRequest) {
+        String resourceId = getResourceId(deleteRequest);
+        return resourceProvider.deleteInstance(context, resourceId, deleteRequest);
     }
 
     @Override
-    public List<Resource> query(QueryRequest request) throws ResourceException {
-        BlockingQueryResultHandler handler = new BlockingQueryResultHandler();
-
-        handleQuery(null, request, handler);
-
-        return handler.get();
+    public Promise<ResourceResponse, ResourceException> handlePatch(final Context context, final PatchRequest patchRequest) {
+        String resourceId = getResourceId(patchRequest);
+        return resourceProvider.patchInstance(context, resourceId, patchRequest);
     }
 
     @Override
-    public void handleAction(ServerContext context, ActionRequest request, ResultHandler<JsonValue> handler) {
+    public Promise<ActionResponse, ResourceException> handleAction(final Context context, final ActionRequest request) {
         String resourceId = getResourceId(request);
-        resourceProvider.actionInstance(context, resourceId, request, handler);
+        return resourceProvider.actionInstance(context, resourceId, request);
     }
 
     @Override
-    public void handleCreate(ServerContext context, CreateRequest request, ResultHandler<Resource> handler) {
-        resourceProvider.createInstance(context, request, handler);
-    }
-
-    @Override
-    public void handleDelete(ServerContext context, DeleteRequest request, ResultHandler<Resource> handler) {
-        String resourceId = getResourceId(request);
-        resourceProvider.deleteInstance(context, resourceId, request, handler);
-    }
-
-    @Override
-    public void handlePatch(ServerContext context, PatchRequest request, ResultHandler<Resource> handler) {
-        String resourceId = getResourceId(request);
-        resourceProvider.patchInstance(context, resourceId, request, handler);
-    }
-
-    @Override
-    public void handleQuery(ServerContext context, QueryRequest request, QueryResultHandler handler) {
-        resourceProvider.queryCollection(context, request, handler);
-    }
-
-    @Override
-    public void handleRead(ServerContext context, ReadRequest request, ResultHandler<Resource> handler) {
-        String resourceId = getResourceId(request);
-        resourceProvider.readInstance(context, resourceId, request, handler);
-    }
-
-    @Override
-    public void handleUpdate(ServerContext context, UpdateRequest request, ResultHandler<Resource> handler) {
-        String resourceId = getResourceId(request);
-        resourceProvider.updateInstance(context, resourceId, request, handler);
+    public Promise<QueryResponse, ResourceException> handleQuery(final Context context, final QueryRequest queryRequest, final QueryResourceHandler queryResourceHandler) {
+        return resourceProvider.queryCollection(context, queryRequest, queryResourceHandler);
     }
 }

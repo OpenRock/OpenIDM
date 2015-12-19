@@ -228,15 +228,6 @@
         <orientdb.studio.version>1.7.10</orientdb.studio.version>
         <restlet.version>2.1.2</restlet.version>
         <javascript.maven.plugin.version>2.0.0-alpha-1</javascript.maven.plugin.version>
-        <authnfilter.commons.version>1.6.0-SNAPSHOT</authnfilter.commons.version>
-
-        <!-- Commons JSON versions -->
-        <commons.forgerock-util.version>2.0.0-SNAPSHOT</commons.forgerock-util.version>
-        <commons.forgerock-rest.version>2.5.0-SNAPSHOT</commons.forgerock-rest.version>
-        <commons.forgerock-script.version>1.5.0-SNAPSHOT</commons.forgerock-script.version>
-        <commons.forgerock-i18n.version>1.4.2-SNAPSHOT</commons.forgerock-i18n.version>
-        <commons.forgerock-guava.version>18.0.1</commons.forgerock-guava.version>
-        <commons.forgerock-audit.version>0.2.0-SNAPSHOT</commons.forgerock-audit.version>
         <joda-time.version>2.1</joda-time.version>
         <paxweb.version>4.1.1</paxweb.version>
         <javax.inject.version>1_2</javax.inject.version>

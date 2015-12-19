@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.forgerock.opendj.grizzly.GrizzlyTransportProvider;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -15,20 +14,20 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
-import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.ServerContext;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.opendj.ldap.ConnectionFactory;
 import org.forgerock.opendj.rest2ldap.Rest2LDAP;
@@ -40,9 +39,13 @@ import org.forgerock.openidm.repo.crest.TypeHandler;
 import org.forgerock.openidm.router.RouteBuilder;
 import org.forgerock.openidm.router.RouteEntry;
 import org.forgerock.openidm.router.RouterRegistry;
+import org.forgerock.services.context.Context;
+import org.forgerock.util.promise.Promise;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.forgerock.opendj.grizzly.GrizzlyTransportProvider;
 
 /**
  * Repository service implementation using OpenDJ
@@ -220,62 +223,62 @@ public class OpenDJRepoService implements RepositoryService, RequestHandler {
     }
 
     @Override
-    public Resource create(final CreateRequest request) throws ResourceException {
+    public ResourceResponse create(final CreateRequest request) throws ResourceException {
         return getTypeHandler(request).create(request);
     }
 
     @Override
-    public Resource read(final ReadRequest request) throws ResourceException {
+    public ResourceResponse read(final ReadRequest request) throws ResourceException {
         return getTypeHandler(request).read(request);
     }
 
     @Override
-    public Resource update(final UpdateRequest request) throws ResourceException {
+    public ResourceResponse update(final UpdateRequest request) throws ResourceException {
         return getTypeHandler(request).update(request);
     }
 
     @Override
-    public Resource delete(final DeleteRequest request) throws ResourceException {
+    public ResourceResponse delete(final DeleteRequest request) throws ResourceException {
         return getTypeHandler(request).delete(request);
     }
 
     @Override
-    public List<Resource> query(final QueryRequest request) throws ResourceException {
+    public List<ResourceResponse> query(final QueryRequest request) throws ResourceException {
         return getTypeHandler(request).query(request);
     }
 
     @Override
-    public void handleRead(final ServerContext context, final ReadRequest request, final ResultHandler<Resource> handler) {
-        getTypeHandler(request).handleRead(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleCreate(final Context context, final CreateRequest request) {
+        return getTypeHandler(request).handleCreate(context, request);
     }
 
     @Override
-    public void handleUpdate(ServerContext context, final UpdateRequest request, ResultHandler<Resource> handler) {
-        getTypeHandler(request).handleUpdate(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleRead(final Context context, final ReadRequest request) {
+        return getTypeHandler(request).handleRead(context, request);
     }
 
     @Override
-    public void handlePatch(final ServerContext context, final PatchRequest request, final ResultHandler<Resource> handler) {
-        getTypeHandler(request).handlePatch(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, final UpdateRequest request) {
+        return getTypeHandler(request).handleUpdate(context, request);
     }
 
     @Override
-    public void handleAction(final ServerContext context, final ActionRequest request, final ResultHandler<JsonValue> handler) {
-        getTypeHandler(request).handleAction(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handlePatch(final Context context, final PatchRequest request) {
+        return getTypeHandler(request).handlePatch(context, request);
     }
 
     @Override
-    public void handleDelete(ServerContext context, DeleteRequest request, ResultHandler<Resource> handler) {
-        getTypeHandler(request).handleDelete(context, request, handler);
+    public Promise<ActionResponse, ResourceException> handleAction(final Context context, final ActionRequest request) {
+        return getTypeHandler(request).handleAction(context, request);
     }
 
     @Override
-    public void handleCreate(final ServerContext context, final CreateRequest request, final ResultHandler<Resource> handler) {
-        getTypeHandler(request).handleCreate(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleDelete(final Context context, final DeleteRequest request) {
+        return getTypeHandler(request).handleDelete(context, request);
     }
 
     @Override
-    public void handleQuery(final ServerContext context, final QueryRequest request, final QueryResultHandler handler) {
-        getTypeHandler(request).handleQuery(context, request, handler);
+    public Promise<QueryResponse, ResourceException> handleQuery(final Context context, final QueryRequest queryRequest, final QueryResourceHandler queryResourceHandler) {
+        return getTypeHandler(queryRequest).handleQuery(context, queryRequest, queryResourceHandler);
     }
 }

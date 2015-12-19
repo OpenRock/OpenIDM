@@ -14,35 +14,6 @@ package org.forgerock.openidm.repo.opendj.impl;/*
  * Copyright 2015 ForgeRock AS.
  */
 
-import org.apache.commons.lang3.StringUtils;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.type.TypeReference;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.resource.ActionRequest;
-import org.forgerock.json.resource.BadRequestException;
-import org.forgerock.json.resource.CreateRequest;
-import org.forgerock.json.resource.DeleteRequest;
-import org.forgerock.json.resource.InternalServerErrorException;
-import org.forgerock.json.resource.PatchRequest;
-import org.forgerock.json.resource.QueryFilter;
-import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResult;
-import org.forgerock.json.resource.QueryResultHandler;
-import org.forgerock.json.resource.ReadRequest;
-import org.forgerock.json.resource.Request;
-import org.forgerock.json.resource.Requests;
-import org.forgerock.json.resource.Resource;
-import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResourceName;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.ServerContext;
-import org.forgerock.json.resource.UpdateRequest;
-import org.forgerock.opendj.ldap.ConnectionFactory;
-import org.forgerock.opendj.rest2ldap.Rest2LDAP;
-import org.forgerock.openidm.repo.crest.CRESTTypeHandler;
-import org.forgerock.openidm.repo.util.TokenHandler;
-import org.forgerock.openidm.router.RouteEntry;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -54,10 +25,47 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.apache.commons.lang3.StringUtils;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
+import org.forgerock.json.resource.BadRequestException;
+import org.forgerock.json.resource.CreateRequest;
+import org.forgerock.json.resource.DeleteRequest;
+import org.forgerock.json.resource.InternalServerErrorException;
+import org.forgerock.json.resource.PatchRequest;
+import org.forgerock.json.resource.QueryFilters;
+import org.forgerock.json.resource.QueryRequest;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
+import org.forgerock.json.resource.ReadRequest;
+import org.forgerock.json.resource.Request;
+import org.forgerock.json.resource.Requests;
+import org.forgerock.json.resource.ResourceException;
+import org.forgerock.json.resource.ResourcePath;
+import org.forgerock.json.resource.ResourceResponse;
+import org.forgerock.json.resource.Responses;
+import org.forgerock.json.resource.UpdateRequest;
+import org.forgerock.opendj.ldap.ConnectionFactory;
+import org.forgerock.opendj.rest2ldap.Rest2LDAP;
+import org.forgerock.openidm.repo.crest.CRESTTypeHandler;
+import org.forgerock.openidm.repo.util.TokenHandler;
+import org.forgerock.openidm.router.RouteEntry;
+import org.forgerock.services.context.Context;
+import org.forgerock.util.Function;
+import org.forgerock.util.promise.Promise;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * A handler for a single type, eg "managed/user".
  */
 public class OpenDJTypeHandler extends CRESTTypeHandler {
+    final static Logger logger = LoggerFactory.getLogger(OpenDJTypeHandler.class);
+
     /** Properties that should be stored as strings */
     private final Set<String> propertiesToStringify;
 
@@ -76,34 +84,6 @@ public class OpenDJTypeHandler extends CRESTTypeHandler {
     @Override
     public void setRouteEntry(RouteEntry routeEntry) {
         this.routeEntry = routeEntry;
-    }
-
-    /**
-     * ResultHandler proxy that converts string fields back to JsonValues
-     */
-    class ResourceProxyHandler extends ResultTransformerProxyHandler<Resource> {
-        ResourceProxyHandler(ResultHandler<Resource> handler) {
-            super(handler);
-        }
-
-        @Override
-        Resource transform(Resource obj) throws ResourceException {
-            return destringify(obj, propertiesToStringify);
-        }
-    }
-
-    /**
-     * ResultHandler proxy that converts string fields back to JsonValues
-     */
-    class JsonValueProxyHandler extends ResultTransformerProxyHandler<JsonValue> {
-        JsonValueProxyHandler(ResultHandler<JsonValue> handler) {
-            super(handler);
-        }
-
-        @Override
-        JsonValue transform(JsonValue obj) throws ResourceException {
-            return destringify(obj, propertiesToStringify);
-        }
     }
 
     // TODO - merge queries and config?
@@ -165,17 +145,17 @@ public class OpenDJTypeHandler extends CRESTTypeHandler {
 
     /**
      * Convert the given "stringified" properties (made with {@link #stringify(JsonValue, Collection)}
-     * in the {@link Resource} to {@link JsonValue}s
+     * in the {@link ResourceResponse} to {@link JsonValue}s
      *
      * @param r The resource whose properties we wish to destringify
      * @param properties Collection of property names that need to be destringified
      *
-     * @return A new {@link Resource} in a pre-stringified state.
+     * @return A new {@link ResourceResponse} in a pre-stringified state.
      *
      * @throws ResourceException
      */
-    static Resource destringify(Resource r, Collection<String> properties) throws ResourceException {
-        return new Resource(r.getId(), r.getRevision(), destringify(r.getContent(), properties));
+    static ResourceResponse destringify(ResourceResponse r, Collection<String> properties) throws ResourceException {
+        return Responses.newResourceResponse(r.getId(), r.getRevision(), destringify(r.getContent(), properties));
     }
 
     /**
@@ -207,40 +187,57 @@ public class OpenDJTypeHandler extends CRESTTypeHandler {
         return new JsonValue(obj);
     }
 
-    @Override
-    public void handleDelete(ServerContext context, DeleteRequest request, ResultHandler<Resource> handler) {
-        super.handleDelete(context, request, new ResourceProxyHandler(handler));
-    }
-
-    @Override
-    public void handleAction(ServerContext context, ActionRequest request, ResultHandler<JsonValue> handler) {
-        super.handleAction(context, request, new JsonValueProxyHandler(handler));
-    }
-
-    @Override
-    public void handlePatch(ServerContext context, PatchRequest request, ResultHandler<Resource> handler) {
-        super.handlePatch(context, request, new ResourceProxyHandler(handler));
-    }
-
-    @Override
-    public void handleRead(ServerContext context, ReadRequest request, ResultHandler<Resource> handler) {
-        super.handleRead(context, request, new ResourceProxyHandler(handler));
-    }
-
-    @Override
-    public void handleUpdate(ServerContext context, UpdateRequest _request, ResultHandler<Resource> handler) {
-        try {
-            final UpdateRequest updateRequest = Requests.copyOfUpdateRequest(_request);
-            updateRequest.setContent(stringify(updateRequest.getContent(), propertiesToStringify));
-
-            super.handleUpdate(context, updateRequest, new ResourceProxyHandler(handler));
-        } catch (ResourceException e) {
-            handler.handleError(e);
+    final Function<ResourceResponse, ResourceResponse, ResourceException> destringifyProperties = new Function<ResourceResponse, ResourceResponse, ResourceException>() {
+        @Override
+        public ResourceResponse apply(ResourceResponse value) throws ResourceException {
+            return destringify(value, propertiesToStringify);
         }
+    };
+
+    @Override
+    public Promise<ResourceResponse, ResourceException> handleDelete(final Context context,
+            final DeleteRequest deleteRequest) {
+        return super.handleDelete(context, deleteRequest).then(destringifyProperties);
     }
 
     @Override
-    public void handleCreate(final ServerContext context, final CreateRequest _request, final ResultHandler<Resource> handler) {
+    public Promise<ActionResponse, ResourceException> handleAction(final Context context, final ActionRequest request) {
+        return super.handleAction(context, request).then(new Function<ActionResponse, ActionResponse, ResourceException>() {
+            @Override
+            public ActionResponse apply(final ActionResponse value) throws ResourceException {
+                return Responses.newActionResponse(destringify(value.getJsonContent(), propertiesToStringify));
+            }
+        });
+    }
+
+    @Override
+    public Promise<ResourceResponse, ResourceException> handlePatch(final Context context,
+            final PatchRequest patchRequest) {
+        return super.handlePatch(context, patchRequest).then(destringifyProperties);
+    }
+
+    @Override
+    public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest readRequest) {
+        return super.handleRead(context, readRequest).then(destringifyProperties);
+    }
+
+    @Override
+    public Promise<ResourceResponse, ResourceException> handleUpdate(final Context context,
+            final UpdateRequest _updateRequest) {
+        final UpdateRequest updateRequest = Requests.copyOfUpdateRequest(_updateRequest);
+
+        try {
+            updateRequest.setContent(stringify(updateRequest.getContent(), propertiesToStringify));
+        } catch (ResourceException e) {
+            return e.asPromise();
+        }
+
+        return super.handleUpdate(context, updateRequest).then(destringifyProperties);
+    }
+
+    @Override
+    public Promise<ResourceResponse, ResourceException> handleCreate(final Context context,
+            final CreateRequest _request) {
         final CreateRequest createRequest = Requests.copyOfCreateRequest(_request);
 
         try {
@@ -270,58 +267,52 @@ public class OpenDJTypeHandler extends CRESTTypeHandler {
 
             createRequest.setContent(new JsonValue(obj));
 
-            super.handleCreate(context, createRequest, new ResourceProxyHandler(handler));
+            return super.handleCreate(context, createRequest).then(destringifyProperties);
         } catch (ResourceException e) {
-            handler.handleError(e);
+            return e.asPromise();
         }
     }
 
     @Override
     protected String getResourceId(Request request) {
-        ResourceName name = request.getResourceNameObject();
+        final ResourcePath path = request.getResourcePathObject();
 
         // FIXME - this is a hack
-        if (name.size() > 0) {
-            return name.leaf();
+        if (path.size() > 0) {
+            return path.leaf();
         } else {
-            return name.toString();
+            return path.toString();
         }
     }
 
     @Override
-    public void handleQuery(final ServerContext context, final QueryRequest _request, final QueryResultHandler handler) {
+    public Promise<QueryResponse, ResourceException> handleQuery(final Context context, final QueryRequest _request, final QueryResourceHandler _handler) {
         try {
             // check for a queryId and if so convert it to a queryFilter
             final QueryRequest queryRequest = populateQuery(_request);
 
+            final ResourceException[] exception = new ResourceException[]{};
+
             // Create a proxy handler so we can run a transformer on results
-            final QueryResultHandler proxy = new QueryResultHandler() {
+            final QueryResourceHandler proxy = new QueryResourceHandler() {
                 @Override
-                public void handleError(ResourceException error) {
-                    handler.handleError(error);
-                }
-
-                @Override
-                public boolean handleResource(final Resource resource) {
+                public boolean handleResource(ResourceResponse resourceResponse) {
                     try {
-                        return handler.handleResource(destringify(resource, propertiesToStringify));
+                        return _handler.handleResource(destringify(resourceResponse, propertiesToStringify));
                     } catch (ResourceException e) {
-                        handleError(e);
-
-                        // TODO - verify this is what we want
+                        exception[0] = e;
                         return false;
                     }
                 }
-
-                @Override
-                public void handleResult(QueryResult result) {
-                    handler.handleResult(result);
-                }
             };
 
-            super.handleQuery(context, queryRequest, proxy);
+            if (exception.length > 0) {
+                return exception[0].asPromise();
+            } else {
+                return super.handleQuery(context, queryRequest, proxy);
+            }
         } catch (ResourceException e) {
-            handler.handleError(e);
+            return e.asPromise();
         }
     }
 
@@ -381,7 +372,7 @@ public class OpenDJTypeHandler extends CRESTTypeHandler {
 
             final String detokenized = handler.replaceTokensWithValues(tokenizedFilter, replacements);
 
-            queryRequest.setQueryFilter(QueryFilter.valueOf(detokenized));
+            queryRequest.setQueryFilter(QueryFilters.parse(detokenized));
 
             return queryRequest;
         } else {

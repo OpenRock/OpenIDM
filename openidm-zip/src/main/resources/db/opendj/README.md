@@ -15,7 +15,7 @@ OpenIDM adds several new attributes and objectClasses to the DJ schema.
 In order to add this to DJ they must be copied to the `config/schema`
 directory.
 
-    cp openidm/db/schema/openidm.ldif /path/to/opendj/config/schema/99-openidm.ldif
+    cp openidm/db/opendj/schema/openidm.ldif /path/to/opendj/config/schema/99-openidm.ldif
 
 ## Create OpenIDM Backend and BaseDN
 
@@ -42,7 +42,7 @@ You can then populate the directory structure
                --bindDN cn=Directory\ Manager \
                --bindPassword password \
                --continueOnError \
-               --file openidm/db/opendj/scripts/populate_users.ldif
+               --filename openidm/db/opendj/scripts/populate_users.ldif
 
 # Preparing OpenIDM
 

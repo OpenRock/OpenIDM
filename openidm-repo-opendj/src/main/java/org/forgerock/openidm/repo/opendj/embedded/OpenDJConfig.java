@@ -34,7 +34,7 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonValue;
 import org.forgerock.openidm.core.IdentityServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
