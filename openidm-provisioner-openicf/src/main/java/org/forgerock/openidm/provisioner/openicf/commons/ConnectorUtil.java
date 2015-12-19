@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2014 ForgeRock AS. All Rights Reserved
+ * Copyright 2011-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -24,9 +24,13 @@
 
 package org.forgerock.openidm.provisioner.openicf.commons;
 
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.json.schema.validator.Constants.*;
+
 import org.forgerock.json.crypto.JsonCryptoException;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.fluent.JsonValueException;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.JsonValueException;
 import org.forgerock.json.schema.validator.Constants;
 import org.forgerock.json.schema.validator.exceptions.SchemaException;
 import org.forgerock.openidm.core.IdentityServer;
@@ -55,8 +59,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 
-import static org.forgerock.json.fluent.JsonValue.json;
-import static org.forgerock.json.schema.validator.Constants.*;
 
 /**
  * Contains openicf connector utilities for the OpenICF provisioner.
@@ -592,7 +594,7 @@ public class ConnectorUtil {
 
 
     public static Map<String, ObjectClassInfoHelper> getObjectTypes(JsonValue configuration) throws JsonValueException {
-        JsonValue objectTypes = configuration.get(OPENICF_OBJECT_TYPES);
+        JsonValue objectTypes = configuration.get(OPENICF_OBJECT_TYPES).defaultTo(json(object()));
         Map<String, ObjectClassInfoHelper> result = new HashMap<String, ObjectClassInfoHelper>(objectTypes.expect(Map.class).asMap().size());
         boolean allObjectClassFound = false;
         for (String objectType : objectTypes.keys()) {
@@ -875,6 +877,8 @@ public class ConnectorUtil {
                     return (T) source;
                 } else if (byte[].class.isAssignableFrom(sourceClass) || Byte[].class.isAssignableFrom(sourceClass) || byte[].class == clazz) {
                     return (T) source;
+                } else if (sourceClass.isArray()) {
+                    return (T) Arrays.asList(source); //Items in array may need to be converted too.
                 } else if (sourceClass == QualifiedUid.class) {
                     //@TODO: Not null safe!!!
                     Map<String, Object> v = new HashMap<String, Object>(2);

@@ -24,7 +24,7 @@
 
 # Sample 1 - One-Way XML -> Internal Repository
 
-The documentation at http://openidm.forgerock.org/doc/install-guide/index.html#chap-sample
+The documentation at http://openidm.forgerock.org/doc/bootstrap/samples-guide/#more-sample-1
 describes how to get started with this sample.
 
 The sample demonstrates reconciliation between an external XML file and the
@@ -80,7 +80,7 @@ repository. Use it to see the results after reconciliation for example.
         "lastPasswordAttempt" : "Thu Oct 16 2014 21:06:21 GMT-0500 (CDT)",
         "address2" : "",
         "givenName" : "Barbara",
-        "effectiveRoles" : [ "openidm-authorized" ],
+        "effectiveRoles" : [ ],
         "country" : "",
         "city" : "",
         "lastPasswordSet" : "",
@@ -102,7 +102,7 @@ repository. Use it to see the results after reconciliation for example.
         "lastPasswordAttempt" : "Thu Oct 16 2014 21:06:21 GMT-0500 (CDT)",
         "address2" : "",
         "givenName" : "Steven",
-        "effectiveRoles" : [ "openidm-admin", "openidm-authorized" ],
+        "effectiveRoles" : [ ],
         "country" : "",
         "city" : "",
         "lastPasswordSet" : "",

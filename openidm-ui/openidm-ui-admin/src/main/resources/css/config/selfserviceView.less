@@ -1,0 +1,191 @@
+/**
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
+ *
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
+ *
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
+ *
+ * Copyright 2015 ForgeRock AS.
+ */
+
+.translationMapGroup {
+    ul {
+        p {
+            display: inline;
+        }
+    }
+
+}
+
+.selfservice-holder {
+  position:relative;
+
+  ul {
+    list-style: none;
+    padding-left: 0px;
+
+    li.placeholder {
+      height:75px;
+      width:100%;
+    }
+  }
+
+  .dragged button {
+    display:none;
+  }
+
+  .wide-card {
+    height:125px;
+
+    &.disabled{
+      button {
+        display:none;
+      }
+    }
+
+    .panel-heading {
+      padding: 5px 15px 0 0;
+    }
+
+    .panel-body {
+      padding-left:90px;
+      padding-top:5px;
+    }
+
+    .panel-footer {
+      position: absolute;
+      right: 10px;
+      top: 1px;
+      border:0;
+      padding:0;
+
+      .btn-drag {
+        display: none;
+
+        .fa-arrows {
+          margin-right: 0px;
+        }
+      }
+
+      .btn-link:hover {
+        background-color:inherit;
+      }
+    }
+
+    &.disabled {
+      cursor:default;
+
+      &:hover {
+        border-color:#ddd;
+      }
+
+      h3 {
+        color:#777;
+      }
+
+      .btn-link {
+        cursor:default;
+
+        &:hover {
+          color:#777;
+        }
+      }
+
+      label {
+        span {
+          cursor: default;
+        }
+      }
+    }
+
+    .switch-holder {
+      position:absolute;
+
+      .checkbox-slider {
+        position: relative;
+        top: 5px;
+        left: 15px;
+      }
+    }
+
+    .details {
+      h3 {
+        font-size: 18px;
+        text-align: left;
+        margin-bottom: 5px;
+      }
+    }
+
+    .btn-link {
+      padding: 0px;
+      margin-top: 10px;
+    }
+
+    .fa {
+      text-align: right;
+      margin-right: 10px;
+    }
+  }
+
+  .shim {
+    height:100%;
+    width:100%;
+    position:absolute;
+    opacity:.4;
+    background-color: #fff;
+    z-index:10;
+    top:0;
+    bottom:0;
+  }
+
+  .details h3 {
+      text-transform: none;
+  }
+}
+
+
+
+.nav-tabs>li.disabled {
+  >a {
+    color: #a1a1a1;
+
+    &:hover,
+    &:active,
+    &:focus {
+      cursor:not-allowed;
+      color:#a1a1a1;
+    }
+  }
+}
+
+@media (min-width: 768px) {
+  .selfservice-holder {
+    .wide-card {
+      height: 75px;
+
+      .panel-footer {
+        .btn-drag {
+          display:inline;
+        }
+      }
+
+      &.disabled {
+        .btn-drag {
+          display: none;
+        }
+      }
+
+      &.dragged {
+        .btn-drag {
+          display:none;
+        }
+      }
+    }
+  }
+}

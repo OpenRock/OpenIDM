@@ -43,16 +43,18 @@ Setup OpenDJ
 
 1.  Extract OpenDJ to a folder called opendj.
 
-2.  Run the following command to initialize OpenDJ.
+2.  Run the following command to initialize OpenDJ and import the LDIF data for the sample.
 
-        $ opendj/setup --cli --hostname localhost --ldapPort 1389 --rootUserDN "cn=Directory Manager" \
-        --rootUserPassword password --adminConnectorPort 4444 --baseDN dc=com --acceptLicense --addBaseEntry \
-        --no-prompt --quiet
-
-3.  Load the Example.ldif file supplied in the data folder into OpenDJ.
-
-        $ opendj/bin/ldapmodify -a -c --bindDN "cn=Directory Manager" --bindPassword password --hostname localhost \
-        --port 1389 --filename /path/to/openidm/samples/sample2c/data/Example.ldif
+        $ opendj/setup --cli \
+          --hostname localhost \
+          --ldapPort 1389 \
+          --rootUserDN "cn=Directory Manager" \
+          --rootUserPassword password \
+          --adminConnectorPort 4444 \
+          --baseDN dc=com \
+          --ldifFile /path/to/openidm/samples/sample2c/data/Example.ldif \
+          --acceptLicense \
+          --no-prompt
 
 Run The Sample In OpenIDM
 -------------------------
@@ -92,7 +94,7 @@ Run The Sample In OpenIDM
           "lastPasswordAttempt" : "Wed Nov 19 2014 15:12:14 GMT-0800 (PST)",
           "address2" : "",
           "givenName" : "Barbara",
-          "effectiveRoles" : [ "openidm-authorized" ],
+          "effectiveRoles" : [ ],
           "country" : "",
           "city" : "",
           "lastPasswordSet" : "",
@@ -103,7 +105,7 @@ Run The Sample In OpenIDM
           "accountStatus" : "active",
           "telephoneNumber" : "1-360-229-7105",
           "roles" : [ "openidm-authorized" ],
-          "effectiveAssignments" : { },
+          "effectiveAssignments" : [],
           "ldapGroups" : [ "cn=openidm2,ou=Groups,dc=example,dc=com" ],
           "postalAddress" : "",
           "stateProvince" : "",

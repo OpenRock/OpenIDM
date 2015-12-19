@@ -1,27 +1,21 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright © 2012-2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2012-2015 ForgeRock AS.
  */
 package org.forgerock.openidm.workflow.activiti.impl;
+
+import static org.forgerock.openidm.util.ResourceUtil.notSupported;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,15 +24,15 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Dictionary;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
 import javax.sql.DataSource;
 import javax.transaction.TransactionManager;
 import org.activiti.engine.ProcessEngine;
+import org.activiti.engine.RepositoryService;
 import org.activiti.engine.delegate.JavaDelegate;
 import org.activiti.engine.impl.ProcessEngineImpl;
 import org.activiti.engine.impl.cfg.JtaProcessEngineConfiguration;
@@ -48,18 +42,33 @@ import org.activiti.engine.impl.scripting.ScriptBindingsFactory;
 import org.activiti.osgi.OsgiScriptingEngines;
 import org.activiti.osgi.blueprint.ProcessEngineFactory;
 import org.apache.felix.scr.annotations.*;
-import org.forgerock.json.fluent.JsonPointer;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.resource.*;
+import org.forgerock.openidm.datasource.DataSourceService;
+import org.forgerock.openidm.router.IDMConnectionFactory;
+import org.forgerock.services.context.Context;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
+import org.forgerock.json.resource.CreateRequest;
+import org.forgerock.json.resource.DeleteRequest;
+import org.forgerock.json.resource.PatchRequest;
+import org.forgerock.json.resource.QueryRequest;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
+import org.forgerock.json.resource.ReadRequest;
+import org.forgerock.json.resource.RequestHandler;
+import org.forgerock.json.resource.ResourceException;
+import org.forgerock.json.resource.ResourceResponse;
+import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.config.enhanced.InvalidException;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.crypto.CryptoService;
 import org.forgerock.openidm.router.RouteService;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.script.ScriptRegistry;
 import org.forgerock.openidm.workflow.activiti.impl.session.OpenIDMSessionFactory;
+import org.forgerock.util.promise.Promise;
 import org.h2.jdbcx.JdbcDataSource;
 import org.osgi.framework.Constants;
 import org.osgi.service.cm.Configuration;
@@ -107,24 +116,31 @@ public class ActivitiServiceImpl implements RequestHandler {
     public static final String CONFIG_MAIL_USERNAME = "username";
     public static final String CONFIG_MAIL_PASSWORD = "password";
     public static final String CONFIG_MAIL_STARTTLS = "starttls";
-    public static final String CONFIG_CONNECTION = "connection";
-    public static final String CONFIG_JNDI_NAME = "jndiName";
     public static final String CONFIG_TABLE_PREFIX = "tablePrefix";
     public static final String CONFIG_TABLE_PREFIX_IS_SCHEMA = "tablePrefixIsSchema";
     public static final String CONFIG_HISTORY = "history";
+    public static final String CONFIG_USE_DATASOURCE = "useDataSource";
     public static final String CONFIG_WORKFLOWDIR = "workflowDirectory";
-    private String jndiName;
+    public static final String LOCALHOST = "localhost";
+    public static final int DEFAULT_MAIL_PORT = 25;
     private boolean selfMadeProcessEngine = true;
 
     @Reference(name = "processEngine", referenceInterface = ProcessEngine.class,
-    bind = "bindProcessEngine", unbind = "unbindProcessEngine",
-    cardinality = ReferenceCardinality.OPTIONAL_UNARY, policy = ReferencePolicy.STATIC,
-    target = "(!openidm.activiti.engine=true)" //avoid register the self made service
-    )
+            bind = "bindProcessEngine", unbind = "unbindProcessEngine",
+            cardinality = ReferenceCardinality.OPTIONAL_UNARY, policy = ReferencePolicy.STATIC,
+            target = "(!openidm.activiti.engine=true)") //avoid registering the self made service
     private ProcessEngine processEngine;
 
+    /**
+     * RepositoryService is a dependency of ConfigurationAdmin. Referencing the service here ensures the
+     * availability of this service during activation and deactivation to support the persistence of
+     * barInstallerConfiguration.
+     */
+    @Reference(cardinality = ReferenceCardinality.OPTIONAL_UNARY)
+    private RepositoryService repositoryService = null;
+
     @Reference(cardinality = ReferenceCardinality.OPTIONAL_UNARY,
-    bind = "bindConfigAdmin", unbind = "unbindConfigAdmin")
+            bind = "bindConfigAdmin", unbind = "unbindConfigAdmin")
     private ConfigurationAdmin configurationAdmin = null;
 
     /**
@@ -133,28 +149,36 @@ public class ActivitiServiceImpl implements RequestHandler {
     @Reference(bind = "bindTransactionManager", unbind = "unbindTransactionManager")
     private TransactionManager transactionManager;
 
-    @Reference(cardinality = ReferenceCardinality.OPTIONAL_UNARY,
-    bind = "bindDataSource", unbind = "unbindDataSource",
-    target = "(osgi.jndi.service.name=jdbc/openidm)")
-    private DataSource dataSource;
+    @Reference(referenceInterface = DataSourceService.class,
+            cardinality = ReferenceCardinality.OPTIONAL_MULTIPLE,
+            bind = "bindDataSourceService",
+            unbind = "unbindDataSourceService",
+            policy = ReferencePolicy.DYNAMIC,
+            strategy = ReferenceStrategy.EVENT)
+    private Map<String, DataSourceService> dataSourceServices = new HashMap<>();
 
-    @Reference(cardinality = ReferenceCardinality.OPTIONAL_UNARY, policy = ReferencePolicy.DYNAMIC,
-            bind = "bindPersistenceConfig", unbind = "unbindPersistenceConfig"
-    )
-    private PersistenceConfig persistenceConfig;
+    protected void bindDataSourceService(DataSourceService service, Map properties) {
+        dataSourceServices.put(properties.get(ServerConstants.CONFIG_FACTORY_PID).toString(), service);
+    }
 
-    @Reference(target = "(" + ServerConstants.ROUTER_PREFIX + "=/managed)",
-            bind = "bindRouteService", unbind = "unbindRouteService"
-    )
-    RouteService repositoryRoute;
+    protected void unbindDataSourceService(DataSourceService service, Map properties) {
+        for (Map.Entry<String, DataSourceService> entry : dataSourceServices.entrySet()) {
+            if (service.equals(entry.getValue())) {
+                dataSourceServices.remove(entry.getKey());
+                break;
+            }
+        }
+    }
+
+    @Reference(target = "(" + ServerConstants.ROUTER_PREFIX + "=/managed)")
+    private RouteService routeService;
 
     @Reference(policy = ReferencePolicy.DYNAMIC,
-            bind = "bindCryptoService", unbind = "unbindCryptoService"
-    )
+            bind = "bindCryptoService", unbind = "unbindCryptoService")
     CryptoService cryptoService;
 
-    @Reference(policy = ReferencePolicy.STATIC, target="(service.pid=org.forgerock.openidm.internal)")
-    ConnectionFactory connectionFactory;
+    @Reference(policy = ReferencePolicy.STATIC)
+    IDMConnectionFactory connectionFactory;
 
     /** Enhanced configuration service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
@@ -172,53 +196,54 @@ public class ActivitiServiceImpl implements RequestHandler {
     private String url;
     private String username;
     private String password;
-    private String mailhost = "localhost";
-    private int mailport = 25;
+    private String mailhost = LOCALHOST;
+    private int mailport = DEFAULT_MAIL_PORT;
     private String mailusername;
     private String mailpassword;
     private boolean starttls;
     private String tablePrefix;
     private boolean tablePrefixIsSchema;
     private String historyLevel;
+    private String useDataSource;
     private String workflowDir;
     
     @Override
-    public void handleAction(ServerContext context, ActionRequest request, ResultHandler<JsonValue> handler) {
-        activitiResource.handleAction(context, request, handler);
+    public Promise<ActionResponse, ResourceException> handleAction(Context context, ActionRequest request) {
+        return activitiResource.handleAction(context, request);
     }
 
     @Override
-    public void handleCreate(ServerContext context, CreateRequest request, ResultHandler<Resource> handler) {
-        activitiResource.handleCreate(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleCreate(Context context, CreateRequest request) {
+        return activitiResource.handleCreate(context, request);
     }
 
     @Override
-    public void handleDelete(ServerContext context, DeleteRequest request, ResultHandler<Resource> handler) {
-        activitiResource.handleDelete(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleDelete(Context context, DeleteRequest request) {
+        return activitiResource.handleDelete(context, request);
     }
 
     @Override
-    public void handlePatch(ServerContext context, PatchRequest request, ResultHandler<Resource> handler) {
-        handler.handleError(ResourceUtil.notSupported(request));
+    public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
+        return notSupported(request).asPromise();
     }
 
     @Override
-    public void handleQuery(ServerContext context, QueryRequest request, QueryResultHandler handler) {
-        activitiResource.handleQuery(context, request, handler);
+    public Promise<QueryResponse, ResourceException> handleQuery(
+            Context context, QueryRequest request, QueryResourceHandler handler) {
+        return activitiResource.handleQuery(context, request, handler);
     }
 
     @Override
-    public void handleRead(ServerContext context, ReadRequest request, ResultHandler<Resource> handler) {
-        activitiResource.handleRead(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
+        return activitiResource.handleRead(context, request);
     }
 
     @Override
-    public void handleUpdate(ServerContext context, UpdateRequest request, ResultHandler<Resource> handler) {
-        activitiResource.handleUpdate(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, UpdateRequest request) {
+        return activitiResource.handleUpdate(context, request);
     }
 
-    public enum EngineLocation {
-
+    private enum EngineLocation {
         embedded, local, remote
     }
 
@@ -230,43 +255,26 @@ public class ActivitiServiceImpl implements RequestHandler {
             if (enabled) {
                 switch (location) {
                     case embedded: //start our embedded ProcessEngine
-                        try {
-                            // Data Source configuration
-                            if (jndiName != null && jndiName.trim().length() > 0) {
-                                // Get DB connection via JNDI
-                                logger.info("Using DB connection configured via Driver Manager");
-                                InitialContext ctx = null;
-                                try {
-                                    ctx = new InitialContext();
-                                } catch (NamingException ex) {
-                                    logger.warn("Getting JNDI initial context failed: " + ex.getMessage(), ex);
-                                }
-                                if (ctx == null) {
-                                    throw new InvalidException("Current platform context does not support lookup of repository DB via JNDI. "
-                                            + " Use embedded OpenIDM repository instead.");
-                                }
-                                dataSource = (DataSource) ctx.lookup(jndiName);
-                            }
-                        } catch (RuntimeException ex) {
-                            logger.warn("Configuration invalid, can not start JDBC repository.", ex);
-                            throw new InvalidException("Configuration invalid, can not start JDBC repository.", ex);
-                        } catch (NamingException ex) {
-                            throw new InvalidException("Could not find configured jndiName " + jndiName + " to start repository ", ex);
-                        }
+
+                        // see if we have the DataSourceService bound
+                        final DataSourceService dataSourceService = dataSourceServices.get(useDataSource);
 
                         //we need a TransactionManager to use this
                         JtaProcessEngineConfiguration configuration = new JtaProcessEngineConfiguration();
 
-                        if (null == dataSource) {
+                        if (null == dataSourceService) {
                             //initialise the default h2 DataSource
-                            JdbcDataSource jdbcDataSource = new org.h2.jdbcx.JdbcDataSource(); //Implement it here. There are examples in the JDBCRepoService
+                            //Implement it here. There are examples in the JDBCRepoService
+                            JdbcDataSource jdbcDataSource = new org.h2.jdbcx.JdbcDataSource();
                             File root = IdentityServer.getFileForWorkingPath("db/activiti/database");
-                            jdbcDataSource.setURL("jdbc:h2:file:" + URLDecoder.decode(root.getPath(), "UTF-8") + ";DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=1000");
+                            jdbcDataSource.setURL("jdbc:h2:file:" + URLDecoder.decode(root.getPath(), "UTF-8")
+                                    + ";DB_CLOSE_ON_EXIT=FALSE;DB_CLOSE_DELAY=1000");
                             jdbcDataSource.setUser("sa");
                             configuration.setDatabaseType("h2");
                             configuration.setDataSource(jdbcDataSource);
                         } else {
-                            configuration.setDataSource(dataSource);
+                            // use DataSourceService as source of DataSource
+                            configuration.setDataSource(dataSourceService.getDataSource());
                         }
                         configuration.setIdentityService(identityService);
 
@@ -412,15 +420,14 @@ public class ActivitiServiceImpl implements RequestHandler {
         if (!config.isNull()) {
             enabled = config.get(CONFIG_ENABLED).defaultTo(true).asBoolean();
             location = config.get(CONFIG_LOCATION).defaultTo(EngineLocation.embedded.name()).asEnum(EngineLocation.class);
-            JsonValue connectionConfig = config.get(CONFIG_CONNECTION);
-            jndiName = connectionConfig.get(CONFIG_JNDI_NAME).asString();
+            useDataSource = config.get(CONFIG_USE_DATASOURCE).asString();
             JsonValue mailconfig = config.get(CONFIG_MAIL);
-            if (!mailconfig.isNull()) {
-                mailhost = mailconfig.get(new JsonPointer(CONFIG_MAIL_HOST)).asString();
-                mailport = mailconfig.get(new JsonPointer(CONFIG_MAIL_PORT)).asInteger();
-                mailusername = mailconfig.get(new JsonPointer(CONFIG_MAIL_USERNAME)).asString();
-                mailpassword = mailconfig.get(new JsonPointer(CONFIG_MAIL_PASSWORD)).asString();
-                starttls = mailconfig.get(new JsonPointer(CONFIG_MAIL_STARTTLS)).asBoolean();
+            if (mailconfig.isNotNull()) {
+                mailhost = mailconfig.get(CONFIG_MAIL_HOST).defaultTo(LOCALHOST).asString();
+                mailport = mailconfig.get(CONFIG_MAIL_PORT).defaultTo(DEFAULT_MAIL_PORT).asInteger();
+                mailusername = mailconfig.get(CONFIG_MAIL_USERNAME).asString();
+                mailpassword = mailconfig.get(CONFIG_MAIL_PASSWORD).asString();
+                starttls = mailconfig.get(CONFIG_MAIL_STARTTLS).defaultTo(false).asBoolean();
             }
             JsonValue engineConfig = config.get(CONFIG_ENGINE);
             if (!engineConfig.isNull()) {
@@ -452,32 +459,12 @@ public class ActivitiServiceImpl implements RequestHandler {
         logger.info("ProcessEngine stopped.");
     }
  
-    protected void bindRouteService(RouteService route) {
-        repositoryRoute = route;
-        this.identityService.setRouter(route);
-    }
-
-    protected void unbindRouteService(RouteService route) {
-        repositoryRoute = null;
-        this.identityService.setRouter(null);
-    }
-
     protected void bindScriptRegistry(ScriptRegistry scriptRegistry) {
         this.idmSessionFactory.setScriptRegistry(scriptRegistry);
     }
 
     protected void unbindScriptRegistry(ScriptRegistry scriptRegistry) {
         this.idmSessionFactory.setScriptRegistry(null);
-    }
-
-    protected void bindPersistenceConfig(PersistenceConfig config) {
-        this.persistenceConfig = config;
-        this.idmSessionFactory.setPersistenceConfig(config);
-    }
-
-    protected void unbindPersistenceConfig(PersistenceConfig config) {
-        this.persistenceConfig = null;
-        this.idmSessionFactory.setPersistenceConfig(null);
     }
 
     public void bindService(JavaDelegate delegate, Map props) {
@@ -504,14 +491,6 @@ public class ActivitiServiceImpl implements RequestHandler {
         this.configurationAdmin = null;
     }
 
-    public void bindDataSource(DataSource dataSource) {
-        this.dataSource = dataSource;
-    }
-
-    public void unbindDataSource(DataSource dataSource) {
-        this.dataSource = null;
-    }
-
     public void bindCryptoService(final CryptoService service) {
         cryptoService = service;
         identityService.setCryptoService(service);
@@ -522,12 +501,12 @@ public class ActivitiServiceImpl implements RequestHandler {
         identityService.setCryptoService(null);
     }
 
-    protected void bindConnectionFactory(ConnectionFactory factory) {
+    protected void bindConnectionFactory(IDMConnectionFactory factory) {
         connectionFactory = factory;
         this.identityService.setConnectionFactory(factory);
     }
 
-    protected void unbindConnectionFactory(ConnectionFactory factory) {
+    protected void unbindConnectionFactory(IDMConnectionFactory factory) {
         connectionFactory = null;
         this.identityService.setConnectionFactory(null);
     }

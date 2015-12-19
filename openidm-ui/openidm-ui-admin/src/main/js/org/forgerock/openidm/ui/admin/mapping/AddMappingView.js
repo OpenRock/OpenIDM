@@ -1,30 +1,25 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/mapping/AddMappingView", [
+    "jquery",
+    "underscore",
+    "bootstrap",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
@@ -35,7 +30,8 @@ define("org/forgerock/openidm/ui/admin/mapping/AddMappingView", [
     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate",
     "org/forgerock/openidm/ui/admin/MapResourceView"
 
-], function(AdminAbstractView,
+], function($, _, bootstrap,
+            AdminAbstractView,
             eventManager,
             constants,
             router,
@@ -48,7 +44,7 @@ define("org/forgerock/openidm/ui/admin/mapping/AddMappingView", [
     var MappingAddView = AdminAbstractView.extend({
         template: "templates/admin/mapping/AddMappingTemplate.html",
         events: {
-            "click .add-resource-button" : "addResourceMapping"
+            "click .card" : "addResourceMapping"
         },
         addMappingView: false,
         render: function(args, callback) {
@@ -110,10 +106,11 @@ define("org/forgerock/openidm/ui/admin/mapping/AddMappingView", [
                 }, this));
 
                 this.parentRender(_.bind(function(){
-                    $("#submenu").hide();
-
-                    this.scrollHeaderPos = this.$el.find("#resourceMappingBody").offset().top;
-                    this.scrollInit = false;
+                    this.$el.find('#resourceMappingBody').affix({
+                        offset: {
+                            top: 240
+                        }
+                    });
 
                     MapResourceView.render({
                             "removeCallback": _.bind(function(){
@@ -181,35 +178,6 @@ define("org/forgerock/openidm/ui/admin/mapping/AddMappingView", [
             }
 
             MapResourceView.addMapping(resourceData);
-        },
-
-        /*
-         No longer in use but code could be useful if this feature is desired later in different context
-         */
-        mappingDetail: function(event){
-            var clickedEle = $(event.target),
-                index,
-                details;
-
-            if(!clickedEle.closest("button").hasClass("add-resource-button")) {
-                event.preventDefault();
-
-                if (!clickedEle.hasClass(".resource-body")) {
-                    clickedEle = $(event.target).parents(".resource-body");
-                }
-
-                if (clickedEle.attr("data-resource-type") === "managed") {
-                    index = $("#resourceManagedContainer .resource-body").index(clickedEle);
-                    details = this.data.currentManagedObjects[index];
-
-                    eventManager.sendEvent(constants.ROUTE_REQUEST, {routeName: "editManagedView", args: [details.name]});
-                } else {
-                    index = $("#resourceConnectorContainer .resource-body").index(clickedEle);
-                    details = this.data.currentConnectors[index];
-
-                    eventManager.sendEvent(constants.ROUTE_REQUEST, {routeName: "editConnectorView", args: [details.cleanUrlName]});
-                }
-            }
         }
     });
 

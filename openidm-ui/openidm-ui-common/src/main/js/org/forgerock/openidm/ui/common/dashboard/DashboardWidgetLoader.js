@@ -1,30 +1,24 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global _ define $ */
+/*global define */
 
 define("org/forgerock/openidm/ui/common/dashboard/DashboardWidgetLoader", [
+    "jquery",
+    "underscore",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
@@ -33,8 +27,10 @@ define("org/forgerock/openidm/ui/common/dashboard/DashboardWidgetLoader", [
     "org/forgerock/openidm/ui/common/dashboard/widgets/MemoryUsageWidget",
     "org/forgerock/openidm/ui/common/dashboard/widgets/ReconProcessesWidget",
     "org/forgerock/openidm/ui/common/dashboard/widgets/CPUUsageWidget",
-    "org/forgerock/openidm/ui/common/dashboard/widgets/QuickStartWidget"
-], function(AbstractView,
+    "org/forgerock/openidm/ui/common/dashboard/widgets/QuickStartWidget",
+    "org/forgerock/openidm/ui/common/dashboard/widgets/FullHealthWidget"
+], function($, _,
+            AbstractView,
             eventManager,
             constants,
             conf,
@@ -42,7 +38,8 @@ define("org/forgerock/openidm/ui/common/dashboard/DashboardWidgetLoader", [
             MemoryUsageWidget,
             ReconProcessesWidget,
             CPUUsageWidget,
-            QuickStartWidget) {
+            QuickStartWidget,
+            FullHealthWidget) {
     var dwlInstance = {},
         DashboardWidgetLoader = AbstractView.extend({
             template: "templates/dashboard/DashboardWidgetLoaderTemplate.html",
@@ -57,42 +54,35 @@ define("org/forgerock/openidm/ui/common/dashboard/DashboardWidgetLoader", [
 
             },
             /*
-             Availavble Widgets:
-
-             lifeCycleMemoryHeap - Current heap memory
-             lifeCycleMemoryNonHeap - Current none heap memory
-             lifeCycleMemoryBoth - Displays both heap and none heap memory charts
-             reconUsage - Displays current recons in process. Polls every few seconds with updated information.
-             cpuUsage - Shows current CPU usage of the system
-             quickStart - Widget displaying quick start cards to help users get start with core functionality
+             Available Widgets:
+                lifeCycleMemoryHeap - Current heap memory
+                lifeCycleMemoryNonHeap - Current none heap memory
+                cpuUsage - Shows current CPU usage of the system
+                systemHealthFull - Load full widget of health information
+                reconUsage - Displays current recons in process. Polls every few seconds with updated information.
+                quickStart - Widget displaying quick start cards to help users get start with core functionality
              */
             render: function(args, callback) {
                 this.element = args.element;
 
                 this.model.widgetList = {
                     lifeCycleMemoryBoth: {
-                        name : $.t("dashboard.memoryUsageBoth"),
-                        icon : "fa-heartbeat"
+                        name : $.t("dashboard.memoryUsageBoth")
                     },
                     lifeCycleMemoryHeap: {
-                        name : $.t("dashboard.memoryUsageHeap"),
-                        icon : "fa-heartbeat"
+                        name : $.t("dashboard.memoryUsageHeap")
                     },
                     lifeCycleMemoryNonHeap: {
-                        name : $.t("dashboard.memoryUsageNonHeap"),
-                        icon : "fa-heartbeat"
+                        name : $.t("dashboard.memoryUsageNonHeap")
                     },
                     reconUsage: {
-                        name: $.t("dashboard.reconProcesses"),
-                        icon: "fa-eye"
+                        name: $.t("dashboard.reconProcesses")
                     },
                     cpuUsage: {
-                        name: $.t("dashboard.cpuUsage"),
-                        icon : "fa-pie-chart"
+                        name: $.t("dashboard.cpuUsage")
                     },
                     quickStart: {
-                        name: "Quick Start",
-                        icon: "fa-key"
+                        name: $.t("dashboard.quickStart.quickStartTitle")
                     }
                 };
 
@@ -100,7 +90,6 @@ define("org/forgerock/openidm/ui/common/dashboard/DashboardWidgetLoader", [
                 this.data.widget = this.model.widgetList[args.widget.type];
 
                 this.parentRender(_.bind(function(){
-                    args.menu = this.$el.find(".dropdown-menu");
                     args.element = this.$el.find(".widget-body");
 
                     switch(args.widget.type) {
@@ -115,9 +104,10 @@ define("org/forgerock/openidm/ui/common/dashboard/DashboardWidgetLoader", [
                         case "cpuUsage":
                             this.model.widget = CPUUsageWidget.generateWidget(args, callback);
                             break;
+                        case "systemHealthFull":
+                            this.model.widget = FullHealthWidget.generateWidget(args, callback);
+                            break;
                         case "quickStart":
-                            this.$el.find(".dropdown-toggle").hide();
-
                             args.icons = args.widget.icons;
 
                             this.model.widget = QuickStartWidget.generateWidget(args, callback);

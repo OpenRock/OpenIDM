@@ -29,7 +29,7 @@
  *
  */
 (function () {
-    var userId = context.security.authorizationId.id, res, ret, params, notification;
+    var userId = context.security.authorization.id, res, ret, params, notification;
 
     if (request.method === "read") {
         res = {};
@@ -43,14 +43,16 @@
             res = ret.result;
         }
 
-        return res;
+        return {
+            "notifications" : res
+        };
 
     } else if (request.method === "delete") {
-        notification = openidm.read("repo/ui/notification/"+request.resourceName);
+        notification = openidm.read("repo/ui/notification/"+request.resourcePath);
 
         if(notification !== null) {
             if (notification.receiverId === userId) {
-                openidm['delete']('repo/ui/notification/' + notification._id, notification._rev);
+                return openidm['delete']('repo/ui/notification/' + notification._id, notification._rev);
             } else {
                 throw {
                     "code": 403,
@@ -64,5 +66,4 @@
             "message" : "Access denied"
         };
     }
-
 }());

@@ -1,30 +1,31 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+/*
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Portions copyright 2011-2015 ForgeRock AS.
  */
 package org.forgerock.openidm.sync.impl;
 
-import static org.forgerock.json.fluent.JsonValue.array;
-import static org.forgerock.json.fluent.JsonValue.json;
+import static org.forgerock.json.JsonValue.array;
+import static org.forgerock.json.JsonValue.field;
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.json.resource.Requests.newQueryRequest;
+import static org.forgerock.json.resource.Requests.newReadRequest;
+import static org.forgerock.json.resource.ResourcePath.*;
+import static org.forgerock.json.resource.Responses.newActionResponse;
+import static org.forgerock.json.resource.Responses.newResourceResponse;
+import static org.forgerock.openidm.util.ResourceUtil.notSupported;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,29 +43,37 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
 import org.forgerock.audit.events.AuditEvent;
+import org.forgerock.guava.common.base.Function;
 import org.forgerock.guava.common.base.Predicate;
 import org.forgerock.guava.common.collect.FluentIterable;
-import org.forgerock.json.fluent.JsonPointer;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.fluent.JsonValueException;
+import org.forgerock.json.resource.Connection;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.ResourcePath;
+import org.forgerock.openidm.router.IDMConnectionFactory;
+import org.forgerock.services.context.Context;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.JsonValueException;
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.ConnectionFactory;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Requests;
-import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.ServerContext;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.SingletonResourceProvider;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.quartz.impl.ExecutionException;
 import org.forgerock.openidm.quartz.impl.ScheduledService;
 import org.forgerock.openidm.sync.ReconAction;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.script.ScriptRegistry;
+import org.forgerock.util.AsyncFunction;
+import org.forgerock.util.promise.Promise;
+import org.forgerock.util.promise.Promises;
+import org.forgerock.util.query.QueryFilter;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.ComponentException;
 import org.slf4j.Logger;
@@ -90,7 +99,7 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
 
     /** Actions supported by this service. */
     public enum SyncServiceAction {
-        notifyCreate, notifyUpdate, notifyDelete, recon, performAction
+        notifyCreate, notifyUpdate, notifyDelete, recon, performAction, getLinkedResources
     }
 
     /** Logger */
@@ -100,14 +109,21 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
     public static final String ACTION_PARAM_RESOURCE_CONTAINER = "resourceContainer";
     /** The resource id action parameter. */
     public static final String ACTION_PARAM_RESOURCE_ID = "resourceId";
+    /** The resource name action parameter. */
+    public static final String ACTION_PARAM_RESOURCE_NAME = "resourceName";
 
     /** Object mappings. Order of mappings evaluated during synchronization is significant. */
     private volatile ArrayList<ObjectMapping> mappings = null;
 
     /** The Connection Factory */
-    @Reference(policy = ReferencePolicy.STATIC, target="(service.pid=org.forgerock.openidm.internal)")
-    protected ConnectionFactory connectionFactory;
+    @Reference(policy = ReferencePolicy.STATIC)
+    protected IDMConnectionFactory connectionFactory;
 
+    /** Binds the Connection Factory */
+    protected void bindConnectionFactory(IDMConnectionFactory connectionFactory) {
+    	this.connectionFactory = connectionFactory;
+    }
+    
     public ConnectionFactory getConnectionFactory() {
         return connectionFactory;
     }
@@ -203,11 +219,11 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
     }
 
     /**
-     * Retrieves the current {@link ServerContext}.
+     * Retrieves the current {@link Context}.
      *
-     * @return a ServerContext
+     * @return a {@link Context}
      */
-    ServerContext getServerContext() {
+    Context getContext() {
         return ObjectSetContext.get();
     }
 
@@ -222,10 +238,10 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
      * Local interface to encapsulate the notifyCreate/notifyUpdate/notifyDelete ObjectMapping synchronization
      * across all mappings.
      *
-     * @see #syncAllMappings(ServerContext, SyncAction, String, String)
+     * @see #syncAllMappings(Context, SyncAction, String, String)
      */
     private interface SyncAction {
-        JsonValue sync(ServerContext context, ObjectMapping mapping) throws SynchronizationException;
+        JsonValue sync(Context context, ObjectMapping mapping) throws SynchronizationException;
     }
 
     /**
@@ -237,7 +253,7 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
      * @returns a JsonValue list of ObjectMappings' sync results
      * @throws SynchronizationException on failure to sync one of the mappings
      */
-    private JsonValue syncAllMappings(ServerContext context, SyncAction action, final String resourceContainer, final String resourceId)
+    private JsonValue syncAllMappings(Context context, SyncAction action, final String resourceContainer, final String resourceId)
             throws SynchronizationException {
         final JsonValue syncDetails = new JsonValue(new ArrayList<Object>());
         SynchronizationException exceptionPending = null;
@@ -298,35 +314,35 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
         return syncDetails;
     }
 
-    private JsonValue notifyCreate(ServerContext context, final String resourceContainer, final String resourceId, final JsonValue object)
+    private JsonValue notifyCreate(Context context, final String resourceContainer, final String resourceId, final JsonValue object)
             throws SynchronizationException {
         // Handle pending link action if present
         PendingAction.handlePendingActions(context, ReconAction.LINK, mappings, resourceContainer, resourceId, object);
         return syncAllMappings(context, new SyncAction() {
             @Override
-            public JsonValue sync(ServerContext context, ObjectMapping mapping) throws SynchronizationException {
+            public JsonValue sync(Context context, ObjectMapping mapping) throws SynchronizationException {
                 return mapping.notifyCreate(context, resourceContainer, resourceId, object);
             }
         }, resourceContainer, resourceId);
     }
 
-    private JsonValue notifyUpdate(ServerContext context, final String resourceContainer, final String resourceId, final JsonValue oldValue, final JsonValue newValue)
+    private JsonValue notifyUpdate(Context context, final String resourceContainer, final String resourceId, final JsonValue oldValue, final JsonValue newValue)
             throws SynchronizationException {
         return syncAllMappings(context, new SyncAction() {
             @Override
-            public JsonValue sync(ServerContext context, ObjectMapping mapping) throws SynchronizationException {
+            public JsonValue sync(Context context, ObjectMapping mapping) throws SynchronizationException {
                 return mapping.notifyUpdate(context, resourceContainer, resourceId, oldValue, newValue);
             }
         }, resourceContainer, resourceId);
     }
 
-    private JsonValue notifyDelete(ServerContext context, final String resourceContainer, final String resourceId, final JsonValue oldValue)
+    private JsonValue notifyDelete(Context context, final String resourceContainer, final String resourceId, final JsonValue oldValue)
             throws SynchronizationException {
         // Handle pending unlink action if present
         PendingAction.handlePendingActions(context, ReconAction.UNLINK, mappings, resourceContainer, resourceId, oldValue);
         return syncAllMappings(context, new SyncAction() {
             @Override
-            public JsonValue sync(ServerContext context, ObjectMapping mapping) throws SynchronizationException {
+            public JsonValue sync(Context context, ObjectMapping mapping) throws SynchronizationException {
                 return mapping.notifyDelete(context, resourceContainer, resourceId, oldValue);
             }
         }, resourceContainer, resourceId);
@@ -336,7 +352,7 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
      * ScheduledService interface for supporting scheduled recon.
      */
     @Override
-    public void execute(ServerContext context, Map<String, Object> scheduledContext) throws ExecutionException {
+    public void execute(Context context, Map<String, Object> scheduledContext) throws ExecutionException {
         try {
             JsonValue params = new JsonValue(scheduledContext).get(CONFIGURED_INVOKE_CONTEXT);
             String action = params.get("action").asString();
@@ -371,7 +387,7 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
     }
 
     @Override
-    public void auditScheduledService(final ServerContext context, final AuditEvent auditEvent)
+    public void auditScheduledService(final Context context, final AuditEvent auditEvent)
             throws ExecutionException {
         try {
             connectionFactory.getConnection().create(
@@ -383,7 +399,7 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
     }
 
     @Override
-    public void actionInstance(ServerContext context, ActionRequest request, ResultHandler<JsonValue> handler) {
+    public Promise<ActionResponse, ResourceException> actionInstance(Context context, ActionRequest request) {
         try {
             ObjectSetContext.push(context);
             JsonValue _params = new JsonValue(request.getAdditionalParameters(), new JsonPointer("params"));
@@ -394,20 +410,17 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
                     resourceContainer = _params.get(ACTION_PARAM_RESOURCE_CONTAINER).required().asString();
                     resourceId = _params.get(ACTION_PARAM_RESOURCE_ID).required().asString();
                     logger.debug("Synchronization action=notifyCreate, resourceContainer={}, resourceId={} ", resourceContainer, resourceId);
-                    handler.handleResult(notifyCreate(context, resourceContainer, resourceId, request.getContent().get("newValue")));
-                    break;
+                    return newActionResponse(notifyCreate(context, resourceContainer, resourceId, request.getContent().get("newValue"))).asPromise();
                 case notifyUpdate:
                     resourceContainer = _params.get(ACTION_PARAM_RESOURCE_CONTAINER).required().asString();
                     resourceId = _params.get(ACTION_PARAM_RESOURCE_ID).required().asString();
                     logger.debug("Synchronization action=notifyUpdate, resourceContainer={}, resourceId={}", resourceContainer, resourceId);
-                    handler.handleResult(notifyUpdate(context, resourceContainer, resourceId, request.getContent().get("oldValue"), request.getContent().get("newValue")));
-                    break;
+                    return newActionResponse(notifyUpdate(context, resourceContainer, resourceId, request.getContent().get("oldValue"), request.getContent().get("newValue"))).asPromise();
                 case notifyDelete:
                     resourceContainer = _params.get(ACTION_PARAM_RESOURCE_CONTAINER).required().asString();
                     resourceId = _params.get(ACTION_PARAM_RESOURCE_ID).required().asString();
                     logger.debug("Synchronization action=notifyDelete, resourceContainer={}, resourceId={}", resourceContainer, resourceId);
-                    handler.handleResult(notifyDelete(context, resourceContainer, resourceId, request.getContent().get("oldValue")));
-                    break;
+                    return newActionResponse(notifyDelete(context, resourceContainer, resourceId, request.getContent().get("oldValue"))).asPromise();
                 case recon:
                     JsonValue result = new JsonValue(new HashMap<String, Object>());
                     JsonValue mapping = _params.get("mapping").required();
@@ -417,41 +430,162 @@ public class SynchronizationService implements SingletonResourceProvider, Mappin
                     result.put("_id", reconId);
                     result.put("comment1", "Deprecated API on sync service. Call recon action on recon service instead.");
                     result.put("comment2", "Deprecated return property reconId, use _id instead.");
-                    handler.handleResult(result);
-                    break;
+                    return newActionResponse(result).asPromise();
                 case performAction:
                     logger.debug("Synchronization action=performAction, params={}", _params);
                     ObjectMapping objectMapping = getMapping(_params.get("mapping").required().asString());
                     objectMapping.performAction(_params);
                     //result.put("status", performAction(_params));
-                    handler.handleResult(new JsonValue(new HashMap<String, Object>()));
-                    break;
+                    return newActionResponse(json(object())).asPromise();
+                case getLinkedResources:
+                    return getLinkedResources(context, resourcePath(request.getAdditionalParameter(ACTION_PARAM_RESOURCE_NAME)));
                 default:
                     throw new BadRequestException("Action" + request.getAction() + " is not supported.");
             }
         } catch (ResourceException e) {
-            handler.handleError(e);
-        } catch (IllegalArgumentException e) { // from getActionAsEnum
-            handler.handleError(new BadRequestException(e.getMessage(), e));
-        } catch (Throwable t) {
-            handler.handleError(ResourceUtil.adapt(t));
+        	return e.asPromise();
+        } catch (IllegalArgumentException e) { 
+        	// from getActionAsEnum
+        	return new BadRequestException(e.getMessage(), e).asPromise();
         } finally {
             ObjectSetContext.pop();
         }
     }
 
-    @Override
-    public void patchInstance(ServerContext context, PatchRequest request, ResultHandler<Resource> handler) {
-        handler.handleError(ResourceUtil.notSupported(request));
+    /**
+     * Provide a list of linked resources for the given resourceName.
+     * See openidm-zip/src/main/resources/bin/defaults/script/linkedView.js for the format.
+     *
+     * @param context the request context
+     * @param resourceName the full resource name
+     * @return an ActionResponse including, as JSON content, the list of linked resources and associated mapping details
+     * @throws ResourceException
+     */
+    private Promise<ActionResponse, ResourceException> getLinkedResources(
+            final Context context, ResourcePath resourceName) throws ResourceException {
+
+        // IMPORTANT - Use external connection as this is called externally and we want to read the linked
+        // resources with the same permissions / business-logic as if they were done externally as well.
+        final Connection connection = connectionFactory.getExternalConnection();
+        final String resourceContainer = resourceName.parent().toString();
+        final String resourceId = resourceName.leaf();
+
+        final Map<String, ObjectMapping> relatedMappings = new HashMap<>();
+        for (ObjectMapping mapping : mappings) {
+            // we only care about those mappings which aren't using another mapping's links entry
+            // we also only care about those which involve the given component in some way
+            if ((mapping.getLinkTypeName() == null
+                    || mapping.getLinkTypeName().equals(mapping.getName()))
+                    && (mapping.getTargetObjectSet().equals(resourceContainer)
+                    || mapping.getSourceObjectSet().equals(resourceContainer))) {
+                relatedMappings.put(mapping.getName(), mapping);
+            }
+        }
+
+        // all links found referring to this resourceId
+        final JsonValue allLinks = json(array());
+        connection.query(context,
+                newQueryRequest("repo/link").setQueryFilter(
+                        QueryFilter.or(
+                                QueryFilter.equalTo(new JsonPointer("/firstId"), resourceId),
+                                QueryFilter.equalTo(new JsonPointer("/secondId"), resourceId))),
+                new QueryResourceHandler() {
+                    @Override
+                    public boolean handleResource(ResourceResponse resourceResponse) {
+                        allLinks.add(resourceResponse.getContent().getObject());
+                        return true;
+                    }
+                });
+
+        final List<ResourceResponse> linkedResources = Promises.when(
+                // create a batch of Promises from the list of links
+                FluentIterable.from(allLinks)
+                        .filter(new Predicate<JsonValue>() {
+                            // Need to verify that these links we are processing are one of those we know relates to
+                            // the given resourceName. It's possible that the link queries above found results for id
+                            // values which happen to match the one provided, but are in fact unrelated to the given
+                            // resource. This filter guards against that possibility.
+                            @Override
+                            public boolean apply(JsonValue link) {
+                                return relatedMappings.containsKey(link.get("linkType").asString());
+                            }
+                        })
+                        .transform(new Function<JsonValue, Promise<ResourceResponse, ResourceException>>() {
+                            // For each of the found links, determine the full linked resourceName and
+                            // return some useful information about it by reading it on the router.
+                            @Override
+                            public Promise<ResourceResponse, ResourceException> apply(final JsonValue link) {
+                                final String linkType = link.get("linkType").asString();
+                                final String source = relatedMappings.get(linkType).getSourceObjectSet();
+                                final String target = relatedMappings.get(linkType).getTargetObjectSet();
+
+                                final ResourcePath linkedResourcePath = (source.equals(resourceContainer))
+                                        ? resourcePath(target).child(link.get("secondId").asString())
+                                        : resourcePath(source).child(link.get("firstId").asString());
+
+                                // Read the linked resource asynchronously so Promises can be executed in parallel.
+                                return connection.readAsync(context, newReadRequest(linkedResourcePath))
+                                        // transform the ResourceResponse into the format this endpoint desires
+                                        .thenAsync(new AsyncFunction<ResourceResponse, ResourceResponse, ResourceException>() {
+                                            @Override
+                                            public Promise<ResourceResponse, ResourceException> apply(ResourceResponse resourceResponse)
+                                                    throws ResourceException {
+                                                JsonValue linkedResource = resourceResponse.getContent();
+
+                                                return newResourceResponse(
+                                                        resourceResponse.getId(),
+                                                        resourceResponse.getRevision(),
+                                                        json(object(
+                                                                field("resourceName", linkedResourcePath.toString()),
+                                                                field("content", linkedResource.getObject()),
+                                                                field("linkQualifier", link.get("linkQualifier").asString()),
+                                                                field("linkType", linkType),
+                                                                field("mappings", FluentIterable.from(mappings)
+                                                                        .filter(new Predicate<ObjectMapping>() {
+                                                                            @Override
+                                                                            public boolean apply(ObjectMapping mapping) {
+                                                                                return mapping.getName().equals(linkType)
+                                                                                        || mapping.getLinkTypeName().equals(linkType);
+                                                                            }
+                                                                        })
+                                                                        .transform(new Function<ObjectMapping, Object>() {
+                                                                            @Override
+                                                                            public Object apply(ObjectMapping mapping) {
+                                                                                return object(
+                                                                                        field("name", mapping.getName()),
+                                                                                        // the type is how the linkedResourceName relates to the main
+                                                                                        // resourceName in the context of a particular mapping.
+                                                                                        field("type", mapping.isSourceObject(resourceContainer, resourceId)? "target" : "source"));
+                                                                            }
+                                                                        })
+                                                                        .toList()))))
+                                                        .asPromise();
+                                            }
+                                        });
+                            }
+                        })
+                        .toList())
+                .getOrThrowUninterruptibly(); // wait for promises
+
+        JsonValue response = json(array());
+        for (ResourceResponse linked : linkedResources) {
+            response.add(linked.getContent().getObject());
+        }
+        return newActionResponse(response).asPromise();
     }
 
     @Override
-    public void readInstance(ServerContext context, ReadRequest request, ResultHandler<Resource> handler) {
-        handler.handleError(ResourceUtil.notSupported(request));
+    public Promise<ResourceResponse, ResourceException> patchInstance(Context context, PatchRequest request) {
+        return notSupported(request).asPromise();
     }
 
     @Override
-    public void updateInstance(ServerContext context, UpdateRequest request, ResultHandler<Resource> handler) {
-        handler.handleError(ResourceUtil.notSupported(request));
+    public Promise<ResourceResponse, ResourceException> readInstance(Context context, ReadRequest request) {
+        return notSupported(request).asPromise();
+    }
+
+    @Override
+    public Promise<ResourceResponse, ResourceException> updateInstance(Context context, UpdateRequest request) {
+        return notSupported(request).asPromise();
     }
 }

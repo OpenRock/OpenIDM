@@ -1,39 +1,36 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, JSONEditor */
+/*global define */
 
 define("org/forgerock/openidm/ui/common/linkedView/LinkedView", [
+    "jquery",
+    "underscore",
+    "jsonEditor",
     "org/forgerock/commons/ui/common/main/AbstractView",
-    "org/forgerock/openidm/ui/common/delegates/ResourceDelegate"
-], function(AbstractView, resourceDelegate) {
+    "org/forgerock/openidm/ui/common/delegates/ResourceDelegate",
+    "org/forgerock/openidm/ui/common/util/ResourceCollectionUtils"
+], function($, _, JSONEditor, AbstractView, resourceDelegate, resourceCollectionUtils) {
 
     var LinkedView = AbstractView.extend({
         template: "templates/admin/linkedView/LinkedView.html",
         events: {
             "change #linkedViewSelect": "changeResource"
         },
+        editors: {},
 
         render: function(args, callback) {
             resourceDelegate.linkedView(args.id, args.resourcePath).then(_.bind(function(linkedData){
@@ -55,7 +52,7 @@ define("org/forgerock/openidm/ui/common/linkedView/LinkedView", [
                 }, this);
 
                 this.parentRender(_.bind(function() {
-                    this.loadEditor(0);
+                    this.loadEditor("all");
 
                     if(callback) {
                         callback();
@@ -88,60 +85,82 @@ define("org/forgerock/openidm/ui/common/linkedView/LinkedView", [
             this.loadEditor($(event.target).val());
         },
 
-        loadEditor: function(selection) {
+        loadEditor: function(selectedIndex) {
             var linkToResource = "#resource/",
-                resourceId;
-            
-            if(this.editor) {
-                this.editor.destroy();
-            }
-
-            if(this.data.linkedData.linkedTo.length > 0) {
-                
-                this.$el.closest(".container").find("#linkedSystemsTabHeader").show();
-                
-                if (this.data.linkedData.linkedTo[selection].content !== null) {
-                    resourceId = _.last(this.data.linkedData.linkedTo[selection].resourceName.split("/"));
-                    linkToResource += this.data.linkedData.linkedTo[selection].resourceName.replace(resourceId, "edit/" + resourceId);
-                    
-                    this.$el.find("#linkToResource").attr("href",linkToResource);
-                    
-                    resourceDelegate.getSchema(this.data.linkedData.linkedTo[selection].resourceName.split("/")).then(_.bind(function(schema) {
-                        var propCount = 0;
-                        if(schema.order) {
-                            _.each(schema.order, function(prop) {
-                                schema.properties[prop].propertyOrder = propCount++;
-                            });
-                        }
-                        
-                        this.editor = new JSONEditor(
-                                this.$el.find("#linkedViewContent")[0],
-                                {
-                                    theme: "bootstrap3",
-                                    iconlib: "fontawesome4",
-                                    disable_edit_json: true,
-                                    disable_properties: true,
-                                    disable_array_delete: true,
-                                    disable_array_reorder: true,
-                                    disable_array_add: true,
-                                    schema: schema,
-                                    horizontalForm: true
+                resourceId,
+                displayEditor = _.bind(function (selection) {
+                    if(this.editors[selection]) {
+                        this.editors[selection].destroy();
+                    }
+    
+                    if(this.data.linkedData.linkedTo.length > 0) {
+    
+                        this.$el.closest(".container").find("#linkedSystemsTabHeader").show();
+    
+                        if (this.data.linkedData.linkedTo[selection].content !== null) {
+                            resourceId = _.last(this.data.linkedData.linkedTo[selection].resourceName.split("/"));
+                            linkToResource += this.data.linkedData.linkedTo[selection].resourceName.replace(resourceId, "edit/" + resourceId);
+    
+                            this.$el.find("#linkToResource").attr("href",linkToResource);
+    
+                            resourceDelegate.getSchema(this.data.linkedData.linkedTo[selection].resourceName.split("/")).then(_.bind(function(schema) {
+                                var propCount = 0;
+                                if(schema.order) {
+                                    _.each(schema.order, function(prop) {
+                                        schema.properties[prop].propertyOrder = propCount++;
+                                    });
                                 }
-                            );
-
-                            if (this.data.linkedData.linkedTo[selection].content._id) {
-                                delete this.data.linkedData.linkedTo[selection].content._id;
-                            }
-
-                            this.editor.setValue(this.data.linkedData.linkedTo[selection].content);
-
-                            this.$el.find("#linkedViewContent h3:first").hide();
-                            this.$el.find(".row select").hide();
-                            this.$el.find(".row input").attr("disabled", true);
-                    }, this));
-                } else {
-                    this.$el.find("#linkedViewContent").text($.t("templates.admin.LinkedTemplate.recordMissing") + ': ' + this.data.linkedData.linkedTo[selection].resourceName);
-                }
+                                
+                                schema.properties = resourceCollectionUtils.convertRelationshipTypes(schema.properties);
+                                
+                                if (schema.allSchemas) {
+                                    delete schema.allSchemas;
+                                }
+    
+                                this.editors[selection] = new JSONEditor(
+                                        this.$el.find("#linkedViewContent")[0],
+                                        {
+                                            theme: "bootstrap3",
+                                            iconlib: "fontawesome4",
+                                            disable_edit_json: true,
+                                            disable_properties: true,
+                                            disable_array_delete: true,
+                                            disable_array_reorder: true,
+                                            disable_array_add: true,
+                                            schema: schema,
+                                            horizontalForm: true
+                                        }
+                                    );
+    
+                                    if (this.data.linkedData.linkedTo[selection].content._id) {
+                                        delete this.data.linkedData.linkedTo[selection].content._id;
+                                    }
+                                    
+                                    _.each(this.data.linkedData.linkedTo[selection].content, function(value, key) {
+                                        if(_.isArray(value) && value.length === 0) {
+                                            this.data.linkedData.linkedTo[selection].content[key] = undefined;
+                                        }
+                                    }, this);
+    
+                                    this.editors[selection].setValue(this.data.linkedData.linkedTo[selection].content);
+    
+                                    this.$el.find(".row select").hide();
+                                    this.$el.find(".row input").attr("disabled", true);
+                            }, this));
+                        } else {
+                            this.$el.find("#linkedViewContent").text($.t("templates.admin.LinkedTemplate.recordMissing") + ': ' + this.data.linkedData.linkedTo[selection].resourceName);
+                        }
+                    }
+                }, this);
+            
+            if (selectedIndex === "all") {
+                this.$el.find("#linkToResource").hide();
+                _.each(this.data.linkedResources, function (resource, index) {
+                    displayEditor(index);
+                });
+            } else {
+                this.$el.find("#linkToResource").show();
+                displayEditor(selectedIndex);
             }
         }
     });

@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2013 ForgeRock AS. All Rights Reserved
+ * Copyright 2011-2015 ForgeRock AS.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -35,24 +35,25 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Scanner;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.felix.service.command.CommandSession;
 import org.apache.felix.service.command.Descriptor;
 import org.apache.felix.service.command.Parameter;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.Requests;
-import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResourceName;
+import org.forgerock.json.resource.ResourcePath;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.config.persistence.ConfigBootstrapHelper;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.shell.CustomCommandScope;
 import org.forgerock.openidm.shell.felixgogo.MetaVar;
+import org.forgerock.services.context.RootContext;
 
 /**
  * Command scope for remote operations.
@@ -89,6 +90,7 @@ public class RemoteCommandScope extends CustomCommandScope {
         help.put("configimport", getLongHeader("configimport"));
         help.put("configexport", getLongHeader("configexport"));
         help.put("configureconnector", getLongHeader("configureconnector"));
+        help.put("update", getLongHeader("update"));
         return help;
     }
 
@@ -129,6 +131,73 @@ public class RemoteCommandScope extends CustomCommandScope {
                 throw new IllegalArgumentException("Port must be a number");
             }
         }
+    }
+
+    /**
+     * Handles the Update (upgrade/patch) process.
+     * @param session session that invoked the command.
+     * @param userPass user:passwd to be used on rest calls.
+     * @param idmUrl url to the idm instance.
+     * @param idmPort port that idm is running on.
+     * @param acceptLicense if true, the accept license step is skipped.
+     * @param archive The simple file name of the archive that is already in bin/update.
+     */
+    @Descriptor("Update the system with the provided update file.")
+    public void update(CommandSession session,
+            @Descriptor(USER_PASS_DESC)
+            @MetaVar(USER_PASS_METAVAR)
+            @Parameter(names = {"-u", "--user"}, absentValue = USER_PASS_DEFAULT)
+            final String userPass,
+
+            @Descriptor(IDM_URL_DESC)
+            @MetaVar(IDM_URL_METAVAR)
+            @Parameter(names = {"--url"}, absentValue = IDM_URL_DEFAULT)
+            final String idmUrl,
+
+            @Descriptor(IDM_PORT_DESC)
+            @MetaVar(IDM_PORT_METAVAR)
+            @Parameter(names = {"-P", "--port"}, absentValue = IDM_PORT_DEFAULT)
+            final String idmPort,
+
+            @Descriptor("Automatically accepts the product license (if present). " +
+                    "Defaults to 'false' to ask for acceptance.")
+            @Parameter(names = {"--acceptLicense"}, presentValue = "true", absentValue = "false")
+            final boolean acceptLicense,
+
+            @Descriptor("Timeout value to wait for jobs to finish. " +
+                    "Defaults to -1 to exit immediately if jobs are running.")
+            @MetaVar("TIME")
+            @Parameter(names = {"--maxJobsFinishWaitTimeMs"}, absentValue = "-1")
+            final long maxJobsFinishWaitTimeMs,
+
+            @Descriptor("Timeout value to wait for update process to complete. Defaults to 30000 ms.")
+            @MetaVar("TIME")
+            @Parameter(names = {"--maxUpdateWaitTimeMs"}, absentValue = "30000")
+            final long maxUpdateWaitTimeMs,
+
+            @Descriptor("Log file path. (optional) Defaults to logs/update.log")
+            @MetaVar("LOG_FILE")
+            @Parameter(names = {"-l", "--log"}, absentValue = "logs/update.log")
+            final String logFilePath,
+
+            @Descriptor("Log only to the log file.")
+            @Parameter(names = {"-Q", "--Quiet"}, presentValue = "true", absentValue = "false")
+            final boolean quietMode,
+
+            @Descriptor("Filename of the Update archive within bin/update.")
+            String archive) {
+
+        processOptions(userPass, idmUrl, idmPort);
+        UpdateCommandConfig config = new UpdateCommandConfig()
+                .setUpdateArchive(archive)
+                .setLogFilePath(logFilePath)
+                .setQuietMode(quietMode)
+                .setAcceptedLicense(acceptLicense)
+                .setMaxJobsFinishWaitTimeMs(maxJobsFinishWaitTimeMs)
+                .setMaxUpdateWaitTimeMs(maxUpdateWaitTimeMs);
+
+        new UpdateCommand(session, resource, config)
+                .execute(new RootContext());
     }
 
     /**
@@ -215,6 +284,7 @@ public class RemoteCommandScope extends CustomCommandScope {
                 }
             };
 
+            // Read the files from the provided source directory.
             File[] files = file.listFiles(filter);
             Map<String, File> localConfigSet = new HashMap<String, File>(files.length);
             for (File subFile : files) {
@@ -231,9 +301,10 @@ public class RemoteCommandScope extends CustomCommandScope {
                 localConfigSet.put(configName, subFile);
             }
 
+            // Read the remote configs that are currently active.
             Map<String, JsonValue> remoteConfigSet = new HashMap<String, JsonValue>();
             try {
-                Resource responseValue = resource.read(null, Requests.newReadRequest("config"));
+                ResourceResponse responseValue = resource.read(null, Requests.newReadRequest("config"));
                 Iterator<JsonValue> iterator = responseValue.getContent().get("configurations").iterator();
                 while (iterator.hasNext()) {
                     JsonValue configValue = iterator.next();
@@ -252,44 +323,43 @@ public class RemoteCommandScope extends CustomCommandScope {
                 return;
             }
 
-            final ResourceName configResource = ResourceName.valueOf("config");
+            final ResourcePath configResource = ResourcePath.valueOf("config");
             for (Map.Entry<String, File> entry : localConfigSet.entrySet()) {
+                String sourceConfigId = entry.getKey();
                 try {
-                    if (remoteConfigSet.containsKey(entry.getKey())) {
+                    if (remoteConfigSet.containsKey(sourceConfigId)) {
                         // Update
-                        UpdateRequest updateRequest = Requests.newUpdateRequest(configResource.concat(entry.getKey()),
+                        UpdateRequest updateRequest = Requests.newUpdateRequest(configResource.concat(sourceConfigId),
                                 new JsonValue(mapper.readValue(entry.getValue(), Map.class)));
 
                         resource.update(null, updateRequest);
                         // If the update succeeded, remove the entry from 'remoteConfigSet' - this prevents it
                         // from being deleted below.  If this update fails, the entry will remain in remoteConfigSet
                         // and will be deleted from the remote IDM instance.
-                        remoteConfigSet.remove(entry.getKey());
+                        remoteConfigSet.remove(sourceConfigId);
                     } else {
                         // Create
-                        CreateRequest createRequest = Requests.newCreateRequest(configResource.concat(entry.getKey()),
+                        CreateRequest createRequest = Requests.newCreateRequest(configResource.concat(sourceConfigId),
                                 new JsonValue(mapper.readValue(entry.getValue(), Map.class)));
                         resource.create(null, createRequest);
                     }
-                    prettyPrint(console, "ConfigImport", entry.getKey(), null);
+                    prettyPrint(console, "ConfigImport", sourceConfigId, null);
                 } catch (Exception e) {
-                    prettyPrint(console, "ConfigImport", entry.getKey(), e.getMessage());
+                    prettyPrint(console, "ConfigImport", sourceConfigId, e.getMessage());
                 }
             }
 
             // Delete all additional config objects
             if (replaceall) {
                 for (String configId : remoteConfigSet.keySet()) {
-                    if ("authentication".equals(configId)
-                            || "router".equals(configId)
-                            || "audit".equals(configId)
-                            || configId.startsWith("repo")) {
+                    if (isProtectedConfigId(configId)) {
                         prettyPrint(console, "ConfigDelete", configId, "Protected configuration can not be deleted");
                         continue;
                     }
 
                     try {
-                        resource.delete(null, Requests.newDeleteRequest(configResource, configId));
+                        // configId is concatenated to avoid file paths from getting url encoded -> '/'-> '%2f'
+                        resource.delete(null, Requests.newDeleteRequest(configResource.concat(configId)));
                         prettyPrint(console, "ConfigDelete", configId, null);
                     } catch (Exception e) {
                         prettyPrint(console, "ConfigDelete", configId, e.getMessage());
@@ -304,6 +374,13 @@ public class RemoteCommandScope extends CustomCommandScope {
             console.append("[ConfigImport] Configuration directory not found at: ");
             console.println(file.getAbsolutePath());
         }
+    }
+
+    private boolean isProtectedConfigId(String configId) {
+        return "authentication".equals(configId)
+                || "router".equals(configId)
+                || "audit".equals(configId)
+                || configId.startsWith("repo");
     }
 
     /**
@@ -377,7 +454,7 @@ public class RemoteCommandScope extends CustomCommandScope {
         session.getConsole().append("[ConfigExport] \t").println(targetDir.getAbsolutePath());
 
         try {
-            Resource responseValue = resource.read(null, Requests.newReadRequest("config"));
+            ResourceResponse responseValue = resource.read(null, Requests.newReadRequest("config"));
             Iterator<JsonValue> iterator = responseValue.getContent().get("configurations").iterator();
             String bkpPostfix = "." + (new SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ss")).format(new Date()) + ".bkp";
             while (iterator.hasNext()) {
@@ -470,7 +547,7 @@ public class RemoteCommandScope extends CustomCommandScope {
 
             // Phase#1 - Get available connectors
             if (!finalConfig.exists()) {
-                responseValue = resource.action(null, request);
+                responseValue = resource.action(null, request).getJsonContent();
 
                 JsonValue connectorRef = responseValue.get("connectorRef");
                 if (!connectorRef.isNull() && connectorRef.isList()) {
@@ -524,7 +601,7 @@ public class RemoteCommandScope extends CustomCommandScope {
 
             // Repeatable phase #2 and #3
             request.setContent(new JsonValue(configuration));
-            responseValue = resource.action(null, request);
+            responseValue = resource.action(null, request).getJsonContent();
 
             configuration = responseValue.asMap();
             configuration.put("name", name);

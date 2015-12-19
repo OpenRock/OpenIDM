@@ -55,7 +55,6 @@ crashlytics-build.properties
 *.pydevproject
 .metadata
 .gradle
-bin/
 tmp/
 *.tmp
 *.bak
@@ -94,3 +93,9 @@ local.properties
 
 # npm modules
 node_modules
+
+# OSX Finder garbage
+.DS_Store
+
+# ctags index
+tags

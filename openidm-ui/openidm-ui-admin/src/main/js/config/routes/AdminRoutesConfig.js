@@ -1,33 +1,45 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
-/*global define*/
+/*global define */
 define("config/routes/AdminRoutesConfig", [
     "config/routes/CommonRoutesConfig"
 ], function(commonRoutes) {
 
     var obj = {
+        "dashboardView" : {
+            view: "org/forgerock/openidm/ui/admin/dashboard/Dashboard",
+            role: "ui-admin",
+            url: "dashboard/"
+        },
+        "userRegistrationView" : {
+            view: "org/forgerock/openidm/ui/admin/selfservice/UserRegistrationConfigView",
+            role: "ui-admin",
+            url: "selfservice/userregistration/"
+        },
+        "passwordResetView" : {
+            view: "org/forgerock/openidm/ui/admin/selfservice/PasswordResetConfigView",
+            role: "ui-admin",
+            url: "selfservice/passwordreset/"
+        },
+        "forgotUsernameView" : {
+            view: "org/forgerock/openidm/ui/admin/selfservice/ForgotUsernameConfigView",
+            role: "ui-admin",
+            url: "selfservice/forgotUsername/"
+        },
         "connectorListView" : {
             view: "org/forgerock/openidm/ui/admin/connector/ConnectorListView",
             role: "ui-admin",
@@ -38,14 +50,12 @@ define("config/routes/AdminRoutesConfig", [
             role: "ui-admin",
             defaults : ["", ""],
             url: /^connectors\/edit\/(.+?)\/(.*)$/,
-            pattern: "connectors/edit/?/?",
-            forceUpdate: true
+            pattern: "connectors/edit/?/?"
         },
         "addConnectorView" : {
             view: "org/forgerock/openidm/ui/admin/connector/AddConnectorView",
             role: "ui-admin",
-            url: "connectors/add/",
-            forceUpdate: true
+            url: "connectors/add/"
         },
         "managedListView" : {
             view: "org/forgerock/openidm/ui/admin/managed/ManagedListView",
@@ -53,48 +63,43 @@ define("config/routes/AdminRoutesConfig", [
             url: "managed/"
         },
         "editManagedView" : {
-            view: "org/forgerock/openidm/ui/admin/managed/AddEditManagedView",
+            view: "org/forgerock/openidm/ui/admin/managed/EditManagedView",
             role: "ui-admin",
             url: /^managed\/edit\/(.+)\/$/,
-            pattern: "managed/edit/?/",
-            forceUpdate: true
+            pattern: "managed/edit/?/"
         },
         "addManagedView" : {
-            view: "org/forgerock/openidm/ui/admin/managed/AddEditManagedView",
+            view: "org/forgerock/openidm/ui/admin/managed/AddManagedView",
             role: "ui-admin",
-            url: "managed/add/",
-            forceUpdate: true
+            url: "managed/add/"
         },
         "authenticationView" : {
             view: "org/forgerock/openidm/ui/admin/authentication/AuthenticationView",
             role: "ui-admin",
-            url: "authentication/",
-            forceUpdate: true
+            url: "authentication/"
         },
-        "settingsView" : {
+        "settingsView": {
             view: "org/forgerock/openidm/ui/admin/settings/SettingsView",
             role: "ui-admin",
-            url: "settings/",
-            forceUpdate: true
+            url: /^settings\/(.*)$/,
+            pattern: "settings/?/",
+            defaults: ["authentication"]
         },
         "addMappingView" : {
             view: "org/forgerock/openidm/ui/admin/mapping/AddMappingView",
             role: "ui-admin",
-            url: "mapping/add/",
-            forceUpdate: true
+            url: "mapping/add/"
         },
         "autoAddMappingView" : {
             view: "org/forgerock/openidm/ui/admin/mapping/AddMappingView",
             role: "ui-admin",
             url: /mapping\/add\/(.+?)\/(.+?)$/,
-            pattern: "mapping/add/?/?",
-            forceUpdate: true
+            pattern: "mapping/add/?/?"
         },
         "mappingListView" : {
             view: "org/forgerock/openidm/ui/admin/mapping/MappingListView",
             role: "ui-admin",
-            url: "mapping/",
-            forceUpdate: true
+            url: "mapping/"
         },
         "propertiesView" : {
             childView: "org/forgerock/openidm/ui/admin/mapping/PropertiesView",
@@ -189,10 +194,16 @@ define("config/routes/AdminRoutesConfig", [
             role: "ui-admin",
             url: /^workflow\/processinstance\/(.+)$/,
             pattern: "workflow/processinstance/?"
+        },
+        "processDefinitionView" : {
+            view: "org/forgerock/openidm/ui/admin/workflow/ProcessDefinitionView",
+            role: "ui-admin",
+            url: /^workflow\/processdefinition\/(.+)$/,
+            pattern: "workflow/processdefinition/?"
         }
     };
 
-    obj.landingPage = obj.connectorListView;
+    obj.landingPage = obj.dashboardView;
     commonRoutes["default"].role = "ui-admin";
     return obj;
 });

@@ -1,30 +1,24 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js, window */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/connector/AbstractConnectorView", [
+    "jquery",
+    "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/main/ValidatorsManager",
@@ -35,7 +29,8 @@ define("org/forgerock/openidm/ui/admin/connector/AbstractConnectorView", [
     "org/forgerock/openidm/ui/admin/util/ConnectorUtils",
     "org/forgerock/commons/ui/common/main/Router"
 
-], function(AdminAbstractView,
+], function($, _,
+            AdminAbstractView,
             eventManager,
             validatorsManager,
             constants,
@@ -62,7 +57,6 @@ define("org/forgerock/openidm/ui/admin/connector/AbstractConnectorView", [
                 eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "connectorBadMainVersion");
                 return "0.0";
             }
-
         },
 
         //Finds the minor version.
@@ -116,8 +110,11 @@ define("org/forgerock/openidm/ui/admin/connector/AbstractConnectorView", [
                         connectorRef: connectorData
                     };
 
-                    ConnectorDelegate.detailsConnector(connectorRef).then(_.bind(function(connectorDefaults){
-                        this.connectorTypeRef = ConnectorRegistry.getConnectorModule(connectorTemplate);
+                    $.when(
+                        ConnectorRegistry.getConnectorModule(connectorTemplate),
+                        ConnectorDelegate.detailsConnector(connectorRef)
+                    ).then(_.bind(function(connectorTypeRef, connectorDefaults){
+                        this.connectorTypeRef = connectorTypeRef;
 
                         if(this.connectorTypeRef.oAuthConnector) {
                             this.oAuthConnector = true;
@@ -127,14 +124,14 @@ define("org/forgerock/openidm/ui/admin/connector/AbstractConnectorView", [
 
                         this.connectorTypeRef.render({"connectorType": connectorTemplate,
                                 "animate": true,
-                                "connectorDefaults": connectorDefaults,
+                                "connectorDefaults": connectorDefaults[0],
                                 "editState" : this.data.editState,
                                 "systemType" : this.data.systemType },
                             _.bind(function(){
                                 this.setSubmitFlow();
 
                                 validatorsManager.validateAllFields(this.$el);
-
+                                this.$el.find("#connectorName").focus();
                                 if(_.isFunction(callback)){
                                     callback();
                                 }

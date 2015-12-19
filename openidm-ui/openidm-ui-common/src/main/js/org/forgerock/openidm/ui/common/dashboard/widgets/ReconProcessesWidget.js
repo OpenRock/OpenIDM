@@ -1,37 +1,31 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global _ define $ window, dimple*/
+/*global define, window*/
 
 define("org/forgerock/openidm/ui/common/dashboard/widgets/ReconProcessesWidget", [
+    "jquery",
+    "underscore",
+    "dimple",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/Configuration",
-    "org/forgerock/openidm/ui/common/delegates/SystemHealthDelegate",
-    "org/forgerock/commons/ui/common/util/ModuleLoader"
-], function(AbstractView, eventManager, constants, conf, SystemHealthDelegate, ModuleLoader) {
+    "org/forgerock/openidm/ui/common/delegates/SystemHealthDelegate"
+], function($, _, dimple, AbstractView, eventManager, constants, conf, SystemHealthDelegate) {
     var widgetInstance = {},
         Widget = AbstractView.extend({
             noBaseTemplate: true,
@@ -55,17 +49,10 @@ define("org/forgerock/openidm/ui/common/dashboard/widgets/ReconProcessesWidget",
             render: function(args, callback) {
                 this.element = args.element;
                 this.data.widgetType = args.type;
-                this.model.menu = args.menu;
 
-                ModuleLoader.load("dimple").then(_.bind(function(dimple){
-                    this.reconUsageWidget(dimple);
-
-                    if(callback) {
-                        callback();
-                    }
-                }, this));
+                this.reconUsageWidget(callback);
             },
-            reconUsageWidget: function(dimple) {
+            reconUsageWidget: function(callback) {
                 var areaSeries,
                     svg;
 
@@ -75,18 +62,6 @@ define("org/forgerock/openidm/ui/common/dashboard/widgets/ReconProcessesWidget",
                     this.$el.find(".dashboard-loading-message").show();
 
                     svg = dimple.newSvg(this.$el[0], "100%", 390);
-
-                    if(this.model.menu) {
-                        this.model.menu.find(".pause").show();
-
-                        this.model.menu.find(".start").bind("click", _.bind(function(){
-                            this.startPoll();
-                        }, this));
-
-                        this.model.menu.find(".pause").bind("click", _.bind(function(){
-                            this.pausePoll();
-                        }, this));
-                    }
 
                     this.model.reconChart = new dimple.chart(svg, []);
                     this.model.reconChart.setBounds(this.model.chartX, this.model.chartY, this.model.chartWidth, this.model.chartHeight);
@@ -116,6 +91,10 @@ define("org/forgerock/openidm/ui/common/dashboard/widgets/ReconProcessesWidget",
                             this.model.reconChart.draw(0, true);
                         }
                     }, this);
+
+                    if (callback) {
+                        callback();
+                    }
                 }, this));
             },
 
@@ -149,20 +128,6 @@ define("org/forgerock/openidm/ui/common/dashboard/widgets/ReconProcessesWidget",
                         }, this), this.model.refreshSpeed);
                     }
                 }, this));
-            },
-
-            pausePoll: function() {
-                this.model.menu.find(".start").show();
-                this.model.menu.find(".pause").hide();
-
-                clearTimeout(this.model.pollTimer);
-            },
-
-            startPoll: function() {
-                this.model.menu.find(".start").hide();
-                this.model.menu.find(".pause").show();
-
-                this.reconUsagePolling();
             }
         });
 

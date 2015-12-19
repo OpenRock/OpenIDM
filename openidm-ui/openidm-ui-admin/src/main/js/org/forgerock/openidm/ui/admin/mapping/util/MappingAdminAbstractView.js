@@ -1,35 +1,29 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView", [
+    "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/openidm/ui/admin/delegates/SyncDelegate",
     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate"
 
-], function(AdminAbstractView,
+], function(_,
+            AdminAbstractView,
             SyncDelegate,
             ConfigDelegate) {
 
@@ -104,15 +98,12 @@ define("org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView", [
             },
 
             AbstractMappingSave: function(mapping, callback) {
-                _.each(syncConfig.mappings, function(map, key) {
-                    syncConfig.mappings[key] = _.omit(mapping, "recon");
+                var i = _.findIndex(syncConfig.mappings, {name: mapping.name});
 
-                    if (map.name === this.getMappingName()) {
-                        currentMapping = syncConfig.mappings[key];
-                    }
-                }, this);
-
-                ConfigDelegate.updateEntity("sync", {"mappings" : syncConfig.mappings}).then(_.bind(callback, this));
+                if (i >= 0) {
+                    currentMapping = syncConfig.mappings[i] = mapping;
+                    ConfigDelegate.updateEntity("sync", {"mappings": syncConfig.mappings}).then(_.bind(callback, this));
+                }
             }
         });
 

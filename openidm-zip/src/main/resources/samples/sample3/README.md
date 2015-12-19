@@ -25,8 +25,8 @@
 Sample 3 - Scripted SQL
 =======================
 
-This sample demonstrates creating a new CustomScriptedSQL connector, using the
-custom-scripted-connector-bundler-3.2.0-SNAPSHOT.jar that is included in the
+This sample demonstrates creating a new custom scriptedSQL connector, using the
+custom-scripted-connector-bundler-4.0.0-SNAPSHOT.jar that is included in the
 tools directory of the OpenIDM zip file. The sample relies on the new custom
 connector that you will create with the connector bundler. It provides an
 example configuration and a handful of Groovy scripts that are used to
@@ -36,7 +36,7 @@ This example requires a fresh installation of OpenIDM. It also requires that you
 have Maven installed. 
 
 For documentation pertaining to this example see:
-http://openidm.forgerock.org/doc/bootstrap/install-guide/index.html#more-sample3
+http://openidm.forgerock.org/doc/bootstrap/samples-guide/#more-sample3
 
 This sample also demonstrates the use of complex data types. Complex types can
 be stored, retrieved and synced like any other property of an object. These
@@ -44,9 +44,9 @@ types can be mapped to your external data sources in any way you choose but are
 generally stored in the managed data as JSON represented as a String. This may
 be customized further to do additional work with or transformation on that data.
 
-The sync.json script demonstrates the use of event hooks to perform an action. In
+The sync.json file demonstrates the use of event hooks to perform an action. In
 this example there are two hooks, one for the onCreate event and another for onUpdate,
-both for the managed user to external repo user case. In both events this sample
+both for the managed user to external repo mapping. In both events this sample
 will log a statement to OpenIDM's log file (see the logs directory) when a managed
 user is created or updated in the external repo. In both cases the script is
 explicitly included in the sync.json file but could just as easily have referenced
@@ -75,7 +75,7 @@ Setup the Database
 
 1. Copy the MySQL Connector/J .jar to the OpenIDM bundle/ directory.
 
-    $ cp mysql-connector-java-5.1.18-bin.jar /path/to/openidm/bundle/
+    $ cp mysql-connector-java-<version>-bin.jar /path/to/openidm/bundle/
 
 2. Set up MySQL to listen on localhost:3306, connecting as root:password.
 
@@ -91,11 +91,12 @@ Description: In this section, you generate the classes and files necessary to
 build a custom connector. Using these generated files, you build the custom
 ScriptedSQL connector that will be used in the rest of this sample.
 
-1. From the sample3/create-connector directory, run the following command, using
-   the custom config provided in the sample3/data directory.
+1. Create a sample3/create-connector directory, and run the following command from
+   that directory, using  the custom config provided in sample3/data:
 
+   $ mkdir path/to/openidm/samples/sample3/create-connector
    $ cd path/to/openidm/samples/sample3/create-connector
-   $ java -jar ../../../tools/custom-scripted-connector-bundler-3.2.0-SNAPSHOT.jar -c ../data/scriptedsql.json
+   $ java -jar ../../../tools/custom-scripted-connector-bundler-4.0.0-SNAPSHOT.jar -c ../data/scriptedsql.json
 
 2. Copy the provided sample scripts into the connector src directory; these will
    become part of the custom connector.
@@ -158,12 +159,11 @@ ScriptedSQL connector that will be used in the rest of this sample.
         $ cd path/to/openidm
         $ jar -tvf connectors/hrdb-connector-1.4.1.0.jar | grep "1.4.html"
     
-   Extract the file that you found in the preceding step into the
-   /path/to/openidm/ui directory.
+   Create a new extension directory for the connector template and extract 
+   the file that you found in the preceding step into that directory.
         
+        $ mkdir -p ui/extension/templates/admin/connector
         $ jar -xvf connectors/hrdb-connector-1.4.1.0.jar ui/org.forgerock.openicf.connectors.hrdb.HRDBConnector_1.4.html
-        $ mkdir -p ui/extension/templates/admin/connector; mv ui/org.forgerock.openicf.connectors.hrdb.HRDBConnector_1.4.html ui/extension/templates/admin/connector
-        
 
 
 Starting up the sample
@@ -181,7 +181,7 @@ Starting up the sample
        {
          "actions": [
            {
-             "result": "Successfully reset the database"
+             "result": "Database reset successful."
            }
          ]
        }
@@ -259,7 +259,7 @@ Run the Sample
         "lastPasswordAttempt" : "Wed Oct 22 2014 09:51:31 GMT-0700 (PDT)",
         "address2" : "",
         "givenName" : "Rowley",
-        "effectiveRoles" : [ "openidm-authorized" ],
+        "effectiveRoles" : [ ],
         "country" : "",
         "city" : "",
         "lastPasswordSet" : "",
@@ -279,7 +279,7 @@ Run the Sample
         "accountStatus" : "active",
         "telephoneNumber" : "",
         "roles" : [ "openidm-authorized" ],
-        "effectiveAssignments" : null,
+        "effectiveAssignments" : [ ],
         "postalAddress" : "",
         "userName" : "rowley",
         "stateProvince" : ""
@@ -309,7 +309,7 @@ Run the Sample
 
 4. Show paging results with page size of 2
 
-    $ curl -k -u "openidm-admin:openidm-admin" --request GET 'https://localhost:8443/openidm/system/hrdb/account?_queryFilter=uid+sw+""&_pageSize=2&_sortKeys=timestamp,id'
+    $ curl -k -u "openidm-admin:openidm-admin" --request GET 'https://localhost:8443/openidm/system/hrdb/account?_queryFilter=uid+sw+%22%22&_pageSize=2&_sortKeys=timestamp,id'
 
     {
       "result":[
@@ -327,9 +327,10 @@ Run the Sample
     }
 
 5. Use the pagedResultsCookie from the result in step 10 for the next query to
-   retrieve the next result set. Make sure you encode the date:time.
+   retrieve the next result set. The value of the pagedResultsCookie must be 
+   URL-encoded.
 
-    $ curl -k -u "openidm-admin:openidm-admin" --request GET 'https://localhost:8443/openidm/system/hrdb/account?_queryFilter=uid+sw+""&_pageSize=2&_sortKeys=timestamp,id&_pagedResultsCookie=2014-09-11%2010:07:57.0,2'
+    $ curl -k -u "openidm-admin:openidm-admin" --request GET 'https://localhost:8443/openidm/system/hrdb/account?_queryFilter=uid+sw+%22%22&_pageSize=2&_sortKeys=timestamp,id&_pagedResultsCookie=2014-09-11%2010%3A07%3A57.0%2C2'
 
     {
       "result":[
@@ -345,11 +346,3 @@ Run the Sample
       "pagedResultsCookie":"2014-09-11 10:07:57.0,4",
       "remainingPagedResults":-1
     }
-
-
-You can log in to the OpenIDM UI (https://localhost:8443/) with any of
-the users that were created in the repository by the reconciliation operation.
-Consult the values from the sample3/tools/ResetDatabaseScript.groovy script to
-retrieve the clear text passwords of each of these users. Users can update their
-profiles or passwords. Any changes will be automatically synchronized back to
-the MySQL database.

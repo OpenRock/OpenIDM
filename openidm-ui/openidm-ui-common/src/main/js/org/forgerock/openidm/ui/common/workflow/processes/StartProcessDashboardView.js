@@ -1,46 +1,37 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2012 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 
-/*global define, $, form2js, _ */
+/*global define */
 
-/**
- * @author jdabrowski
- */
 define("org/forgerock/openidm/ui/common/workflow/processes/StartProcessDashboardView", [
+    "jquery",
+    "underscore",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/openidm/ui/common/workflow/WorkflowDelegate",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/openidm/ui/common/workflow/processes/StartProcessView",
     "org/forgerock/commons/ui/common/main/Configuration"
-], function(AbstractView, workflowManager, eventManager, constants, startProcessView, conf) {
+], function($, _, AbstractView, workflowManager, eventManager, constants, startProcessView, conf) {
     var StartProcessDashboardView = AbstractView.extend({
 
         template: "templates/workflow/processes/StartProcessDashboardTemplate.html",
 
         events: {
-            "click .processName": "showStartProcessView"
+            "click .details-link": "showStartProcessView"
         },
 
         element: "#processes",
@@ -50,13 +41,13 @@ define("org/forgerock/openidm/ui/common/workflow/processes/StartProcessDashboard
             if (args && args[0] && args[0] !== '') {
                 processId = args[0];
             }
-            workflowManager.getAllUniqueProcessDefinitions(conf.loggedUser._id, _.bind(function(processDefinitions) {
+            workflowManager.getAllUniqueProcessDefinitions(_.bind(function(processDefinitions) {
                 var i;
                 this.data.processDefinitions = processDefinitions;
 
                 this.parentRender(function() {
                     if(processDefinitions.length === 0) {
-                        $("#processContentBody").html("<h5 class='text-center'>" +$.t("openidm.ui.admin.tasks.StartProcessDashboardView.noProcesses") +"</h5>");
+                        $("#processList").html('<li class="list-group-item"><h5 class="text-center">' +$.t("openidm.ui.admin.tasks.StartProcessDashboardView.noProcesses") +'</h5></li>');
                     } else {
                         $("#processBadge").html(processDefinitions.length);
                         $("#processBadge").show();
@@ -66,21 +57,34 @@ define("org/forgerock/openidm/ui/common/workflow/processes/StartProcessDashboard
                         this.renderStartProcessView(processId);
                     }
                 });
-
-
             }, this));
         },
 
         showStartProcessView: function(event) {
             event.preventDefault();
-            var id = $(event.target).parent().find('[name="id"]').val();
+            var parent = $(event.target).parents(".process-item"),
+                id = parent.find('[name="id"]').val(),
+                collapse = parent.find('#processDetails').length;
 
-            $("#processDetails").remove();
-            $(".selected-process").removeClass('selected-process');
-            $(event.target).closest('div').addClass('selected-process');
-            $(event.target).closest('div').append('<div id="processDetails" style="margin-top: 10px;"></div>');
+            this.$el.find("#processDetails").remove();
+            this.$el.find(".selected-process").removeClass('selected-process');
 
-            this.renderStartProcessView(id);
+            if (collapse) {
+                parent.find(".details-link .fa").toggleClass("fa-caret-right", true);
+                parent.find(".details-link .fa").toggleClass("fa-caret-down", false);
+
+            } else {
+                this.$el.find(".fa-caret-down").toggleClass("fa-caret-right", true);
+                this.$el.find(".fa-caret-down").toggleClass("fa-caret-down", false);
+
+                parent.find(".details-link .fa").toggleClass("fa-caret-right", false);
+                parent.find(".details-link .fa").toggleClass("fa-caret-down", true);
+
+                $(event.target).parents(".process-item").find('.process-item-holder').addClass('selected-process');
+                $(event.target).parents(".process-item").find('.process-item-holder').append('<div id="processDetails" style="margin-top: 10px;"></div>');
+
+                this.renderStartProcessView(id);
+            }
         },
 
         renderStartProcessView: function(id) {
@@ -97,5 +101,3 @@ define("org/forgerock/openidm/ui/common/workflow/processes/StartProcessDashboard
 
     return new StartProcessDashboardView();
 });
-
-

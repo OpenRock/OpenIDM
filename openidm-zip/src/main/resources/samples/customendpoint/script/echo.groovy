@@ -34,43 +34,43 @@ import org.forgerock.json.resource.UpdateRequest
 if (request instanceof CreateRequest) {
     return [
             method: "create",
-            resourceName: request.resourceName,
+            resourceName: request.resourcePath,
             newResourceId: request.newResourceId,
             parameters: request.additionalParameters,
             content: request.content.getObject(),
-            context: context
+            context: context.toJsonValue().getObject()
     ]
 } else if (request instanceof ReadRequest) {
     return [
             method: "read",
-            resourceName: request.resourceName,
+            resourceName: request.resourcePath,
             parameters: request.additionalParameters,
-            context: context
+            context: context.toJsonValue().getObject()
     ]
 } else if (request instanceof UpdateRequest) {
     return [
             method: "update",
-            resourceName: request.resourceName,
+            resourceName: request.resourcePath,
             revision: request.revision,
             parameters: request.additionalParameters,
             content: request.content.getObject(),
-            context: context
+            context: context.toJsonValue().getObject()
     ]
 } else if (request instanceof PatchRequest) {
     return [
             method: "patch",
-            resourceName: request.resourceName,
+            resourceName: request.resourcePath,
             revision: request.revision,
             patch: request.patchOperations,
             parameters: request.additionalParameters,
-            context: context
+            context: context.toJsonValue().getObject()
     ]
 } else if (request instanceof QueryRequest) {
     // query results must be returned as a list of maps
     return [
             [
                     method: "query",
-                    resourceName: request.resourceName,
+                    resourceName: request.resourcePath,
                     pagedResultsCookie: request.pagedResultsCookie,
                     pagedResultsOffset: request.pagedResultsOffset,
                     pageSize: request.pageSize,
@@ -78,16 +78,16 @@ if (request instanceof CreateRequest) {
                     queryId: request.queryId,
                     queryFilter: request.queryFilter.toString(),
                     parameters: request.additionalParameters,
-                    context: context
+                    context: context.toJsonValue().getObject()
             ]
     ]
 } else if (request instanceof DeleteRequest) {
     return [
             method: "delete",
-            resourceName: request.resourceName,
+            resourceName: request.resourcePath,
             revision: request.revision,
             parameters: request.additionalParameters,
-            context: context
+            context: context.toJsonValue().getObject()
     ]
 } else if (request instanceof ActionRequest) {
     return [
@@ -95,7 +95,7 @@ if (request instanceof CreateRequest) {
             action: request.action,
             content: request.content.getObject(),
             parameters: request.additionalParameters,
-            context: context
+            context: context.toJsonValue().getObject()
     ]
 } else {
     throw new NotSupportedException(request.getClass().getName());

@@ -1,4 +1,6 @@
-<div class="tab-pane-body sync-input-body">
+<!-- Copyright 2015 ForgeRock AS.
+	License terms: https://forgerock.org/cddlv1-0/ -->
+<div class="sync-input-body">
     <div  id="syncForm" class="form clearfix panel-collapse-group">
 
         <!--Policies-->
@@ -13,12 +15,8 @@
             </div>
 
             <div id="policyPatternBody" class="collapse in" role="tabpanel" aria-labelledby="policyPatternHeading" aria-expanded="true">
-                <div class="panel-body">
-                    <div class="group-body">
-                        <p class="panel-description">{{t "templates.sync.policiesDesc"}}</p>
-                        <div id="policyPattern"></div>
-                    </div>
-                </div>
+                <p class="panel-description inline-description">{{t "templates.sync.policiesDesc"}}</p>
+                <div id="policyPattern"></div>
             </div>
         </div>
 
@@ -33,17 +31,13 @@
                 </h4>
             </div>
             <div id="situationalQueriesBody" class="collapse {{#unless hideSituational}} in{{/unless}}" role="tabpanel" aria-labelledby="situationalQueriesHeading" aria-expanded="{{#unless hideSituational}} in{{/unless}}">
-                <div class="panel-body">
-                    <div class="group-body">
-                        <p class="panel-description">{{t "templates.sync.situationalEventScriptsDesc"}}</p>
-                        <div id="situationalQueries"></div>
-                    </div>
-                </div>
+                <p class="panel-description inline-description">{{t "templates.sync.situationalEventScriptsDesc"}}</p>
+                <div id="situationalQueries"></div>
             </div>
         </div>
 
         <!--Reconciliation Script-->
-        <div class="panel panel-default panel-collapse">
+        <div class="panel panel-default panel-collapse" {{#if borderHide}} style="border-bottom:none !important;" {{/if}}>
             <div class="panel-heading" role="tab" id="reconQueryViewHeading">
                 <a class="pull-right" href="{{docHelpUrl}}integrators-guide/index.html#advanced-dataflow" target="_blank">{{t "templates.connector.help"}} <i class="fa fa-question-circle"></i></a>
                 <h4 class="panel-title">
@@ -53,12 +47,8 @@
                 </h4>
             </div>
             <div id="reconQueryViewBody" class="collapse {{#unless hideRecon}} in{{/unless}}" role="tabpanel" aria-labelledby="reconQueryViewHeading" aria-expanded="{{#unless hideRecon}} in{{/unless}}">
-                <div class="panel-body">
-                    <div class="group-body">
-                        <p class="panel-description">{{t "templates.sync.reconScriptDesc"}}</p>
-                        <div id="reconQueryView"></div>
-                    </div>
-                </div>
+                <p class="panel-description inline-description">{{t "templates.sync.reconScriptDesc"}}</p>
+                <div id="reconQueryView"></div>
             </div>
         </div>
 
@@ -74,12 +64,8 @@
                 </h4>
             </div>
             <div id="singleRecordReconBody" class="collapse" role="tabpanel" aria-labelledby="singleRecordReconHeading">
-                <div class="panel-body">
-                    <div class="group-body">
-                        <p class="panel-description">{{t "templates.sync.singleRecordReconDesc"}}</p>
-                        <div id="testSyncView"></div>
-                    </div>
-                </div>
+                <p class="panel-description inline-description">{{t "templates.sync.singleRecordReconDesc"}}</p>
+                <div id="testSyncView"></div>
             </div>
         </div>
 

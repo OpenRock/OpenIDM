@@ -1,24 +1,23 @@
 /*
- *  The contents of this file are subject to the terms of the Common Development and
- *  Distribution License (the License). You may not use this file except in compliance with the
- *  License.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- *  You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
- *  specific language governing permission and limitations under the License.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- *  When distributing Covered Software, include this CDDL Header Notice in each file and include
- *  the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
- *  Header, with the fields enclosed by brackets [] replaced by your own identifying
- *  information: "Portions copyright [year] [name of copyright owner]".
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- *  Copyright 2015 ForgeRock AS.
+ * Portions copyright 2015 ForgeRock AS.
  */
 package org.forgerock.openidm.sync.impl;
 
 import java.util.List;
 
-import org.forgerock.json.resource.Context;
-import org.forgerock.openidm.audit.util.AuditConstants;
+import org.forgerock.services.context.Context;
 
 /**
  * A recon audit log entry representation.  Contains additional fields
@@ -30,8 +29,21 @@ class ReconAuditEventLogger extends AbstractSyncAuditEventLogger {
     public static final String RECON_AUDIT_PATH = "audit/recon";
     public static final String RECON_AUDIT_EVENT_NAME = "recon";
 
+    /**
+     * entryType for a "start" recon audit log entry
+     */
+    public static final String RECON_LOG_ENTRY_TYPE_RECON_START = "start";
+    /**
+     * entryType for a "summary" recon audit log entry
+     */
+    public static final String RECON_LOG_ENTRY_TYPE_RECON_END = "summary";
+    /**
+     * entryType for an "entry" recon audit log entry
+     */
+    public static final String RECON_LOG_ENTRY_TYPE_RECON_ENTRY = "entry";
+
     private String reconId;
-    private String entryType = AuditConstants.RECON_LOG_ENTRY_TYPE_RECON_ENTRY;
+    private String entryType = RECON_LOG_ENTRY_TYPE_RECON_ENTRY;
     private String reconciling;
     private String ambiguousTargetIds;
     private ReconciliationService.ReconAction reconciliationServiceReconAction;

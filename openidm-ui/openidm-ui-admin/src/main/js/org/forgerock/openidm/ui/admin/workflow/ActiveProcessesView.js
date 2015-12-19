@@ -1,50 +1,45 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
+    "jquery",
+    "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/openidm/ui/common/delegates/ResourceDelegate",
-    "org/forgerock/commons/ui/common/util/UIUtils",
     "org/forgerock/commons/ui/common/main/AbstractModel",
     "org/forgerock/commons/ui/common/main/AbstractCollection",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/openidm/ui/admin/util/BackgridUtils",
     "org/forgerock/commons/ui/common/main/Router",
-    "backgrid"
-], function(AdminAbstractView,
+    "backgrid",
+    "org/forgerock/commons/ui/common/util/UIUtils"
+], function($, _,
+            AdminAbstractView,
             ResourceDelegate,
-            uiUtils,
             AbstractModel,
             AbstractCollection,
             eventManager,
             constants,
             BackgridUtils,
             router,
-            Backgrid) {
+            Backgrid,
+            UIUtils) {
     var ActiveProcessesView = AdminAbstractView.extend({
         template: "templates/admin/workflow/ActiveProcessViewTemplate.html",
         events: {
@@ -81,9 +76,9 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                 this.model.processes.state.sortKey = "-startTime";
 
                 processGrid = new Backgrid.Grid({
-                    className: "table",
+                    className: "table backgrid",
                     emptyText: $.t("templates.workflows.processes.noActiveProcesses"),
-                    columns: [
+                    columns: BackgridUtils.addSmallScreenCell([
                         {
                             name: "processDefinitionResourceName",
                             label: $.t("templates.workflows.processes.processInstance"),
@@ -95,14 +90,14 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                                     return this;
                                 }
                             }),
-                            sortable: true,
+                            sortable: false,
                             editable: false
                         },
                         {
                             name: "startUserId",
                             label: $.t("templates.workflows.processes.startedBy"),
                             cell: "string",
-                            sortable: true,
+                            sortable: false,
                             editable: false
                         },
                         {
@@ -110,7 +105,8 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                             label: $.t("templates.workflows.processes.created"),
                             cell: BackgridUtils.DateCell("startTime"),
                             sortable: true,
-                            editable: false
+                            editable: false,
+                            sortType: "toggle"
                         },
                         {
                             name: "",
@@ -126,10 +122,10 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                                     callback: function(event){
                                         event.preventDefault();
 
-                                        uiUtils.jqConfirm($.t("templates.workflows.processes.cancelProcessDialog"), _.bind(function(){
+                                        UIUtils.confirmDialog($.t("templates.workflows.processes.cancelProcessDialog"), "danger", _.bind(function(){
                                             this.model.destroy({
                                                 success: _.bind(function() {
-                                                    eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "deletedActiveProcess");
+                                                    eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "cancelActiveProcess");
                                                 }, this)
                                             });
                                         }, this));
@@ -138,7 +134,7 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                             ]),
                             sortable: false,
                             editable: false
-                        }],
+                        }]),
                     collection: this.model.processes
                 });
 
@@ -159,30 +155,24 @@ define("org/forgerock/openidm/ui/admin/workflow/ActiveProcessesView", [
                     },this),
                     render : {
                         item: function(item, escape) {
-                            var username = '<small class="text-muted"> (' +escape(item.userName) +')</small>';
+                            var userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "",
+                                displayName = (item.displayName) ? item.displayName : item.givenName + " " + item.sn;
 
-                            if(item._id === "anyone") {
-                                username = '';
-                            }
 
                             return '<div>' +
                                 '<span class="user-title">' +
-                                '<span class="user-fullname">' + escape(item.givenName) +' ' +escape(item.sn) + '</span>' +
-                                username +
+                                '<span class="user-fullname">' + escape(displayName) + userName + '</span>' +
                                 '</span>' +
                                 '</div>';
                         },
                         option: function(item, escape) {
-                            var username = '<small class="text-muted"> (' +escape(item.userName) +')</small>';
+                            var userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "",
+                                displayName = (item.displayName) ? item.displayName : item.givenName + " " + item.sn;
 
-                            if(item._id === "anyone") {
-                                username = "";
-                            }
 
                             return '<div>' +
                                 '<span class="user-title">' +
-                                '<span class="user-fullname">' + escape(item.givenName) +' ' +escape(item.sn) + '</span>' +
-                                username +
+                                '<span class="user-fullname">' + escape(displayName) + userName + '</span>' +
                                 '</span>' +
                                 '</div>';
                         }

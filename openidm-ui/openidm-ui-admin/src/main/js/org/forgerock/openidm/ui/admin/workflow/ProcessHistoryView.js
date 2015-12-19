@@ -1,30 +1,24 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
+    "jquery",
+    "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/openidm/ui/common/delegates/ResourceDelegate",
     "org/forgerock/commons/ui/common/util/UIUtils",
@@ -35,7 +29,8 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
     "org/forgerock/openidm/ui/admin/util/BackgridUtils",
     "org/forgerock/commons/ui/common/main/Router",
     "backgrid"
-], function(AdminAbstractView,
+], function($, _,
+            AdminAbstractView,
             ResourceDelegate,
             uiUtils,
             AbstractModel,
@@ -81,9 +76,9 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
                 this.model.processes.state.sortKey = "-startTime";
 
                 processGrid = new Backgrid.Grid({
-                    className: "table",
+                    className: "table backgrid",
                     emptyText: $.t("templates.workflows.processes.noCompletedProcesses"),
-                    columns: [
+                    columns: BackgridUtils.addSmallScreenCell([
                         {
                             name: "processDefinitionResourceName",
                             label: $.t("templates.workflows.processes.processInstance"),
@@ -95,14 +90,14 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
                                     return this;
                                 }
                             }),
-                            sortable: true,
+                            sortable: false,
                             editable: false
                         },
                         {
                             name: "startUserId",
                             label: $.t("templates.workflows.processes.startedBy"),
                             cell: "string",
-                            sortable: true,
+                            sortable: false,
                             editable: false
                         },
                         {
@@ -110,20 +105,22 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
                             label: $.t("templates.workflows.processes.created"),
                             cell: BackgridUtils.DateCell("startTime"),
                             sortable: true,
-                            editable: false
+                            editable: false,
+                            sortType: "toggle"
                         },
                         {
                             name: "endTime",
                             label: "COMPLETED",
                             cell: BackgridUtils.DateCell("endTime"),
                             sortable: true,
-                            editable: false
+                            editable: false,
+                            sortType: "toggle"
                         },
                         {
                             name: "",
                             cell: BackgridUtils.ButtonCell([
                                 {
-                                    className: "fa fa-pencil grid-icon",
+                                    className: "fa fa-eye grid-icon",
                                     callback: function() {
                                         eventManager.sendEvent(constants.EVENT_CHANGE_VIEW, {route: router.configuration.routes.processInstanceView, args: [this.model.id]});
                                     }
@@ -131,7 +128,7 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
                             ]),
                             sortable: false,
                             editable: false
-                        }],
+                        }]),
                     collection: this.model.processes
                 });
 
@@ -152,30 +149,24 @@ define("org/forgerock/openidm/ui/admin/workflow/ProcessHistoryView", [
                     },this),
                     render : {
                         item: function(item, escape) {
-                            var username = '<small class="text-muted"> (' +escape(item.userName) +')</small>';
+                            var userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "",
+                                displayName = (item.displayName) ? item.displayName : item.givenName + " " + item.sn;
 
-                            if(item._id === "anyone") {
-                                username = '';
-                            }
 
                             return '<div>' +
                                 '<span class="user-title">' +
-                                '<span class="user-fullname">' + escape(item.givenName) +' ' +escape(item.sn) + '</span>' +
-                                username +
+                                '<span class="user-fullname">' + escape(displayName) + userName + '</span>' +
                                 '</span>' +
                                 '</div>';
                         },
                         option: function(item, escape) {
-                            var username = '<small class="text-muted"> (' +escape(item.userName) +')</small>';
+                            var userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "",
+                                displayName = (item.displayName) ? item.displayName : item.givenName + " " + item.sn;
 
-                            if(item._id === "anyone") {
-                                username = "";
-                            }
 
                             return '<div>' +
                                 '<span class="user-title">' +
-                                '<span class="user-fullname">' + escape(item.givenName) +' ' +escape(item.sn) + '</span>' +
-                                username +
+                                '<span class="user-fullname">' + escape(displayName) + userName + '</span>' +
                                 '</span>' +
                                 '</div>';
                         }

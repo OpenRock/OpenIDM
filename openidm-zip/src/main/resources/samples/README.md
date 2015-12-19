@@ -48,9 +48,6 @@ Demonstrates failure compensation synchronization of two resources.
 ### Sample6
 Demonstrates live sync with OpenDJ.
 
-### Sample7
-A [SCIM](http://www.simplecloud.info) Schema Attributes sample.
-
 ### Sample8
 Demonstrates the use of logging in scripts for debugging.
 
@@ -65,9 +62,6 @@ Demonstrates the PowerShell connector using Active Directory.
 
 ### workflow
 Demonstrates a typical use case of a workflow for provisioning.
-
-### scriptedazure
-A Microsoft Azure Connector using the Groovy Connector Framework.
 
 ### scriptedcrest2dj
 A OpenDJ Connector using the Groovy ScriptedCREST Connector Framework.

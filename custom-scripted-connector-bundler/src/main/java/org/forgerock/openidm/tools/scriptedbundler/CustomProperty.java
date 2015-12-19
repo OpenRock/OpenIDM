@@ -24,7 +24,7 @@
 
 package org.forgerock.openidm.tools.scriptedbundler;
 
-import org.codehaus.jackson.annotate.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -127,7 +127,7 @@ public class CustomProperty extends CustomBaseObject {
     public String getType() {
         return isConfidential() && type.equals("String")
                 ? "GuardedString"
-                : type;
+                : type.substring(0,1).toUpperCase() + type.substring(1);
     }
 
     /**

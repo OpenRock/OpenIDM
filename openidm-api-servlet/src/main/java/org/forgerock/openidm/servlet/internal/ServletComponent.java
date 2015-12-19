@@ -1,37 +1,32 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2013-2014 ForgeRock AS. All Rights Reserved
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2013-2015 ForgeRock AS.
  */
 
 package org.forgerock.openidm.servlet.internal;
+
+import static org.forgerock.openidm.servletregistration.ServletRegistration.SERVLET_FILTER_AUGMENT_SECURITY_CONTEXT;
+import static org.forgerock.openidm.servletregistration.ServletRegistration.SERVLET_FILTER_SCRIPT_EXTENSIONS;
 
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
-
 import javax.script.ScriptException;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
 
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
@@ -44,17 +39,23 @@ import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.ReferenceStrategy;
 import org.apache.felix.scr.annotations.Service;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.http.Filter;
+import org.forgerock.http.Handler;
+import org.forgerock.http.HttpApplication;
+import org.forgerock.http.HttpApplicationException;
+import org.forgerock.http.filter.TransactionIdInboundFilter;
+import org.forgerock.http.handler.Handlers;
+import org.forgerock.http.io.Buffer;
+import org.forgerock.http.servlet.HttpFrameworkServlet;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ConnectionFactory;
-import org.forgerock.json.resource.servlet.HttpServlet;
+import org.forgerock.json.resource.http.CrestHttp;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.servletregistration.ServletFilterRegistrator;
 import org.forgerock.openidm.servletregistration.ServletRegistration;
-
-import static org.forgerock.openidm.servletregistration.ServletRegistration.SERVLET_FILTER_AUGMENT_SECURITY_CONTEXT;
-import static org.forgerock.openidm.servletregistration.ServletRegistration.SERVLET_FILTER_SCRIPT_EXTENSIONS;
 import org.forgerock.script.ScriptEntry;
 import org.forgerock.script.ScriptRegistry;
+import org.forgerock.util.Factory;
 import org.osgi.framework.Constants;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.event.Event;
@@ -86,8 +87,12 @@ public class ServletComponent implements EventHandler {
     /** Setup logging for the {@link ServletComponent}. */
     private final static Logger logger = LoggerFactory.getLogger(ServletComponent.class);
 
+    /** The (external) ConnectionFactory */
     @Reference(policy = ReferencePolicy.DYNAMIC, target = "(service.pid=org.forgerock.openidm.router)")
     protected ConnectionFactory connectionFactory;
+
+    @Reference(policy = ReferencePolicy.STATIC, target = "(service.pid=org.forgerock.openidm.auth.config)")
+    private Filter authFilter;
 
     @Reference
     private ServletRegistration servletRegistration;
@@ -123,7 +128,7 @@ public class ServletComponent implements EventHandler {
                 augmentSecurityScripts.add(augmentScript);
                 logger.debug("Registered script {}", augmentScript);
             } catch (ScriptException e) {
-                logger.debug("{} when attempting to registered script {}", new Object[] { e.toString(), scriptConfig, e});
+                logger.debug("{} when attempting to registered script {}", e.toString(), scriptConfig, e);
             }
         }
     }
@@ -141,7 +146,24 @@ public class ServletComponent implements EventHandler {
     @Activate
     protected void activate(ComponentContext context) throws ServletException, NamespaceException {
         logger.debug("Try registering servlet at {}", SERVLET_ALIAS);
-        servlet = new HttpServlet(connectionFactory, new IDMSecurityContextFactory(augmentSecurityScripts));
+        final Handler handler = CrestHttp.newHttpHandler(
+                connectionFactory, new IDMSecurityContextFactory(augmentSecurityScripts));
+        servlet = new HttpFrameworkServlet(
+                new HttpApplication() {
+                    @Override
+                    public Handler start() throws HttpApplicationException {
+                        return Handlers.chainOf(handler, authFilter);
+                    }
+
+                    @Override
+                    public Factory<Buffer> getBufferFactory() {
+                        return null;
+                    }
+
+                    @Override
+                    public void stop() {
+                    }
+                });
 
         servletRegistration.registerServlet(SERVLET_ALIAS, servlet, new Hashtable());
         logger.info("Registered servlet at {}", SERVLET_ALIAS);

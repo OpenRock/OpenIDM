@@ -1,34 +1,23 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2013 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 
 /*global define*/
 
-/**
- * @author yaromin
- */
 define("config/AppConfiguration", [
-    "org/forgerock/commons/ui/common/util/Constants",
+    "org/forgerock/openidm/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/EventManager"
 ], function(constants, eventManager) {
     var obj = {
@@ -38,20 +27,6 @@ define("config/AppConfiguration", [
                 configuration: {
                     loginHelperClass: "org/forgerock/openidm/ui/common/login/InternalLoginHelper"
                 }
-            },
-            {
-                moduleClass: "org/forgerock/commons/ui/common/main/GenericRouteInterfaceMap",
-                configuration: {
-                    LoginView : "org/forgerock/openidm/ui/LoginView",
-                    UserProfileView : "org/forgerock/openidm/ui/profile/UserProfileView",
-                    LoginDialog : "org/forgerock/commons/ui/common/LoginDialog",
-                    RegisterView : "org/forgerock/openidm/ui/registration/UserRegistrationView",
-                    ChangeSecurityDataDialog : "org/forgerock/openidm/ui/profile/ChangeSecurityDataDialog"
-                }
-            },
-            {
-                moduleClass: "org/forgerock/openidm/ui/common/resource/ResourceEditViewRegistry",
-                configuration: {}
             },
             {
                 moduleClass: "org/forgerock/commons/ui/common/SiteConfigurator",
@@ -66,7 +41,6 @@ define("config/AppConfiguration", [
                     processConfigurationFiles: [
                         "config/process/IDMConfig",
                         "config/process/CommonIDMConfig",
-                        "config/process/UserConfig",
                         "config/process/CommonConfig"
                     ]
                 }
@@ -80,8 +54,7 @@ define("config/AppConfiguration", [
                         {"routes":"config/routes/CommonRoutesConfig"},
                         {"routes":"config/routes/CommonIDMRoutesConfig"},
                         {"routes":"config/routes/SelfServiceRoutesConfig"},
-                        {"routes":"config/routes/UserRoutesConfig"},
-                        {"routes":"config/routes/IDMRoutesConfig"}
+                        {"routes":"config/routes/UserRoutesConfig"}
                     ]
                 }
             },
@@ -112,9 +85,9 @@ define("config/AppConfiguration", [
                     },
                     userBar: [
                         {
-                            "id": "security_link",
-                            "href": "#profile/change_security_data/",
-                            "i18nKey": "templates.user.UserProfileTemplate.changeSecurityData"
+                            "id": "change_password",
+                            "href": "#profile/password",
+                            "i18nKey": "common.user.changePassword"
                         },
                         {
                             "id": "logout_link",
@@ -143,21 +116,16 @@ define("config/AppConfiguration", [
                 }
             },
             {
-                moduleClass: "org/forgerock/openidm/ui/dashboard/workflow/FormManager",
+                moduleClass: "org/forgerock/openidm/ui/common/workflow/FormManager",
                 configuration: {
                     forms: { // Workflow User Task to View mapping
-                        "org.forgerock.applicationAcceptance": "org/forgerock/openidm/ui/dashboard/workflow/tasks/customview/ApplicationAcceptanceTask",
-                        "org.forgerock.sendNotificationInit": "org/forgerock/openidm/ui/dashboard/workflow/processes/customview/SendNotificationProcess"
                     }
                 }
             },
             {
                 moduleClass: "org/forgerock/commons/ui/common/util/UIUtils",
                 configuration: {
-                    templateUrls: [ //preloaded templates
-                        "templates/workflow/tasks/ProcessUserTaskTableTemplate.html",
-                        "templates/workflow/tasks/ShowUserProfile.html"
-                    ]
+                    templateUrls: [ ]
                 }
             },
             {
@@ -167,6 +135,7 @@ define("config/AppConfiguration", [
                     },
                     loader: [
                         {"messages":"config/messages/CommonMessages"},
+                        {"messages":"config/messages/CommonIDMMessages"},
                         {"messages":"config/messages/SelfServiceMessages"},
                         {"messages":"config/messages/UserMessages"}
                     ]
@@ -179,7 +148,6 @@ define("config/AppConfiguration", [
                     validators: { },
                     loader: [
                         {"validators":"config/validators/SelfServiceValidators"},
-                        {"validators":"config/validators/UserValidators"},
                         {"validators":"config/validators/CommonValidators"}
                     ]
                 }

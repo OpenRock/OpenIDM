@@ -1,39 +1,29 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2012 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 
-/*global $, define, _ */
+/*global define */
 
-/**
- * @author jdabrowski
- */
 define("org/forgerock/openidm/ui/common/workflow/WorkflowDelegate", [
+    "underscore",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/ServiceInvoker"
-], function(constants, serviceInvoker) {
-    
+], function(_, constants, serviceInvoker) {
+
     var obj = {}, taskManagementUrl, processManagementUrl, taskDefinitionUrl, processDefinitionUrl, endpointUrl, processDefinitionsEndpointUrl;
-    
+
     taskManagementUrl       =   "/openidm/workflow/taskinstance";
     processManagementUrl    =   "/openidm/workflow/processinstance";
     processDefinitionUrl = "/openidm/workflow/processdefinition";
@@ -46,7 +36,7 @@ define("org/forgerock/openidm/ui/common/workflow/WorkflowDelegate", [
         params._key = proccessNameKey;
         this.serviceCall({url: processManagementUrl + "/?_action=create", type: "POST", success: successCallback, error: errorCallback, data: JSON.stringify(params)});
     };
-    
+
     obj.startProcessById = function(processDefinitionId, params, successCallback, errorCallback) {
         console.debug("start proccess");
         params._processDefinitionId = processDefinitionId;
@@ -54,32 +44,29 @@ define("org/forgerock/openidm/ui/common/workflow/WorkflowDelegate", [
     };
 
     obj.completeTask = function(id, params, successCallback, errorCallback) {
-        console.debug("complete task");
         this.serviceCall({url: taskManagementUrl + "/" + id + "?_action=complete", type: "POST", success: successCallback, error: errorCallback, data: JSON.stringify(params)});
     };
-    
+
     obj.getProcessDefinition = function(id, successCallback, errorCallback) {
         this.serviceCall({url: processDefinitionUrl + "/" + id, type: "GET", success: successCallback, error: errorCallback});
     };
- 
-    obj.getAllProcessDefinitions = function(userId, successCallback, errorCallback) {
-        console.info("getting all process definitions");
-        
+
+    obj.getAllProcessDefinitions = function(successCallback, errorCallback) {
         obj.serviceCall({
-            url: processDefinitionsEndpointUrl + "?_queryId=getprocessesforuser&userId=" + userId,  
+            url: processDefinitionsEndpointUrl,
             type: "GET",
             success: function(data) {
                 if(successCallback) {
-                    successCallback(data.result);
+                    successCallback(data.processes);
                 }
-            }, 
+            },
             error: errorCallback
         });
     };
-        
-    obj.getAllUniqueProcessDefinitions = function(userId, successCallback, errorCallback) {
-        obj.getAllProcessDefinitions(userId, function(processDefinitions) {
-            
+
+    obj.getAllUniqueProcessDefinitions = function(successCallback, errorCallback) {
+        obj.getAllProcessDefinitions(function(processDefinitions) {
+
             var result = {}, ret = [], i, processDefinition, splittedProcessDefinition, processName, currentProcessVersion, newProcesVersion, r;
             for (i=0; i < processDefinitions.length; i++) {
                 processDefinition = processDefinitions[i];
@@ -101,11 +88,11 @@ define("org/forgerock/openidm/ui/common/workflow/WorkflowDelegate", [
             successCallback(ret);
         }, errorCallback);
     };
-   
+
     obj.serviceCall = function(callParams) {
         serviceInvoker.restCall(callParams);
     };
-    
+
     obj.assignTaskToUser = function(taskId, userName, successCallback, errorCallback) {
         var callParams, params;
         console.debug("assign user to task");
@@ -118,7 +105,7 @@ define("org/forgerock/openidm/ui/common/workflow/WorkflowDelegate", [
 
     obj.getAllTaskUsingEndpoint = function(userId, successCallback, errorCallback) {
         obj.serviceCall({
-            url: endpointUrl + "?_queryId=gettasksview&userId=" + userId, 
+            url: endpointUrl + "?_queryId=gettasksview&userId=" + userId,
             type: "GET",
             success: function(data) {
                 if(_.isEmpty(data.result[0])) {
@@ -126,14 +113,14 @@ define("org/forgerock/openidm/ui/common/workflow/WorkflowDelegate", [
                 } else if(successCallback) {
                     successCallback(data.result[0]);
                 }
-            }, 
+            },
             error: errorCallback
         });
     };
-    
+
     obj.getMyTaskUsingEndpoint = function(userId, successCallback, errorCallback) {
         obj.serviceCall({
-            url: endpointUrl + "?_queryId=gettasksview&userId=" + userId + "&viewType=assignee",  
+            url: endpointUrl + "?_queryId=gettasksview&userId=" + userId + "&viewType=assignee",
             type: "GET",
             success: function(data) {
                 if(_.isEmpty(data.result[0])) {
@@ -141,13 +128,10 @@ define("org/forgerock/openidm/ui/common/workflow/WorkflowDelegate", [
                 } else if(successCallback) {
                     successCallback(data.result[0]);
                 }
-            }, 
+            },
             error: errorCallback
         });
     };
-    
+
     return obj;
 });
-
-
-

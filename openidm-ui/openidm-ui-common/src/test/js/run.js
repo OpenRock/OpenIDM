@@ -1,28 +1,20 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014-2015 ForgeRock AS. All Rights Reserved
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
-/*global define, QUnit */
+/*global define, QUnit, localStorage, sessionStorage */
 
 
 define([
@@ -40,30 +32,18 @@ define([
     };
 
     return function (server) {
-        eventManager.registerListener(constants.EVENT_APP_INTIALIZED, function () {
+        eventManager.registerListener(constants.EVENT_APP_INITIALIZED, function () {
             QUnit.testStart(function (testDetails) {
 
                 console.log("Starting " + testDetails.module + ":" + testDetails.name + "("+ testDetails.testNumber +")");
 
                 // every state needs to be reset at the starat of each test
                 var vm = require("org/forgerock/commons/ui/common/main/ViewManager"),
-                    lqu = require("org/forgerock/openidm/ui/admin/util/LinkQualifierUtils"),
-                    connectorDelegate = require("org/forgerock/openidm/ui/admin/delegates/ConnectorDelegate"),
                     configDelegate = require("org/forgerock/openidm/ui/common/delegates/ConfigDelegate");
 
-                connectorDelegate.deleteCurrentConnectorsCache();
-                lqu.model.linkQualifier = [];
                 configDelegate.clearDelegateCache();
 
-                server.responses = _.filter(server.responses, function (resp) {
-                    return  typeof resp.url === "object" && (
-                                resp.url.test('locales/en/translation.json') ||
-                                resp.url.test('libs/less-1.5.1-min.js')
-                            ) ||
-                            typeof resp.url === "string" && (
-                                resp.url === '/openidm/config/ui/themeconfig'
-                            );
-                });
+                server.responses = [];
 
                 vm.currentView = null;
                 vm.currentDialog = null;

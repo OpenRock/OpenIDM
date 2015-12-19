@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright © 2011 ForgeRock AS. All rights reserved.
+ * Copyright 2011-2015 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -26,9 +26,9 @@
 
 package org.forgerock.openidm.provisioner;
 
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.services.context.Context;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ServerContext;
 
 import java.util.Map;
 
@@ -38,7 +38,7 @@ import java.util.Map;
  */
 public interface ProvisionerService {
     
-    public static final String ROUTER_PREFIX = "/system";
+    String ROUTER_PREFIX = "/system";
 
     /**
      * Gets the unique {@link SystemIdentifier} of this instance.
@@ -47,24 +47,24 @@ public interface ProvisionerService {
      *
      * @return the provisioner's system identifier
      */
-    public SystemIdentifier getSystemIdentifier();
+    SystemIdentifier getSystemIdentifier();
 
     /**
      * Gets a brief stats report about the current status of this service instance.
      * </p/>
      * TODO Provide a sample object
      *
-     * @param context the request's ServerContext in case the status report operation needs to perform a router request
+     * @param context the request's Context in case the status report operation needs to perform a router request
      * @return the provisioner's status
      */
-    public Map<String, Object> getStatus(ServerContext context);
+    Map<String, Object> getStatus(Context context);
     
     /**
      * Tests a configuration for a connector.
      * @param config the config to test
      * @return the result of the test.
      */
-    public Map<String, Object> testConfig(JsonValue config);
+    Map<String, Object> testConfig(JsonValue config);
 
     /**
      * Synchronise the changes from the end system for the given {@code objectType}.
@@ -79,10 +79,11 @@ public interface ProvisionerService {
      * <p/>
      * All exceptions must be handled to save the the new stage object.
      *
+     * @param context the request context associated with the invocation
      * @param objectType
      * @param previousStage           The previously returned object. If null then it's the first execution.
      * @return The new updated stage object. This will be the {@code previousStage} at next call.
      * @throws ResourceException if a failure occurred during live sync
      */
-    public JsonValue liveSynchronize(String objectType, JsonValue previousStage) throws ResourceException;
+    JsonValue liveSynchronize(Context context, String objectType, JsonValue previousStage) throws ResourceException;
 }

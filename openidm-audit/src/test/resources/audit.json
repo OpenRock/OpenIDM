@@ -1,21 +1,46 @@
 {
   "auditServiceConfig" : {
-    "handlerForQueries" : "passthrough"
+    "handlerForQueries" : "passthrough",
+    "availableAuditEventHandlers" : ["org.forgerock.openidm.audit.events.handlers.impl.PassThroughAuditEventHandler"],
+    "filterPolicies" : {
+      "value" : {
+        "excludeIf" : [
+          "/access/http/request/headers/Authorization",
+          "/access/http/request/headers/X-OpenIDM-Password",
+          "/access/http/request/cookies/session-jwt",
+          "/access/http/response/headers/Authorization",
+          "/access/http/response/headers/X-OpenIDM-Password"
+        ],
+        "includeIf" : [
+
+        ]
+      }
+    }
   },
   "eventHandlers" : [
     {
-      "name" : "passthrough",
       "class" : "org.forgerock.openidm.audit.events.handlers.impl.PassThroughAuditEventHandler",
       "config" : {
-        "message" : "added an event"
-      },
-      "events" : [ "access" ],
-      "ignoreLoggingFailures" : false
+        "message" : "added an event",
+        "name" : "passthrough",
+        "topics" : [ "access", "activity", "test" ]
+      }
     }
   ],
-  "extendedEventTypes" : {
-  },
-  "customEventTypes" : {
+  "eventTopics" : {
+    "activity": {
+      "filter" : {
+        "actions" : [
+          "create",
+          "update",
+          "delete",
+          "patch",
+          "action"
+        ]
+      },
+      "watchedFields" : [ "mail" ],
+      "passwordFields" : [ "password" ]
+    },
     "test": {
       "schema": {
         "$schema": "http://json-schema.org/draft-04/schema#",
@@ -41,9 +66,16 @@
                 "type": "string"
               }
             }
+          },
+          "exception": {
+            "type": "string"
           }
         }
       }
     }
+  },
+  "exceptionFormatter" : {
+    "type" : "text/javascript",
+    "file" : "stacktraceFormatter.js"
   }
 }

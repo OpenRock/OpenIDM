@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2013 ForgeRock AS. All Rights Reserved
+ * Copyright 2013-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -24,26 +24,8 @@
 
 package org.forgerock.openidm.router;
 
-import org.forgerock.json.resource.Context;
-import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ServerContext;
-
 /**
- * A NAME does ...
- * 
+ * Marker interface used by Felix SCR Services to wait on specific routes to become available.
  */
 public interface RouteService {
-
-    /**
-     * @throws ResourceException If the connection request failed for some
-     * reason.
-     */
-    public ServerContext createServerContext() throws ResourceException;
-
-    /**
-     * @throws ResourceException If the connection request failed for some
-     * reason.
-     */
-    public ServerContext createServerContext(Context parentContext) throws ResourceException;
-
 }

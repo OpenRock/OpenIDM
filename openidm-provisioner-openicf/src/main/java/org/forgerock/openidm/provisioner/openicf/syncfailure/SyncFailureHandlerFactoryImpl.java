@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2014 ForgeRock, AS.
+ * Copyright 2013-2015 ForgeRock, AS.
  *
  * The contents of this file are subject to the terms of the Common Development and
  * Distribution License (the License). You may not use this file except in compliance with the
@@ -20,13 +20,8 @@ import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.resource.ConnectionFactory;
-import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ServerContext;
-import org.forgerock.openidm.core.ServerConstants;
-import org.forgerock.openidm.router.RouteService;
-import org.forgerock.openidm.util.Accessor;
+import org.forgerock.openidm.router.IDMConnectionFactory;
+import org.forgerock.json.JsonValue;
 import org.forgerock.script.ScriptRegistry;
 
 /**
@@ -63,23 +58,8 @@ public class SyncFailureHandlerFactoryImpl implements SyncFailureHandlerFactory 
     }
 
     /** The Connection Factory */
-    @Reference(policy = ReferencePolicy.STATIC, target="(service.pid=org.forgerock.openidm.internal)")
-    protected ConnectionFactory connectionFactory;
-
-    /** the router */
-    @Reference(target = "("+ ServerConstants.ROUTER_PREFIX + "=/*)")
-    RouteService routeService;
-    ServerContext routerContext = null;
-
-    private void bindRouteService(final RouteService service) throws ResourceException {
-        routeService = service;
-        routerContext = service.createServerContext();
-    }
-
-    private void unbindRouteService(final RouteService service) {
-        routeService = null;
-        routerContext = null;
-    }
+    @Reference(policy = ReferencePolicy.STATIC)
+    protected IDMConnectionFactory connectionFactory;
 
     /**
      * Create a <em>SyncFailureHandler</em> from the config.  The config should optionally
@@ -131,12 +111,7 @@ public class SyncFailureHandlerFactoryImpl implements SyncFailureHandlerFactory 
     private SyncFailureHandler getPostRetryHandler(JsonValue config) throws Exception {
         if (config.isString()) {
             if (CONFIG_DEAD_LETTER.equals(config.asString())) {
-                return new DeadLetterQueueHandler(
-                        connectionFactory, new Accessor<ServerContext>() {
-                            public ServerContext access() {
-                                return routerContext;
-                            }
-                        });
+                return new DeadLetterQueueHandler(connectionFactory);
             } else if (CONFIG_LOGGED_IGNORE.equals(config.asString())) {
                 return new LoggedIgnoreHandler();
             }
@@ -148,12 +123,7 @@ public class SyncFailureHandlerFactoryImpl implements SyncFailureHandlerFactory 
                         config.get(CONFIG_SCRIPT),
                         // pass internal handlers so a script can call them if desired
                         new LoggedIgnoreHandler(),
-                        new DeadLetterQueueHandler(
-                                connectionFactory, new Accessor<ServerContext>() {
-                                    public ServerContext access() {
-                                        return routerContext;
-                                    }
-                                }));
+                        new DeadLetterQueueHandler(connectionFactory));
             }
         }
 

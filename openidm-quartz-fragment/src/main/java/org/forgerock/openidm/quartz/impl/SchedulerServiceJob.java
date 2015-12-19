@@ -25,19 +25,29 @@
 
 package org.forgerock.openidm.quartz.impl;
 
+import static org.forgerock.audit.events.AccessAuditEventBuilder.ResponseStatus.FAILED;
+import static org.forgerock.audit.events.AccessAuditEventBuilder.ResponseStatus.SUCCESSFUL;
+import static org.forgerock.json.JsonValue.field;
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import org.forgerock.audit.events.AccessAuditEventBuilder;
 import org.forgerock.audit.events.AuditEvent;
-import org.forgerock.json.resource.RootContext;
-import org.forgerock.json.resource.SecurityContext;
-import org.forgerock.json.resource.ServerContext;
-import org.forgerock.openidm.audit.util.Status;
+import org.forgerock.audit.util.ResourceExceptionsUtil;
 import org.forgerock.openidm.config.enhanced.InvalidException;
 import org.forgerock.openidm.util.LogUtil;
 import org.forgerock.openidm.util.LogUtil.LogLevel;
+import org.forgerock.services.TransactionId;
+import org.forgerock.services.context.Context;
+import org.forgerock.services.context.RootContext;
+import org.forgerock.services.context.SecurityContext;
+import org.forgerock.services.context.TransactionIdContext;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.Filter;
@@ -70,20 +80,20 @@ public class SchedulerServiceJob implements Job {
     }
 
     /**
-     * Builds the ServerContext
+     * Builds the context chain. The chain consists of a {@link RootContext}, {@link TransactionIdContext},
+     * and a {@link SecurityContext}.
      * 
-     * @param id  The authentication id
-     * @return the new ServerContext
+     * @param id  The authentication id.
+     * @return The context chain for the scheduled job.
      */
-    private ServerContext newScheduledServerContext(String id) {
+    private Context newScheduledContext(String id) {
         final Map<String, Object> authzid = new HashMap<String, Object>();
         authzid.put(SecurityContext.AUTHZID_ID, id);
         List<String> roles = new ArrayList<String>();
         roles.add("system");
         authzid.put(SecurityContext.AUTHZID_ROLES, roles);
         authzid.put(SecurityContext.AUTHZID_COMPONENT, "scheduler");
-        SecurityContext securityContext = new SecurityContext(new RootContext(), id, authzid);
-        return new ServerContext(securityContext);
+        return new SecurityContext(new TransactionIdContext(new RootContext(), new TransactionId()) , id, authzid);
     }
 
     public void execute(JobExecutionContext context) throws JobExecutionException {
@@ -114,15 +124,15 @@ public class SchedulerServiceJob implements Job {
             logger.info("Scheduled service {} to invoke currently not found, not (yet) registered. ", invokeService);
         } else {
             final long startTime = System.currentTimeMillis();
-            final ServerContext serverContext =
-                    newScheduledServerContext((String) scheduledServiceContext.get(ScheduledService.INVOKER_NAME));
+            final Context scheduledContext =
+                    newScheduledContext((String) scheduledServiceContext.get(ScheduledService.INVOKER_NAME));
             try {
                 LogUtil.logAtLevel(logger, logLevel, "Scheduled service \"{}\" found, invoking.",
                         context.getJobDetail().getFullName());
-                scheduledService.execute(serverContext, scheduledServiceContext);
+                scheduledService.execute(scheduledContext, scheduledServiceContext);
                 scheduledService.auditScheduledService(
-                        serverContext,
-                        createScheduledAuditEvent(serverContext, startTime, context, Status.SUCCESS, null));
+                        scheduledContext,
+                        createSuccessfulScheduledAuditEvent(scheduledContext, startTime, context));
                 LogUtil.logAtLevel(logger, logLevel, "Scheduled service \"{}\" invoke completed successfully.",
                         context.getJobDetail().getFullName());
             } catch (Exception ex) {
@@ -130,8 +140,8 @@ public class SchedulerServiceJob implements Job {
                         new Object[]{context.getJobDetail().getFullName(), ex.getMessage(), ex});
                 try {
                     scheduledService.auditScheduledService(
-                            serverContext,
-                            createScheduledAuditEvent(serverContext, startTime, context, Status.FAILURE, ex));
+                            scheduledContext,
+                            createFailedScheduledAuditEvent(scheduledContext, startTime, context, ex));
                 } catch (ExecutionException exception) {
                     logger.error("Unable to audit scheduled task {}", context.getJobDetail().getFullName(), exception);
                 }
@@ -157,26 +167,37 @@ public class SchedulerServiceJob implements Job {
         return serviceTracker;
     }
 
-    private AuditEvent createScheduledAuditEvent(final ServerContext context, final long startTime,
-                                                 final JobExecutionContext jobContext, final Status status,
-                                                 final Exception e) {
+    private AuditEvent createSuccessfulScheduledAuditEvent(final Context context, final long startTime,
+            final JobExecutionContext jobContext) {
+        final long elapsedTime = System.currentTimeMillis() - startTime;
+        return newBaseAccessAuditEventBuilder(context ,jobContext)
+                .response(SUCCESSFUL, null, elapsedTime, TimeUnit.MILLISECONDS).toEvent();
+    }
+
+    private AuditEvent createFailedScheduledAuditEvent(final Context context, final long startTime,
+            final JobExecutionContext jobContext, final Exception e) {
+        final long elapsedTime = System.currentTimeMillis() - startTime;
+        return newBaseAccessAuditEventBuilder(context, jobContext)
+                .responseWithDetail(
+                        FAILED,
+                        null,
+                        elapsedTime,
+                        TimeUnit.MILLISECONDS,
+                        ResourceExceptionsUtil.adapt(e).toJsonValue()).toEvent();
+    }
+
+    private AccessAuditEventBuilder newBaseAccessAuditEventBuilder(final Context context,
+            final JobExecutionContext jobContext) {
         final AccessAuditEventBuilder auditEventBuilder = new AccessAuditEventBuilder();
         auditEventBuilder
-                .authorizationIdFromSecurityContext(context)
-                .resourceOperation("scheduler", "CREST", "ScheduledTask", jobContext.getJobDetail().getFullName())
-                .transactionIdFromRootContext(context)
+                .request(
+                        "CREST",
+                        "ScheduledTask",
+                        json(object(field("taskName", jobContext.getJobDetail().getFullName()))))
+                .transactionIdFromContext(context)
+                .userId(context.asContext(SecurityContext.class).getAuthenticationId())
                 .timestamp(System.currentTimeMillis())
-                .authenticationFromSecurityContext(context)
                 .eventName("access");
-
-        final long elapsedTime = System.currentTimeMillis() - startTime;
-
-        if (Status.SUCCESS.equals(status)) {
-            auditEventBuilder.response(Status.SUCCESS.name(), elapsedTime);
-        } else {
-            auditEventBuilder.responseWithMessage(Status.FAILURE.name(), elapsedTime, e.getMessage());
-        }
-
-        return auditEventBuilder.toEvent();
+        return auditEventBuilder;
     }
 }

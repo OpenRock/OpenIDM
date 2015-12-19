@@ -1,30 +1,25 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js, window */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
+    "jquery",
+    "underscore",
+    "jsonEditor",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/main/ValidatorsManager",
     "libs/codemirror/lib/codemirror",
@@ -33,7 +28,15 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
     "libs/codemirror/addon/display/placeholder",
     "org/forgerock/openidm/ui/admin/delegates/ScriptDelegate",
     "org/forgerock/openidm/ui/admin/util/WorkflowWidget"
-], function(AbstractView, validatorsManager, codeMirror, groovyMode, jsMode, placeHolder, ScriptDelegate, WorkflowWidget) {
+], function($, _, JSONEditor,
+            AbstractView,
+            validatorsManager,
+            codeMirror,
+            groovyMode,
+            jsMode,
+            placeHolder,
+            ScriptDelegate,
+            WorkflowWidget) {
     var seInstance = {},
         InlineScriptEditor = AbstractView.extend({
             template: "templates/admin/util/ScriptEditorView.html",
@@ -41,14 +44,15 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
             events: {
                 "change input[type='radio']" : "localScriptChange",
                 "change .event-select" : "changeRenderMode",
-                "click .add-passed-variables" : "addPassedVariable",
-                "click .passed-variables-holder .remove-btn" : "deletePassedVariable",
+                "click .add-passed-variables" : "addEmptyPassedVariable",
+                "click .passed-variables-holder .btn-delete-attribute" : "deletePassedVariable",
                 "blur .passed-variables-holder input" : "passedVariableBlur",
                 "onValidate": "onValidate",
                 "click .script-tabs button" : "changeScriptTab",
                 "customValidate": "customValidate"
             },
             model : {
+                autoFocus: true,
                 scriptData: null,
                 eventName: null,
                 disablePassedVariable: false,
@@ -61,12 +65,16 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
                 codeMirrorHeight: "240px",
                 disableValidation: true,
                 hasWorkflow: false,
-                workflowActive: false
+                workflowActive: false,
+                editors: [],
+                passedVariables: [],
+                codeMirrorValid: false
             },
 
             /*
              Properties that can be set through args:
 
+             autoFocus - Tells the script widget to focus itself once loaded (defaults to true)
              scriptData - Set if you have script data from a previous save or want a default
              eventName - Name to display also needed as a unique ID when more then one editor is on the page
              disablePassedVariable - Flag to turn on and off passed variables
@@ -103,14 +111,15 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
                     if(args.scriptData.globals === null) {
                         args.scriptData.globals = {};
                     }
-                    this.data.passedVariables = args.scriptData.globals ||
-                        _.omit(args.scriptData, "file", "source", "type");
+
+                    this.model.passedVariables = args.scriptData.globals || _.omit(args.scriptData, "file", "source", "type");
                 }
 
                 this.parentRender(_.bind(function() {
                     var mode,
                         workflowName,
-                        workflowParams;
+                        workflowParams,
+                        currentScriptSelection;
 
                     mode = this.$el.find("select").val();
 
@@ -124,8 +133,9 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
 
                     this.cmBox = codeMirror.fromTextArea(this.$el.find(".scriptSourceCode")[0], {
                         lineNumbers: true,
-                        autofocus: true,
+                        autofocus: this.model.autoFocus,
                         viewportMargin: Infinity,
+                        theme: "forgerock",
                         mode: mode
                     });
 
@@ -148,17 +158,23 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
                     }
                     this.cmBox.setSize(this.model.codeMirrorWidth, this.model.codeMirrorHeight);
 
-                    if (this.$el.find("input[name=scriptType]:checked").val() !== "inline-code") {
+                    if (this.data.eventName) {
+                        currentScriptSelection = this.$el.find("input[name=" + this.data.eventName + "_scriptType]:checked").val();
+                    } else {
+                        currentScriptSelection = this.$el.find("input[name=scriptType]:checked").val();
+                    }
+
+                    if (currentScriptSelection !== "inline-code") {
                         this.cmBox.setOption("readOnly", "nocursor");
                         this.$el.find(".inline-code").toggleClass("code-mirror-disabled");
                     }
 
-                    if (this.data.scriptData && this.data.scriptData.source) {
+                    if (this.data.scriptData && this.data.scriptData.file) {
                         this.$el.find(".inline-heading input[type='radio']").trigger("change");
                     }
 
                     if (!this.data.disableValidation) {
-                        validatorsManager.bindValidators(this.$el);
+                        validatorsManager.bindValidators(this.$el.find("form"));
                         this.$el.find(":input").trigger("check");
                     }
 
@@ -170,7 +186,14 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
                         this.saveEvent(this.model.onChange, cm, changeObject);
 
                         if (!this.data.disableValidation) {
-                            this.$el.find(".scriptSourceCode").trigger("blur");
+
+                            if(cm.getValue().length > 0) {
+                                this.model.codeMirrorValid = true;
+                            } else {
+                                this.model.codeMirrorValid = false;
+                            }
+
+                            this.customValidate();
                         }
                     }, this));
 
@@ -218,6 +241,19 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
                         this.model.onLoadComplete();
                     }
 
+                    //Load up passed variables
+                    _.each(this.model.passedVariables, function(value, key){
+                        this.addPassedVariable(key, value);
+                    }, this);
+
+                    if(this.cmBox.getValue().length > 0) {
+                        this.model.codeMirrorValid = true;
+                    }
+
+                    this.customValidate();
+
+                    this.model.autoFocus = true;
+
                     if (callback) {
                         callback();
                     }
@@ -246,8 +282,6 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
                     this.$el.find(".script-body").show();
                     this.$el.find(".workflow-body").hide();
                 }
-
-                this.customValidate();
             },
 
             previewScript : function() {
@@ -293,23 +327,22 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
                     }
 
                     if (currentSelection === "file-code") {
-                        this.$el.find(".scriptFilePath").attr("data-validator-event", "keyup blur focus check").attr("data-validator", "required");
+                        this.model.codeMirrorValid = false;
 
                         if (this.model.onBlur) {
                             this.$el.find(".scriptFilePath").bind("blur", _.bind(function () {
                                 this.model.onBlur();
                             }, this));
                         }
-
-                        this.$el.find(".scriptSourceCode").removeAttr("data-validation-status").removeAttr("data-validator-event").removeAttr("data-validator").unbind("blur").unbind("check");
                     } else {
-                        this.$el.find(".scriptSourceCode").attr("data-validator-event", "keyup blur focus check").attr("data-validator", "required");
-
-                        this.$el.find(".scriptFilePath").removeAttr("data-validator-event").removeAttr("data-validation-status").removeAttr("data-validator").unbind("blur").unbind("focus").unbind("check").unbind("keyup");
+                        if (this.cmBox.getValue().length > 0) {
+                            this.model.codeMirrorValid = true;
+                        } else {
+                            this.model.codeMirrorValid = false;
+                        }
                     }
 
-                    validatorsManager.bindValidators(this.$el);
-                    this.$el.find(":input").trigger("check");
+                    this.customValidate();
                 }
             },
 
@@ -321,7 +354,6 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
             generateScript: function() {
                 var currentSelection,
                     scriptObject = {},
-                    inputs,
                     emptyCheck = false;
 
                 if (this.data.eventName) {
@@ -358,10 +390,9 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
                         }
                     }
 
-                    _.each(this.$el.find(".passed-variable-block:visible"), function (passedBlock) {
-                        inputs = $(passedBlock).find("input[type=text]");
-                        if($(inputs[0]).val().length > 0) {
-                            scriptObject.globals[$(inputs[0]).val()] = $(inputs[1]).val();
+                    _.each(this.model.editors, function (jsonEditor) {
+                        if(jsonEditor.row.find(".passed-variable-name input").val().length > 0) {
+                            scriptObject.globals[jsonEditor.row.find(".passed-variable-name input").val()] = jsonEditor.editor.getValue();
                         }
                     }, this);
 
@@ -392,8 +423,14 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
                     this.validationResult = this.workflow.isValid();
                 }
 
-                if (this.model.validationCallback) {
-                    this.model.validationCallback(this.validationResult);
+                if(this.model.validationCallback) {
+                    if (this.$el.find(".scriptFilePath:visible").length > 0 && this.validationResult) {
+                        this.model.validationCallback(true);
+                    } else if (this.model.codeMirrorValid) {
+                        this.model.validationCallback(true);
+                    } else {
+                        this.model.validationCallback(false);
+                    }
                 }
             },
 
@@ -418,51 +455,95 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
             scriptSelect: function(event, codeMirror) {
                 event.preventDefault();
 
-                var targetEle = event.target,
+                var currentSelection,
                     filePath = this.$el.find(".scriptFilePath"),
                     sourceCode = this.$el.find(".scriptSourceCode");
 
-                if ($(targetEle).val() === "inline-code") {
+                if (this.data.eventName) {
+                    currentSelection = this.$el.find("input[name=" + this.data.eventName + "_scriptType]:checked").val();
+                } else {
+                    currentSelection = this.$el.find("input[name=scriptType]:checked").val();
+                }
+
+                if (currentSelection === "inline-code") {
                     this.setSelectedScript(filePath, sourceCode);
                     this.cmBox.setOption("readOnly", "");
                     this.$el.find(".inline-code").toggleClass("code-mirror-disabled", false);
                     codeMirror.refresh();
-                    codeMirror.focus();
+
+                    if(this.model.autoFocus) {
+                        codeMirror.focus();
+                    }
                 } else {
                     this.setSelectedScript(sourceCode, filePath);
                     this.cmBox.setOption("readOnly", "nocursor");
                     this.$el.find(".inline-code").toggleClass("code-mirror-disabled", true);
-                    filePath.focus();
+
+                    if(this.model.autoFocus) {
+                        filePath.focus();
+                    }
                 }
             },
 
             setSelectedScript: function(disabledScript, enabledScript) {
-                disabledScript.closest(".panel-body").slideToggle();
+                disabledScript.closest(".panel-body").hide();
                 disabledScript.prop("disabled", true);
                 disabledScript.toggleClass("invalid", false);
 
                 enabledScript.prop("disabled", false);
-                enabledScript.closest(".panel-body").slideToggle();
-            },
+                enabledScript.closest(".panel-body").show();
 
-            addPassedVariable: function() {
-                var field,
-                    inputs;
-
-                field = this.$el.find(".hidden-passed-variable:first").clone();
-
-                inputs = field.find('input[type=text]');
-                inputs.val("");
-
-                field.find(".passed-key").attr("data-validator-event", "keyup blur check").attr("data-validator", "required");
-                field.show();
-
-                this.$el.find('.passed-variables-holder').append(field);
 
                 if (!this.data.disableValidation) {
-                    validatorsManager.bindValidators(field);
-                    this.$el.find(":input").trigger("check");
+                    this.customValidate();
                 }
+            },
+
+            addEmptyPassedVariable: function(){
+                this.addPassedVariable(null, null);
+            },
+
+            addPassedVariable: function(name, value) {
+                var field,
+                    editor;
+
+                field = this.$el.find(".empty-group-item").clone();
+
+                field.toggleClass("empty-group-item", false);
+
+                field.show();
+
+                this.$el.find('.passed-variables-holder .list-table-form').append(field);
+
+                field.attr("style", "");
+
+                if(name) {
+                    field.find(".passed-variable-name input").val(name);
+                }
+
+                editor = new JSONEditor(field.find(".editor-body")[0], {
+                    disable_array_reorder: true,
+                    disable_collapse: true,
+                    disable_edit_json: false,
+                    disable_properties: false,
+                    iconlib: "fontawesome4",
+                    no_additional_properties: false,
+                    theme: "bootstrap3",
+                    schema:{}
+                });
+
+                editor.on('change', _.bind(function () {
+                    this.$el.find(".compactJSON div.form-control>:input").addClass("form-control");
+                }, this));
+
+                if(value) {
+                    editor.setValue(value);
+                }
+
+                this.model.editors.push({
+                    row : field,
+                    editor : editor
+                });
 
                 if (this.model.onAddPassedVariable) {
                     this.model.onAddPassedVariable();
@@ -470,16 +551,14 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
             },
 
             deletePassedVariable: function(event) {
-                var clickedEle = $(event.target).parents(".passed-variable-block");
+                event.preventDefault();
+
+                var clickedEle = $(event.target).parents(".list-group-item"),
+                    index = this.$el.find(".list-group-item").index(clickedEle) - 1;
 
                 clickedEle.remove();
 
-                if (!this.data.disableValidation) {
-                    validatorsManager.bindValidators(this.$el.find(".passed-variables-holder"));
-                    this.$el.find(":input").trigger("check");
-
-                    this.validationResult = validatorsManager.formValidated(this.$el);
-                }
+                this.model.editors.splice(index, 1);
 
                 if (this.model.onDeletePassedVariable) {
                     this.model.onDeletePassedVariable();

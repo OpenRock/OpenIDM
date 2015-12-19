@@ -1,3 +1,19 @@
+/**
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
+ *
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
+ *
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
+ *
+ * Copyright 2015 ForgeRock AS.
+ */
+
 #role-settings,
 #role-entitlements,
 #role-users {
@@ -75,70 +91,6 @@
   .tab-content {
     border:none;
     padding: 10px;
-  }
-
-  .compactJSON .form-control>label, .attribute-value div[data-schemaid="root"]>label {
-    display: none !important;
-  }
-
-  .compactJSON, .compactJSON div {
-    display: inline;
-  }
-
-  .compactJSON {
-    div[data-schemapath] {
-      margin-left: 5px;
-    }
-
-    .form-control {
-      display: inline;
-      width: auto;
-    }
-
-    select {
-      height: 35px !important;
-    }
-
-    .btn-group {
-      float: right;
-    }
-
-    .well {
-      background-color: transparent;
-    }
-
-    h3 {
-      display: none;
-    }
-
-    div[data-schematype="object"]>h3 {
-      display: block;
-      margin: 0;
-    }
-
-    div[data-schematype="object"]>h3>div>div {
-      top: 20px !important;
-    }
-
-    div[data-schematype="object"] {
-      div.checkbox {
-        display: block;
-      }
-    }
-
-    div[data-schematype="object"]>div,
-    div[data-schematype="array"]>div {
-      border: none !important;
-    }
-
-    div[data-schematype="object"]>div>div,
-    div[data-schematype="array"]>div>div>div {
-      display: block;
-    }
-
-    div[data-schemapath="root"]>select {
-      margin-bottom: 5px !important;
-    }
   }
 
   .operations-popover-group {

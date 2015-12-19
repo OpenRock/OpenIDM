@@ -1,33 +1,32 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 
-/*global $, define, _, Handlebars */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/mapping/util/MappingUtils", [
-        "org/forgerock/openidm/ui/common/delegates/SearchDelegate"
+        "jquery",
+        "underscore",
+        "handlebars",
+        "org/forgerock/openidm/ui/common/delegates/SearchDelegate",
+        "selectize"
     ],
-    function(searchDelegate) {
+    function($, _,
+             Handlebars,
+             searchDelegate,
+             selectize) {
 
         var obj = {};
 
@@ -52,34 +51,59 @@ define("org/forgerock/openidm/ui/admin/mapping/util/MappingUtils", [
             return propVals.join("<br/>");
         };
 
-        obj.setupSampleSearch = function(el,mapping,autocompleteProps,selectSuccessCallback){
-            if (!el.hasClass("ui-autocomplete-input")) {
-                el.autocomplete({
-                    delay: 500,
-                    minLength: 2,
-                    select: function (event, ui) {
-                        el.val(ui.item[mapping.properties[0].source]);
+        obj.setupSampleSearch = function(el, mapping, autocompleteProps, selectSuccessCallback){
+            var searchList,
+                selectedItem;
 
-                        selectSuccessCallback(ui.item);
+            el.selectize({
+                valueField: autocompleteProps[0],
+                searchField: autocompleteProps,
+                maxOptions: 10,
+                create: false,
+                onChange: function() {
+                    selectSuccessCallback(selectedItem);
+                },
+                render: {
+                    option: function(item, selectizeEscape) {
+                        var fields = _.pick(item, autocompleteProps),
+                            element = $('<div class="fr-search-option"></div>'),
+                            counter = 0;
 
-                        return false;
+                        _.forIn(fields, function(value, key) {
+                            if(counter === 0) {
+                                $(element).append('<div class="fr-search-primary">' +selectizeEscape(value) +'</div>');
+                            } else {
+                                $(element).append('<div class="fr-search-secondary text-muted">' +selectizeEscape(value) +'</div>');
+                            }
+
+                            counter++;
+                        }, this);
+
+                        return element.prop('outerHTML');
                     },
-                    source: function (request, response) {
-                        searchDelegate.searchResults(mapping.source, autocompleteProps, request.term).always(response);
+                    item: function(item, escape) {
+                        selectedItem = item;
+
+                        return "<div>" +escape(item[autocompleteProps[0]]) +"</div>";
                     }
-                }).data( "ui-autocomplete" )._renderItem = function (ul, item) {
-                    var validDisplayProps = _.reject(autocompleteProps,function(p){
-                            return (p && !p.length) || !item[p];
-                        }),
-                        txt = _.chain(item)
-                            .pick(validDisplayProps)
-                            .values()
-                            .join(" / ");
-                    return $( "<li>" )
-                        .append( "<a>" + Handlebars.Utils.escapeExpression(txt) + "</a>" )
-                        .appendTo( ul );
-                };
-            }
+                },
+                load: function(query, callback) {
+                    if (!query.length || query.length < 2) {
+                        return callback();
+                    }
+
+                    searchDelegate.searchResults(mapping.source, autocompleteProps, query).then(function(response) {
+                        if(response) {
+                            searchList = response;
+                            callback([response]);
+                        } else {
+                            searchList = [];
+
+                            callback();
+                        }
+                    });
+                }
+            });
         };
 
         obj.readOnlySituationalPolicy = function(policies){

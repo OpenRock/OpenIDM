@@ -1,25 +1,17 @@
-/**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+/*
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2012-2015 ForgeRock AS. All Rights Reserved
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2012-2015 ForgeRock AS.
  */
 package org.forgerock.openidm.info.impl;
 
@@ -31,6 +23,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.forgerock.json.resource.Router.uriTemplate;
+
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -38,19 +32,21 @@ import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Service;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.RequestHandler;
-import org.forgerock.json.resource.Resource;
-import org.forgerock.json.resource.ResultHandler;
+import org.forgerock.json.resource.ResourceException;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.Router;
-import org.forgerock.json.resource.ServerContext;
+import org.forgerock.services.context.Context;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.cluster.ClusterEvent;
 import org.forgerock.openidm.cluster.ClusterEventListener;
@@ -64,6 +60,7 @@ import org.forgerock.openidm.info.health.MemoryInfoResourceProvider;
 import org.forgerock.openidm.info.health.ReconInfoResourceProvider;
 import org.forgerock.openidm.osgi.ServiceTrackerListener;
 import org.forgerock.openidm.osgi.ServiceTrackerNotifier;
+import org.forgerock.util.promise.Promise;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.BundleEvent;
@@ -72,7 +69,6 @@ import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkEvent;
 import org.osgi.framework.FrameworkListener;
 import org.osgi.framework.FrameworkUtil;
-import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceEvent;
 import org.osgi.framework.ServiceListener;
 import org.osgi.framework.ServiceReference;
@@ -87,14 +83,6 @@ import org.slf4j.LoggerFactory;
 @Component(name = HealthService.PID, policy = ConfigurationPolicy.IGNORE, metatype = true,
         description = "OpenIDM Health Service", immediate = true)
 @Service
-/*
- * @References({ @Reference(referenceInterface = ClusterManagementService.class,
- * cardinality = ReferenceCardinality.OPTIONAL_UNARY, policy =
- * ReferencePolicy.DYNAMIC, bind = "bindClusterManagementService", unbind =
- * "unbindClusterManagementService"
- *//*
-    * , updated = "updatedClusterManagementService"
-    *//* ) }) */
 @Properties({
     @Property(name = Constants.SERVICE_VENDOR, value = ServerConstants.SERVER_VENDOR_NAME),
     @Property(name = Constants.SERVICE_DESCRIPTION, value = "OpenIDM Health Service"),
@@ -125,55 +113,86 @@ public class HealthService
     private ServiceListener svcListener;
     private BundleListener bundleListener;
 
+    /**
+     * The Cluster Management Service
+     */
     private ClusterManagementService cluster = null;
 
-    private ScheduledExecutorService scheduledExecutor = Executors
-            .newSingleThreadScheduledExecutor();
+    /**
+     * An {@link ScheduledExecutorService} used to schedule a task to check the state of OpenIDM
+     */
+    private ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 
-    // Whether we consider the underlying framework as started
-    private volatile boolean frameworkStarted = false;
-    // Flag to help in processing state during start-up.
-    // For clients to query application state, use the state detail instead
+    /** 
+     * A boolean indicating if we consider the underlying framework as started
+     */
+    private static volatile boolean frameworkStarted = false;
+
+    /** 
+     * Flag to help in processing state during start-up. For clients to querying application state, 
+     * use the state detail instead
+     */
     private volatile boolean appStarting = true;
-    // Whether the cluster management thread is up in the "running" state
+    
+    /**
+     * A boolean indicating if the cluster management thread is up in the "running" state
+     */
     private volatile boolean clusterUp = false;
-    // Whether the cluster management service is enabled
+    
+    /**
+     * A boolean indicating if the cluster management service is enabled
+     */
     private volatile boolean clusterEnabled = true;
-
-    private volatile StateDetail stateDetail = new StateDetail(AppState.STARTING,
-            "OpenIDM starting");
+    
+    /**
+     * A framework status instance used to store the latest framework event status.
+     */
+    private FrameworkStatus frameworkStatus = null;
 
     /**
-     * Bundles and bundle fragments required to be started or resolved
-     * respectively for the system to consider itself READY. Required bundles
-     * may be expressed as a regex, for example:
+     * The current state of OpenIDM
+     */
+    private volatile StateDetail stateDetail = new StateDetail(AppState.STARTING, "OpenIDM starting");
+
+    /**
+     * Bundles and bundle fragments required to be started or resolved respectively for the system to 
+     * consider itself READY. Required bundles may be expressed as a regex, for example:
      * 
      * "org.forgerock.openidm.repo-(orientdb|jdbc)"
      */
     private List<String> requiredBundles = new ArrayList<String>();
 
-    /* @formatter:off */
+    /**
+     * An array default bundles and bundle fragments required to be started or resolved respectively 
+     * for the system to consider itself READY. 
+     */
     private final String[] defaultRequiredBundles = new String[] {
         //ICF Bundles
         "org.forgerock.openicf.framework.connector-framework",
         "org.forgerock.openicf.framework.connector-framework-internal",
-        "org.forgerock.openicf.framework.connector-framework-osgi",
-        
+        "org.forgerock.openicf.framework.connector-framework-protobuf",
+        "org.forgerock.openicf.framework.connector-framework-rpc",
+        "org.forgerock.openicf.framework.connector-framework-server",
+        "org.forgerock.openicf.framework.icfl-over-slf4j",
+
         // ForgeRock Commons Bundles
+        "org.forgerock.commons.forgerock-audit-core",
         "org.forgerock.commons.forgerock-util",
         "org.forgerock.commons.forgerock-jaspi-runtime",
-        "org.forgerock.commons.forgerock-auth-filter-common",
         "org.forgerock.commons.forgerock-jaspi-.*-module",
+        "org.forgerock.commons.guava.forgerock-guava-.*",
         "org.forgerock.commons.i18n-core",
         "org.forgerock.commons.i18n-slf4j",
-        "org.forgerock.commons.json-crypto",
-        "org.forgerock.commons.json-fluent",
+        "org.forgerock.commons.json-crypto-core",
         "org.forgerock.commons.json-resource",
-        "org.forgerock.commons.json-resource-servlet",
-        "org.forgerock.commons.json-schema",
+        "org.forgerock.commons.json-resource-http",
+        "org.forgerock.commons.json-schema-core",
         "org.forgerock.commons.json-web-token",
         "org.forgerock.commons.script-common",
         "org.forgerock.commons.script-javascript",
+        "org.forgerock.commons.script-groovy",
+        "org.forgerock.http.chf-http-core",
+        "org.forgerock.http.chf-http-servlet",
         
         // OpenIDM Bundles
         "org.forgerock.openidm.api-servlet",
@@ -190,6 +209,7 @@ public class HealthService
         "org.forgerock.openidm.httpcontext",
         "org.forgerock.openidm.infoservice",
         "org.forgerock.openidm.jetty-fragment",
+        "org.forgerock.openidm.maintenance",
         "org.forgerock.openidm.policy",
         "org.forgerock.openidm.provisioner",
         "org.forgerock.openidm.provisioner-openicf",
@@ -210,21 +230,27 @@ public class HealthService
         // 3rd Party Bundles
         "org.ops4j.pax.web.pax-web-jetty-bundle"
     };
-    /* @formatter:on */
 
     /**
-     * Maximum time after framework start for required services to register to
-     * consider the system startup as successful
+     * Maximum time after framework start for required services to register to consider the system 
+     * startup as successful
      */
     private long serviceStartMax = 15000;
+    
     /**
-     * Services required to be registered for the system to consider itself
-     * READY. Required services may be expressed as a regex, for example:
+     * Services required to be registered for the system to consider itself READY. Required services 
+     * may be expressed as a regex, for example:
      * 
      * "org.forgerock.openidm.bootrepo.(orientdb|jdbc)"
      */
     private List<String> requiredServices = new ArrayList<String>();
-    /* @formatter:off */
+
+    /**
+     * An array default services required to be registered for the system to consider itself READY. 
+     * Required services may be expressed as a regex, for example:
+     * 
+     * "org.forgerock.openidm.bootrepo.(orientdb|jdbc)"
+     */
     private final String[] defaultRequiredServices = new String[] {
             "org.forgerock.openidm.api-servlet",
             "org.forgerock.openidm.audit",
@@ -236,6 +262,7 @@ public class HealthService
             "org.forgerock.openidm.crypto",
             "org.forgerock.openidm.external.rest",
             "org.forgerock.openidm.internal",
+            "org.forgerock.openidm.maintenance",
             "org.forgerock.openidm.managed",
             "org.forgerock.openidm.policy",            
             "org.forgerock.openidm.provisioner",
@@ -247,8 +274,10 @@ public class HealthService
             "org.forgerock.openidm.security",
             "org.forgerock.openidm.servletfilter.registrator"
     };
-    /* @formatter:on */
 
+    /**
+     * A router used to service requests for system health endpoints such as: os, memory, recon, jdbc.
+     */
     private final Router router = new Router();
     
     @Activate
@@ -260,6 +289,9 @@ public class HealthService
         requiredServices.addAll(Arrays.asList(defaultRequiredServices));
         applyPropertyConfig();
 
+        // Get the framework status service instance
+        frameworkStatus = FrameworkStatus.getInstance();
+        
         // Set up tracker
         BundleContext ctx = FrameworkUtil.getBundle(HealthService.class).getBundleContext();
         tracker = initServiceTracker(ctx);
@@ -268,15 +300,19 @@ public class HealthService
         frameworkListener = new FrameworkListener() {
             @Override
             public void frameworkEvent(FrameworkEvent event) {
-                logger.debug("Handle framework event {} {}", event.getType(), event.toString());
+                final int eventType = event.getType();
+                logger.debug("Handle framework event {} {}", eventType, event.toString());
+                
+                // Store the framework event type as the framework status
+                frameworkStatus.setFrameworkStatus(eventType);
 
-                if (event.getType() == FrameworkEvent.STARTED) {
+                if (eventType == FrameworkEvent.STARTED) {
                     logger.debug("OSGi framework started event.");
                     frameworkStarted = true;
                 }
                 // Start checking status once framework reported started
                 if (frameworkStarted) {
-                    switch (event.getType()) {
+                    switch (eventType) {
                     case FrameworkEvent.PACKAGES_REFRESHED: // fall through
                     case FrameworkEvent.STARTLEVEL_CHANGED: // fall through
                     case FrameworkEvent.WARNING: // fall trough
@@ -287,11 +323,11 @@ public class HealthService
                         checkState();
                     }
                 }
-                if (event.getType() == FrameworkEvent.STARTED) {
+                if (eventType == FrameworkEvent.STARTED) {
                     // IF it's not yet ready, give it up to max service startup
                     // time before reporting failure
                     if (!stateDetail.state.equals(AppState.ACTIVE_READY)) {
-                        scheduleCheckStartup();
+                        scheduleCheckStartup(serviceStartMax);
                     }
                 }
             }
@@ -340,11 +376,17 @@ public class HealthService
         context.getBundleContext().addBundleListener(bundleListener);
         context.getBundleContext().addFrameworkListener(frameworkListener);
 
-        router.addRoute("os", new OsInfoResourceProvider());
-        router.addRoute("memory", new MemoryInfoResourceProvider());
-        router.addRoute("recon", new ReconInfoResourceProvider());
-        router.addRoute("jdbc", new DatabaseInfoResourceProvider());
+        router.addRoute(uriTemplate("os"), new OsInfoResourceProvider());
+        router.addRoute(uriTemplate("memory"), new MemoryInfoResourceProvider());
+        router.addRoute(uriTemplate("recon"), new ReconInfoResourceProvider());
+        router.addRoute(uriTemplate("jdbc"), new DatabaseInfoResourceProvider());
 
+        // Check if the framework has already started.  If so, schedule the start up
+        // thread that checks the state of OpenIDM.
+        if (frameworkStatus.isReady()) {
+            scheduleCheckStartup(2000);
+        }
+        
         logger.info("OpenIDM Health Service component is activated.");
     }
 
@@ -387,8 +429,10 @@ public class HealthService
     /**
      * After the timeout period passes past framework start event, check that
      * the required services are present. If not, report startup error
+     * 
+     * @param delay a delay in milliseconds before checking the state.
      */
-    private void scheduleCheckStartup() {
+    private void scheduleCheckStartup(long delay) {
         Runnable command = new Runnable() {
             @Override
             public void run() {
@@ -406,7 +450,7 @@ public class HealthService
         if (scheduledExecutor.isShutdown()) {
             scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         }
-        scheduledExecutor.schedule(command, serviceStartMax, TimeUnit.MILLISECONDS);
+        scheduledExecutor.schedule(command, delay, TimeUnit.MILLISECONDS);
     }
 
     /*
@@ -440,6 +484,9 @@ public class HealthService
             clusterService.register(LISTENER_ID, this);
             clusterEnabled = clusterService.isEnabled();
             cluster = clusterService;
+            if (clusterEnabled && !cluster.isStarted()) {
+                cluster.startClusterManagement();
+            }
         }
     }
 
@@ -528,9 +575,6 @@ public class HealthService
             updatedAppState = AppState.ACTIVE_NOT_READY;
             updatedShortDesc = "Required services not all started " + missingServices;
         } else if (clusterEnabled && !clusterUp) {
-            if (cluster != null && !cluster.isStarted()) {
-                cluster.startClusterManagement();
-            }
             updatedAppState = AppState.ACTIVE_NOT_READY;
             updatedShortDesc = "This node can not yet join the cluster";
         } else {
@@ -604,31 +648,6 @@ public class HealthService
     }
 
     /**
-     * Translate Bundle state int
-     *
-     * @param bundleState
-     *            bundle state int
-     * @return String version of the state
-     */
-    private String stateToString(int bundleState) {
-        switch (bundleState) {
-        case Bundle.ACTIVE:
-            return "ACTIVE";
-        case Bundle.INSTALLED:
-            return "INSTALLED";
-        case Bundle.RESOLVED:
-            return "RESOLVED";
-        case Bundle.STARTING:
-            return "STARTING";
-        case Bundle.STOPPING:
-            return "STOPPING";
-        case Bundle.UNINSTALLED:
-            return "UNINSTALLED";
-        }
-        return "UNKNOWN";
-    }
-
-    /**
      * Parse the comma delimited property into a list
      *
      * @param prop
@@ -656,6 +675,10 @@ public class HealthService
         }
         if (bundleListener != null) {
             context.getBundleContext().removeBundleListener(bundleListener);
+        }
+        if (tracker != null) {
+            tracker.close();
+            tracker = null;
         }
 
         // For now we have to rely on this bundle stopping as an indicator
@@ -718,6 +741,8 @@ public class HealthService
             clusterUp = true;
             checkState();
             break;
+		default:
+			break;
         }
         return true;
     }
@@ -726,56 +751,57 @@ public class HealthService
      * {@inheritDoc}
      */
     @Override
-    public void handleAction(ServerContext context, ActionRequest request, ResultHandler<JsonValue> handler) {
-        router.handleAction(context, request, handler);
+    public Promise<ActionResponse, ResourceException> handleAction(Context context, ActionRequest request) {
+        return router.handleAction(context, request);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void handleCreate(ServerContext context, CreateRequest request, ResultHandler<Resource> handler) {
-        router.handleCreate(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleCreate(Context context, CreateRequest request) {
+        return router.handleCreate(context, request);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void handleDelete(ServerContext context, DeleteRequest request, ResultHandler<Resource> handler) {
-        router.handleDelete(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleDelete(Context context, DeleteRequest request) {
+        return router.handleDelete(context, request);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void handlePatch(ServerContext context, PatchRequest request, ResultHandler<Resource> handler) {
-        router.handlePatch(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
+        return router.handlePatch(context, request);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void handleQuery(ServerContext context, QueryRequest request, QueryResultHandler handler) {
-        router.handleQuery(context, request, handler);
+    public Promise<QueryResponse, ResourceException> handleQuery(Context context, QueryRequest request,
+            QueryResourceHandler handler) {
+        return router.handleQuery(context, request, handler);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void handleRead(ServerContext context, ReadRequest request, ResultHandler<Resource> handler) {
-        router.handleRead(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
+        return router.handleRead(context, request);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void handleUpdate(ServerContext context, UpdateRequest request, ResultHandler<Resource> handler) {
-        router.handleUpdate(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, UpdateRequest request) {
+        return router.handleUpdate(context, request);
     }
 
 }

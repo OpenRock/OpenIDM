@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2013 ForgeRock AS. All Rights Reserved
+ * Copyright 2011-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -34,8 +34,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.forgerock.json.crypto.JsonCryptoException;
-import org.forgerock.json.fluent.JsonPointer;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.schema.validator.Constants;
@@ -53,6 +53,7 @@ import org.identityconnectors.framework.common.objects.OperationOptions;
 import org.identityconnectors.framework.common.objects.OperationOptionsBuilder;
 import org.identityconnectors.framework.common.objects.OperationalAttributes;
 import org.identityconnectors.framework.common.objects.QualifiedUid;
+import org.identityconnectors.framework.common.objects.SortKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -154,6 +155,8 @@ public class AttributeInfoHelper {
                             builder.setReadable(false);
                         } else if (AttributeFlag.NOT_RETURNED_BY_DEFAULT.equals(flag)) {
                             builder.setReturnedByDefault(false);
+                        } else if (AttributeFlag.MULTIVALUED.equals(flag)) {
+                            builder.setMultiValued(true);
                         } else {
                             flags0.add(flag);
                         }
@@ -335,6 +338,18 @@ public class AttributeInfoHelper {
             builder.setRunWithPassword(getSingleValue(value, GuardedString.class));
         } else if (OperationOptions.OP_SCOPE.equals(name)) {
             builder.setScope(getSingleValue(value, String.class));
+        } else if (OperationOptions.OP_PAGED_RESULTS_COOKIE.equals(name)) {
+            builder.setPagedResultsCookie(getSingleValue(value, String.class));
+        } else if (OperationOptions.OP_PAGED_RESULTS_OFFSET.equals(name)) {
+            builder.setPagedResultsOffset(getSingleValue(value, Integer.class));
+        } else if (OperationOptions.OP_PAGE_SIZE.equals(name)) {
+            builder.setPageSize(getSingleValue(value, Integer.class));
+        } else if (OperationOptions.OP_FAIL_ON_ERROR.equals(name)) {
+            builder.setAttributesToGet(getSingleValue(value, Boolean.class).toString());
+        } else if (OperationOptions.OP_REQUIRE_SERIAL.equals(name)) {
+            builder.setAttributesToGet(getSingleValue(value, String.class));
+        } else if (OperationOptions.OP_SORT_KEYS.equals(name)) {
+            builder.setSortKeys((List<SortKey>) getMultiValue(value, SortKey.class));
         } else {
             builder.setOption(name, getNewValue(value == null ? defaultValue : value, attributeInfo
                     .isMultiValued(), attributeInfo.getType()));

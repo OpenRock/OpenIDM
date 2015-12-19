@@ -41,12 +41,12 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.services.context.Context;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.RequestType;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ServerContext;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.ServerConstants;
@@ -158,7 +158,7 @@ public class PolicyService extends AbstractScriptedService {
     }
     
     @Override
-    public void handleAction(final ServerContext context, final ActionRequest request,
+    public void handleAction(final Context context, final ActionRequest request,
             final Bindings handler) throws ResourceException {
         super.handleAction(context, request, handler);
         for (Map.Entry<String, String> entry : request.getAdditionalParameters().entrySet()) {
@@ -171,15 +171,15 @@ public class PolicyService extends AbstractScriptedService {
         }
 
         handler.put("request", request);
-        handler.put("resources", configuration.get("resources").getObject());
+        handler.put("resources", configuration.get("resources").copy().getObject());
     }
     
     @Override
-    public void handleRead(final ServerContext context, final ReadRequest request,
+    public void handleRead(final Context context, final ReadRequest request,
             final Bindings handler) throws ResourceException {
         super.handleRead(context, request, handler);
 
         handler.put("request", request);
-        handler.put("resources", configuration.get("resources").getObject());
+        handler.put("resources", configuration.get("resources").copy().getObject());
     }
 }

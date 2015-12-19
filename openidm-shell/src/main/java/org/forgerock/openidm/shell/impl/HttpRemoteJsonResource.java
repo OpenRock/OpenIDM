@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2013 ForgeRock AS. All Rights Reserved
+ * Copyright 2011-2015 ForgeRock AS.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -24,7 +24,13 @@
 
 package org.forgerock.openidm.shell.impl;
 
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.resource.Responses.newActionResponse;
+import static org.forgerock.json.resource.Responses.newResourceResponse;
+
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,27 +39,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
-import org.codehaus.jackson.map.ObjectMapper;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.fluent.JsonValueException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.forgerock.http.util.Json;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.JsonValueException;
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.Connection;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
-import org.forgerock.json.resource.FutureResult;
 import org.forgerock.json.resource.InternalServerErrorException;
+import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchOperation;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResult;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Request;
-import org.forgerock.json.resource.Resource;
-import org.forgerock.json.resource.ResultHandler;
+import org.forgerock.json.resource.ResourceException;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.UpdateRequest;
-import org.restlet.Context;
+import org.forgerock.services.context.Context;
+import org.forgerock.util.promise.Promise;
 import org.restlet.data.ChallengeResponse;
 import org.restlet.data.ChallengeScheme;
 import org.restlet.data.Conditions;
@@ -66,7 +75,6 @@ import org.restlet.ext.jackson.JacksonRepresentation;
 import org.restlet.representation.EmptyRepresentation;
 import org.restlet.representation.Representation;
 import org.restlet.resource.ClientResource;
-import org.restlet.resource.ResourceException;
 
 
 /**
@@ -118,20 +126,18 @@ public class HttpRemoteJsonResource implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public JsonValue action(org.forgerock.json.resource.Context context, ActionRequest request)
-        throws org.forgerock.json.resource.ResourceException {
+    public ActionResponse action(Context context, ActionRequest request) throws ResourceException {
         JsonValue params = new JsonValue(request.getAdditionalParameters());
-        JsonValue result = handle(request, request.getResourceName(), params);
-        return result;
+        JsonValue result = handle(request, request.getResourcePath(), params);
+        return newActionResponse(result);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public FutureResult<JsonValue> actionAsync(org.forgerock.json.resource.Context context,
-            ActionRequest request, ResultHandler<? super JsonValue> handler) {
-        throw new UnsupportedOperationException();
+    public Promise<ActionResponse, ResourceException> actionAsync(Context context, ActionRequest request) {
+        return new NotSupportedException().asPromise();
     }
 
     /**
@@ -145,38 +151,34 @@ public class HttpRemoteJsonResource implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public Resource create(org.forgerock.json.resource.Context context, CreateRequest request)
-        throws org.forgerock.json.resource.ResourceException {
-        JsonValue result = handle(request, request.getResourceName() + "/" + request.getNewResourceId(), null);
-        return new Resource(result.get("_id").asString(), result.get("_rev").asString(), result);
+    public ResourceResponse create(Context context, CreateRequest request) throws ResourceException {
+        JsonValue response = handle(request, request.getResourcePathObject().child(request.getNewResourceId()).toString(), null);
+        return newResourceResponse(response.get("_id").asString(), response.get("_rev").asString(), response);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public FutureResult<Resource> createAsync(org.forgerock.json.resource.Context context,
-            CreateRequest request, ResultHandler<? super Resource> handler) {
-        throw new UnsupportedOperationException();
+    public Promise<ResourceResponse, ResourceException> createAsync(Context context, CreateRequest request) {
+        return new NotSupportedException().asPromise();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Resource delete(org.forgerock.json.resource.Context context, DeleteRequest request)
-        throws org.forgerock.json.resource.ResourceException {
-        handle(request, request.getResourceName(), null);
-        return null;
+    public ResourceResponse delete(Context context, DeleteRequest request) throws ResourceException {
+        final JsonValue response = handle(request, request.getResourcePath(), null);
+        return newResourceResponse(response.get("_id").asString(), response.get("_rev").asString(), response);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public FutureResult<Resource> deleteAsync(org.forgerock.json.resource.Context context,
-            DeleteRequest request, ResultHandler<? super Resource> handler) {
-        throw new UnsupportedOperationException();
+    public Promise<ResourceResponse, ResourceException> deleteAsync(Context context, DeleteRequest request) {
+        return new NotSupportedException().asPromise();
     }
 
     /**
@@ -199,88 +201,78 @@ public class HttpRemoteJsonResource implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public Resource patch(org.forgerock.json.resource.Context context, PatchRequest request)
-        throws org.forgerock.json.resource.ResourceException {
-        throw new UnsupportedOperationException();
+    public ResourceResponse patch(Context context, PatchRequest request) throws ResourceException {
+        throw new NotSupportedException();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public FutureResult<Resource> patchAsync(org.forgerock.json.resource.Context context,
-            PatchRequest request, ResultHandler<? super Resource> handler) {
-        throw new UnsupportedOperationException();
+    public Promise<ResourceResponse, ResourceException> patchAsync(Context context, PatchRequest request) {
+        return new NotSupportedException().asPromise();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public QueryResult query(org.forgerock.json.resource.Context context, QueryRequest request,
-            QueryResultHandler handler) throws org.forgerock.json.resource.ResourceException {
-        return null;
+    public QueryResponse query(Context context, QueryRequest request, QueryResourceHandler handler) throws ResourceException {
+        throw new NotSupportedException();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public QueryResult query(org.forgerock.json.resource.Context context, QueryRequest request,
-            Collection<? super Resource> results)
-        throws org.forgerock.json.resource.ResourceException {
-        return null;
+    public QueryResponse query(Context context, QueryRequest request, Collection<? super ResourceResponse> results) throws ResourceException {
+        throw new NotSupportedException();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public FutureResult<QueryResult> queryAsync(org.forgerock.json.resource.Context context,
-            QueryRequest request, QueryResultHandler handler) {
-        throw new UnsupportedOperationException();
+    public Promise<QueryResponse, ResourceException> queryAsync(Context context, QueryRequest request, QueryResourceHandler handler) {
+        return new NotSupportedException().asPromise();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Resource read(org.forgerock.json.resource.Context context, ReadRequest request)
-        throws org.forgerock.json.resource.ResourceException {
-        JsonValue result = handle(request, request.getResourceName(), null);
-        return new Resource(result.get("_id").asString(), result.get("_rev").asString(), result);
+    public ResourceResponse read(Context context, ReadRequest request) throws ResourceException {
+        JsonValue result = handle(request, request.getResourcePath(), null);
+        return newResourceResponse(result.get("_id").asString(), result.get("_rev").asString(), result);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public FutureResult<Resource> readAsync(org.forgerock.json.resource.Context context,
-            ReadRequest request, ResultHandler<? super Resource> handler) {
-        throw new UnsupportedOperationException();
+    public Promise<ResourceResponse, ResourceException> readAsync(Context context, ReadRequest request) {
+        return new NotSupportedException().asPromise();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Resource update(org.forgerock.json.resource.Context context, UpdateRequest request)
-        throws org.forgerock.json.resource.ResourceException {
-        JsonValue result = handle(request, request.getResourceName(), null);
-        return new Resource(result.get("_id").asString(), result.get("_rev").asString(), result);
+    public ResourceResponse update(Context context, UpdateRequest request) throws ResourceException {
+        JsonValue result = handle(request, request.getResourcePath(), null);
+        return newResourceResponse(result.get("_id").asString(), result.get("_rev").asString(), result);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public FutureResult<Resource> updateAsync(org.forgerock.json.resource.Context context,
-            UpdateRequest request, ResultHandler<? super Resource> handler) {
-        throw new UnsupportedOperationException();
+    public Promise<ResourceResponse, ResourceException> updateAsync(Context context, UpdateRequest request) {
+        return new NotSupportedException().asPromise();
     }
 
     private ClientResource getClientResource(Reference ref) {
-        ClientResource clientResource = new ClientResource(new Context(), new Reference(baseReference, ref));
+        ClientResource clientResource = new ClientResource(new org.restlet.Context(), new Reference(baseReference, ref));
 
         List<Preference<MediaType>> acceptedMediaTypes = new ArrayList<Preference<MediaType>>(1);
         acceptedMediaTypes.add(new Preference<MediaType>(MediaType.APPLICATION_JSON));
@@ -364,18 +356,12 @@ public class HttpRemoteJsonResource implements Connection {
                         .getStatus().getCode(), clientResource.getStatus().getDescription(),
                         clientResource.getStatus().getThrowable());
             }
-
-            JsonValue result = null;
-
-            if (null != response && !(response instanceof EmptyRepresentation)) {
-                result = new JsonValue(getJacksonObject(response));
-            } else {
-                result = new JsonValue(null);
-            }
-            return result;
+            return (null != response && !(response instanceof EmptyRepresentation)
+                    ? json(Json.readJson(response.getText()))
+                    : json(null));
         } catch (JsonValueException jve) {
             throw new BadRequestException(jve);
-        } catch (ResourceException e) {
+        } catch (org.restlet.resource.ResourceException e) {
             StringBuilder sb = new StringBuilder(e.getStatus().getDescription());
             if (null != clientResource) {
                 try {
@@ -384,8 +370,7 @@ public class HttpRemoteJsonResource implements Connection {
                     // unable to add response text to exception message, proceed without
                 }
             }
-            throw org.forgerock.json.resource.ResourceException.getException(
-                    e.getStatus().getCode(), sb.toString(), e.getCause());
+            throw ResourceException.getException(e.getStatus().getCode(), sb.toString(), e.getCause());
         } catch (Exception e) {
             throw new InternalServerErrorException(e);
         } finally {
@@ -393,11 +378,6 @@ public class HttpRemoteJsonResource implements Connection {
                 response.release();
             }
         }
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    private Map<String, Object> getJacksonObject(Representation response) throws IOException {
-        return (Map<String, Object>) new JacksonRepresentation<Map>(response, Map.class).getObject();
     }
 
     private JsonValue getRequestValue(Request request) throws Exception {

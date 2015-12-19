@@ -1,37 +1,30 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js, JSONEditor */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/settings/SelfServiceView", [
+    "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate",
     "org/forgerock/commons/ui/common/main/ValidatorsManager"
-
-], function(AdminAbstractView,
+], function(_,
+            AdminAbstractView,
             eventManager,
             constants,
             ConfigDelegate,
@@ -56,7 +49,7 @@ define("org/forgerock/openidm/ui/admin/settings/SelfServiceView", [
         render: function (args, callback) {
             this.data.docHelpUrl = constants.DOC_URL;
 
-            ConfigDelegate.readEntity("ui.context/enduser"). then(_.bind(function(data) {
+            ConfigDelegate.readEntity("ui.context/selfservice"). then(_.bind(function(data) {
                 this.model.uiContextObject = data;
                 this.data.selfServiceURL = data.urlContextRoot;
 
@@ -71,7 +64,7 @@ define("org/forgerock/openidm/ui/admin/settings/SelfServiceView", [
             e.preventDefault();
             this.model.uiContextObject.urlContextRoot = this.$el.find("#selfServiceURL").val();
 
-            ConfigDelegate.updateEntity("ui.context/enduser", this.model.uiContextObject).then(_.bind(function () {
+            ConfigDelegate.updateEntity("ui.context/selfservice", this.model.uiContextObject).then(_.bind(function () {
                 eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "selfServiceSaveSuccess");
             }, this));
         },

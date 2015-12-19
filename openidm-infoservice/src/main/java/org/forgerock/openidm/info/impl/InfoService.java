@@ -23,8 +23,8 @@
  */
 package org.forgerock.openidm.info.impl;
 
-import static org.forgerock.json.fluent.JsonValue.field;
-import static org.forgerock.json.fluent.JsonValue.object;
+import static org.forgerock.json.JsonValue.field;
+import static org.forgerock.json.JsonValue.object;
 
 import java.util.Dictionary;
 import java.util.EnumSet;
@@ -40,14 +40,15 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestType;
-import org.forgerock.json.resource.ServerContext;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.info.HealthInfo;
+import org.forgerock.openidm.router.IDMConnectionFactory;
 import org.forgerock.openidm.script.AbstractScriptedService;
+import org.forgerock.services.context.Context;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.service.component.ComponentContext;
@@ -79,6 +80,10 @@ public class InfoService extends AbstractScriptedService {
     /** Enhanced configuration service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
     private EnhancedConfig enhancedConfig;
+
+    /** The connection factory */
+    @Reference(policy = ReferencePolicy.STATIC)
+    private IDMConnectionFactory connectionFactory;
 
     private ComponentContext context;
 
@@ -122,13 +127,13 @@ public class InfoService extends AbstractScriptedService {
     }
 
     @Override
-    protected void handleRequest(final ServerContext context, final Request request,
+    protected void handleRequest(final Context context, final Request request,
             final Bindings handler) {
         super.handleRequest(context, request, handler);
         handler.put("healthinfo", healthInfoSvc.getHealthInfo().asMap());
-        handler.put("version", 
-                object(
-                    field("productVersion", ServerConstants.getVersion()),
-                    field("productRevision", ServerConstants.getRevision())));
+
+        handler.put("version", object(
+                field("productVersion", ServerConstants.getVersion()),
+                field("productRevision", ServerConstants.getRevision())));
     }
 }

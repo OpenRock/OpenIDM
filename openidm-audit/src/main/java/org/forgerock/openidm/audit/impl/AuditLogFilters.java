@@ -21,23 +21,21 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import javax.script.ScriptException;
 
-import org.forgerock.json.fluent.JsonPointer;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.fluent.JsonValueException;
-import org.forgerock.json.resource.Context;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.JsonValueException;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.RequestType;
-import org.forgerock.json.resource.ServerContext;
 import org.forgerock.openidm.sync.ReconAction;
 import org.forgerock.openidm.sync.TriggerContext;
 import org.forgerock.script.Script;
 import org.forgerock.script.ScriptEntry;
+import org.forgerock.services.context.Context;
 import org.forgerock.util.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.script.ScriptException;
 
 
 /**
@@ -49,7 +47,8 @@ public class AuditLogFilters {
     /** Logger */
     private static final Logger logger = LoggerFactory.getLogger(AuditServiceImpl.class);
 
-    private static final String TYPE_ACTIVITY = "activity";
+    public static final String TYPE_ACTIVITY = "activity";
+    public static final String TYPE_CONFIG = "config";
     private static final String TYPE_RECON = "recon";
 
     /** Type alias for converting the value of a JsonValue to a particular type */
@@ -58,9 +57,9 @@ public class AuditLogFilters {
     /**
      * A NullObject implementation that never filters.
      */
-    public static AuditLogFilter NEVER = new AuditLogFilter() {
+    public static AuditLogFilter NEVER_FILTER = new AuditLogFilter() {
         @Override
-        public boolean isFiltered(ServerContext context, CreateRequest request) {
+        public boolean isFiltered(Context context, CreateRequest request) {
             return false;
         }
     };
@@ -102,7 +101,7 @@ public class AuditLogFilters {
         }
 
         @Override
-        public boolean isFiltered(ServerContext context, CreateRequest request) {
+        public boolean isFiltered(Context context, CreateRequest request) {
             return !values.contains(asValue.apply(request.getContent().get(field)));
         }
     }
@@ -126,9 +125,9 @@ public class AuditLogFilters {
         }
 
         @Override
-        public boolean isFiltered(ServerContext context, CreateRequest request) {
+        public boolean isFiltered(Context context, CreateRequest request) {
             // don't filter requests that do not specify an action
-            if (request.getContent().get(field).isNull()) {
+            if (request.getContent().get(field) == null || request.getContent().get(field).isNull()) {
                 return false;
             }
             try {
@@ -146,13 +145,12 @@ public class AuditLogFilters {
      *
      * @param <A> the action enum type
      */
-    private static class ResourceOperationFilter<A extends Enum<A>> extends FieldValueFilter<A> {
+    private static class OperationFilter<A extends Enum<A>> extends FieldValueFilter<A> {
 
-        private static final JsonPointer RESOURCE_OPERATION_METHOD =
-                new JsonPointer("resourceOperation/operation/method");
+        private static final JsonPointer OPERATION = new JsonPointer("operation");
 
-        private ResourceOperationFilter(final Class<A> clazz, final Set<A> actionsToLog) {
-            super(RESOURCE_OPERATION_METHOD, actionsToLog, new JsonValueObjectConverter<A>() {
+        private OperationFilter(final Class<A> clazz, final Set<A> actionsToLog) {
+            super(OPERATION, actionsToLog, new JsonValueObjectConverter<A>() {
                 public A apply(JsonValue value) throws JsonValueException {
                     return value.asEnum(clazz);
                 }
@@ -160,9 +158,9 @@ public class AuditLogFilters {
         }
 
         @Override
-        public boolean isFiltered(ServerContext context, CreateRequest request) {
+        public boolean isFiltered(Context context, CreateRequest request) {
             // don't filter requests that do not specify an action
-            if (request.getContent().get(field).isNull()) {
+            if (request.getContent().get(field) == null || request.getContent().get(field).isNull()) {
                 return false;
             }
             try {
@@ -188,7 +186,7 @@ public class AuditLogFilters {
         }
 
         private String getEventType(CreateRequest request) {
-            return request.getResourceNameObject().head(1).toString();
+            return request.getResourcePathObject().head(1).toString();
         }
 
         private boolean isEventType(CreateRequest request) {
@@ -196,7 +194,7 @@ public class AuditLogFilters {
         }
 
         @Override
-        public boolean isFiltered(ServerContext context, CreateRequest request) {
+        public boolean isFiltered(Context context, CreateRequest request) {
             return isEventType(request) && filter.isFiltered(context, request);
         }
     }
@@ -227,7 +225,7 @@ public class AuditLogFilters {
         }
 
         @Override
-        public boolean isFiltered(ServerContext context, CreateRequest request) {
+        public boolean isFiltered(Context context, CreateRequest request) {
             return trigger.equals(getTrigger(context)) && filter.isFiltered(context, request);
         }
     }
@@ -243,7 +241,7 @@ public class AuditLogFilters {
         }
 
         @Override
-        public boolean isFiltered(ServerContext context, CreateRequest request) {
+        public boolean isFiltered(Context context, CreateRequest request) {
             if (!scriptEntry.isActive()) {
                 // do not filter if script has become inactive
                 return false;
@@ -273,14 +271,14 @@ public class AuditLogFilters {
         private CompositeFilter(List<AuditLogFilter> filters) {
             this.filters = new ArrayList<>();
             for (AuditLogFilter filter : filters) {
-                if (!filter.equals(NEVER)) {
+                if (!filter.equals(NEVER_FILTER)) {
                     this.filters.add(filter);
                 }
             }
         }
 
         @Override
-        public abstract boolean isFiltered(ServerContext context, CreateRequest request);
+        public abstract boolean isFiltered(Context context, CreateRequest request);
     }
 
     /**
@@ -298,7 +296,7 @@ public class AuditLogFilters {
         }
 
         @Override
-        public boolean isFiltered(ServerContext context, CreateRequest request) {
+        public boolean isFiltered(Context context, CreateRequest request) {
             for (AuditLogFilter filter : filters) {
                 if (filter.isFiltered(context, request)) {
                     return true;
@@ -323,7 +321,7 @@ public class AuditLogFilters {
         }
 
         @Override
-        public boolean isFiltered(ServerContext context, CreateRequest request) {
+        public boolean isFiltered(Context context, CreateRequest request) {
             for (AuditLogFilter filter : filters) {
                 if (!filter.isFiltered(context, request)) {
                     // short-circuit on a single filter that does not filter
@@ -363,12 +361,13 @@ public class AuditLogFilters {
      * that is not a {@link RequestType} constant, it will not be filtered.  It is also not possible to specify
      * filtering of null, or non-{@link RequestType} values.
      *
+     * @param eventType The type of audit to filter for.
      * @param actions a JsonValue list of action values
      * @return an AuditLogFilter that filters activity actions.
      */
-    static AuditLogFilter newActivityActionFilter(JsonValue actions) {
-        return newEventTypeFilter(TYPE_ACTIVITY,
-                new ResourceOperationFilter<>(RequestType.class, getActions(RequestType.class, actions)));
+    static AuditLogFilter newActionFilter(String eventType, JsonValue actions) {
+        return newEventTypeFilter(eventType,
+                new OperationFilter<>(RequestType.class, getActions(RequestType.class, actions)));
     }
 
     /**
@@ -376,14 +375,15 @@ public class AuditLogFilters {
      * value that is not a {@link RequestType} constant, it will not be filtered.  It is also not possible to specify
      * filtering of null, or non-{@link RequestType} values.
      *
+     * @param eventType The type of audit to filter for.
      * @param actions a JsonValue list of action values
      * @param trigger a trigger to filter on
      * @return an AuditLogFilter that filters activity actions for a particular trigger.
      */
-    static AuditLogFilter newActivityActionFilter(JsonValue actions, String trigger) {
-        return newEventTypeFilter(TYPE_ACTIVITY,
+    static AuditLogFilter newActionFilter(String eventType, JsonValue actions, String trigger) {
+        return newEventTypeFilter(eventType,
                 new TriggerFilter(trigger,
-                        new ResourceOperationFilter<>(RequestType.class, getActions(RequestType.class, actions))));
+                        new OperationFilter<>(RequestType.class, getActions(RequestType.class, actions))));
     }
 
     /**
@@ -422,16 +422,16 @@ public class AuditLogFilters {
      * evaluation will be "short-circuited" as soon as a filter whose {@code isFiltered} returns true
      * is found.
      * <p>
-     * Simplifies to a {@link #NEVER} "never-filter" if the filter list is empty or only contains
-     * {@link #NEVER} filters.
+     * Simplifies to a {@link #NEVER_FILTER} "never-filter" if the filter list is empty or only contains
+     * {@link #NEVER_FILTER} filters.
      *
      * @param filters the list of audit log filters
      * @return a composite filter of filters that filters when a single filter in the list filters,
-     *         or NEVER, if there are no filters
+     *         or NEVER_FILTER, if there are no filters
      */
     static AuditLogFilter newOrCompositeFilter(List<AuditLogFilter> filters) {
         return filters.isEmpty() || onlyContainsNever(filters)
-                ? NEVER // don't bother creating a composite filter out of only never-filters
+                ? NEVER_FILTER // don't bother creating a composite filter out of only never-filters
                 : new OrCompositeFilter(filters);
     }
 
@@ -443,16 +443,16 @@ public class AuditLogFilters {
      * evaluation will be "short-circuited" as soon as a filter whose {@code isFiltered} returns
      * false is found.
      * <p>
-     * Simplifies to a {@link #NEVER} "never-filter" if the filter list is empty or only contains
-     * {@link #NEVER} filters.
+     * Simplifies to a {@link #NEVER_FILTER} "never-filter" if the filter list is empty or only contains
+     * {@link #NEVER_FILTER} filters.
      *
      * @param filters the list of fields and values
      * @return a composite audit log filter that filters only when ALL filters filter,
-     *         or NEVER, if there are no filters
+     *         or NEVER_FILTER, if there are no filters
      */
     static AuditLogFilter newAndCompositeFilter(List<AuditLogFilter> filters) {
         return filters.isEmpty() || onlyContainsNever(filters)
-                ? NEVER // don't bother creating a composite filter out of only never-filters
+                ? NEVER_FILTER // don't bother creating a composite filter out of only never-filters
                 : new AndCompositeFilter(filters);
     }
 
@@ -494,16 +494,16 @@ public class AuditLogFilters {
     }
 
     /**
-     * Returns true if the collection of filters only contains {@link #NEVER} filters, false if it contains at least one
-     * non-{@link #NEVER} filter
+     * Returns true if the collection of filters only contains {@link #NEVER_FILTER} filters, false if it contains at least one
+     * non-{@link #NEVER_FILTER} filter
      *
      * @param collection the collection of filters to test
-     * @return true if the collection of filters only contains {@link #NEVER} filters, false if it contains at least one
-     *         non-{@link #NEVER} filter
+     * @return true if the collection of filters only contains {@link #NEVER_FILTER} filters, false if it contains at least one
+     *         non-{@link #NEVER_FILTER} filter
      */
     private static final boolean onlyContainsNever(Collection<AuditLogFilter> collection) {
         for (AuditLogFilter element : collection) {
-            if (!element.equals(NEVER)) {
+            if (!element.equals(NEVER_FILTER)) {
                 return false;
             }
         }

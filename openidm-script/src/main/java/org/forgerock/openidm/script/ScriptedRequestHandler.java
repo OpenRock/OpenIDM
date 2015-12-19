@@ -1,54 +1,54 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2013 ForgeRock AS. All Rights Reserved
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2013-2015 ForgeRock AS.
  */
 
 package org.forgerock.openidm.script;
 
+import static org.forgerock.json.resource.Responses.newActionResponse;
+import static org.forgerock.json.resource.Responses.newQueryResponse;
+import static org.forgerock.json.resource.Responses.newResourceResponse;
+
+import javax.script.Bindings;
+import javax.script.ScriptException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.script.Bindings;
-import javax.script.ScriptException;
-
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
+import org.forgerock.json.resource.CountPolicy;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.InternalServerErrorException;
+import org.forgerock.json.resource.NotFoundException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResult;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
-import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.ServerContext;
+import org.forgerock.json.resource.ResourcePath;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.ServiceUnavailableException;
 import org.forgerock.json.resource.UpdateRequest;
+import org.forgerock.openidm.smartevent.EventEntry;
+import org.forgerock.openidm.smartevent.Name;
+import org.forgerock.openidm.smartevent.Publisher;
 import org.forgerock.script.Scope;
 import org.forgerock.script.Script;
 import org.forgerock.script.ScriptEntry;
@@ -56,12 +56,13 @@ import org.forgerock.script.exception.ScriptThrownException;
 import org.forgerock.script.scope.Function;
 import org.forgerock.script.scope.FunctionFactory;
 import org.forgerock.script.scope.Parameter;
+import org.forgerock.services.context.Context;
+import org.forgerock.util.promise.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A ScriptedRequestHandler
- * 
+ * A ScriptedRequestHandler implements a RequestHandler using a script.
  */
 public class ScriptedRequestHandler implements Scope, RequestHandler {
 
@@ -138,8 +139,8 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
 
     // ----- Implementation of RequestHandler interface
 
-    public void handleAction(final ServerContext context, final ActionRequest request,
-            final ResultHandler<JsonValue> handler) {
+    public Promise<ActionResponse, ResourceException> handleAction(final Context context, final ActionRequest request) {
+        EventEntry measure = Publisher.start(Name.get("openidm/internal/script/" + this.getScriptEntry().getName().getName() + "/action"), null, null);
         try {
             final ScriptEntry _scriptEntry = getScriptEntry();
             if (!_scriptEntry.isActive()) {
@@ -150,27 +151,29 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
             customizer.handleAction(context, request, script.getBindings());
             Object result = script.eval();
             if (null == result) {
-                handler.handleResult(new JsonValue(null));
+                return newActionResponse(new JsonValue(null)).asPromise();
             } else if (result instanceof JsonValue) {
-                handler.handleResult((JsonValue) result);
+                return newActionResponse((JsonValue) result).asPromise();
             } else if (result instanceof Map) {
-                handler.handleResult(new JsonValue((result)));
+                return newActionResponse(new JsonValue(result)).asPromise();
             } else {
                 JsonValue resource = new JsonValue(new HashMap<String, Object>(1));
                 resource.put("result", result);
-                handler.handleResult(resource);
+                return newActionResponse(new JsonValue(result)).asPromise();
             }
         } catch (ScriptException e) {
-            handleScriptException(handler, e);
+            return convertScriptException(e).asPromise();
         } catch (ResourceException e) {
-            handler.handleError(e);
+            return e.asPromise();
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e.getMessage(), e));
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        } finally {
+            measure.end();
         }
     }
 
-    public void handleCreate(ServerContext context, CreateRequest request,
-            ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleCreate(Context context, CreateRequest request) {
+        EventEntry measure = Publisher.start(Name.get("openidm/internal/script/" + this.getScriptEntry().getName().getName() + "/create"), null, null);
         try {
             final ScriptEntry _scriptEntry = getScriptEntry();
             if (!_scriptEntry.isActive()) {
@@ -179,18 +182,20 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
             final Script script = _scriptEntry.getScript(context);
             script.setBindings(script.createBindings());
             customizer.handleCreate(context, request, script.getBindings());
-            evaluate(request, handler, script);
+            return evaluate(request, script);
         } catch (ScriptException e) {
-            handleScriptException(handler, e);
+            return convertScriptException(e).asPromise();
         } catch (ResourceException e) {
-            handler.handleError(e);
+            return e.asPromise();
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e.getMessage(), e));
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        } finally {
+            measure.end();
         }
     }
 
-    public void handleDelete(ServerContext context, DeleteRequest request,
-            ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleDelete(Context context, DeleteRequest request) {
+        EventEntry measure = Publisher.start(Name.get("openidm/internal/script/" + this.getScriptEntry().getName().getName() + "/delete"), null, null);
         try {
             final ScriptEntry _scriptEntry = getScriptEntry();
             if (!_scriptEntry.isActive()) {
@@ -199,18 +204,20 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
             final Script script = _scriptEntry.getScript(context);
             script.setBindings(script.createBindings());
             customizer.handleDelete(context, request, script.getBindings());
-            evaluate(request, handler, script);
+            return evaluate(request, script);
         } catch (ScriptException e) {
-            handleScriptException(handler, e);
+            return convertScriptException(e).asPromise();
         } catch (ResourceException e) {
-            handler.handleError(e);
+            return e.asPromise();
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e.getMessage(), e));
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        } finally {
+            measure.end();
         }
     }
 
-    public void handlePatch(ServerContext context, PatchRequest request,
-            ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
+        EventEntry measure = Publisher.start(Name.get("openidm/internal/script/" + this.getScriptEntry().getName().getName() + "/patch"), null, null);
         try {
             final ScriptEntry _scriptEntry = getScriptEntry();
             if (!_scriptEntry.isActive()) {
@@ -219,13 +226,15 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
             final Script script = _scriptEntry.getScript(context);
             script.setBindings(script.createBindings());
             customizer.handlePatch(context, request, script.getBindings());
-            evaluate(request, handler, script);
+            return evaluate(request, script);
         } catch (ScriptException e) {
-            handleScriptException(handler, e);
+            return convertScriptException(e).asPromise();
         } catch (ResourceException e) {
-            handler.handleError(e);
+            return e.asPromise();
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e.getMessage(), e));
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        } finally {
+            measure.end();
         }
     }
 
@@ -234,8 +243,9 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
      * 
      * {@inheritDoc}
      */
-    public void handleQuery(final ServerContext context, final QueryRequest request,
-            final QueryResultHandler handler) {
+    public Promise<QueryResponse, ResourceException> handleQuery(final Context context, final QueryRequest request,
+            final QueryResourceHandler handler) {
+        EventEntry measure = Publisher.start(Name.get("openidm/internal/script/" + this.getScriptEntry().getName().getName() + "/query"), null, null);
         try {
             final ScriptEntry _scriptEntry = getScriptEntry();
             if (!_scriptEntry.isActive()) {
@@ -294,7 +304,7 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
             } else {
                 result = new JsonValue(rawResult);
             }
-            QueryResult queryResult = new QueryResult();
+            QueryResponse queryResponse = newQueryResponse();
             // Script can either
             // - return null and instead use callback hook to call
             //   handleResource, handleResult, handleError
@@ -310,27 +320,31 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
                 } else {
                     // Or script may return a full query response structure,
                     // with meta-data and results field
-                    if (result.isDefined(QueryResult.FIELD_RESULT)) {
-                        handleQueryResultList(result.get(QueryResult.FIELD_RESULT), handler);
-                        queryResult = new QueryResult(
-                                result.get(QueryResult.FIELD_PAGED_RESULTS_COOKIE).asString(),
-                                result.get(QueryResult.FIELD_REMAINING_PAGED_RESULTS).asInteger());
+                    if (result.isDefined(QueryResponse.FIELD_RESULT)) {
+                        handleQueryResultList(result.get(QueryResponse.FIELD_RESULT), handler);
+                        queryResponse = newQueryResponse(
+                                result.get(QueryResponse.FIELD_PAGED_RESULTS_COOKIE).asString(),
+                                result.get(QueryResponse.FIELD_TOTAL_PAGED_RESULTS_POLICY).asEnum(CountPolicy.class),
+                                result.get(QueryResponse.FIELD_TOTAL_PAGED_RESULTS).asInteger());
                     } else {
                         logger.debug("Script returned unexpected query result structure: ",
                                  result.getObject());
-                        handler.handleError(new InternalServerErrorException(
+                        return new InternalServerErrorException(
                                 "Script returned unexpected query result structure of type "
-                                + result.getObject().getClass()));
+                                + result.getObject().getClass())
+                            .asPromise();
                     }
                 }
             }
-            handler.handleResult(queryResult);
+            return queryResponse.asPromise();
         } catch (ScriptException e) {
-            handleScriptException(handler, e);
+            return convertScriptException(e).asPromise();
         } catch (ResourceException e) {
-            handler.handleError(e);
+            return e.asPromise();
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e.getMessage(), e));
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        } finally {
+            measure.end();
         }
     }
     
@@ -340,22 +354,22 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
      * @param resultList the list of results, possibly with id and rev entries
      * @param handler the handle to set the results on
      */
-    private void handleQueryResultList(JsonValue resultList, QueryResultHandler handler) {
+    private void handleQueryResultList(JsonValue resultList, QueryResourceHandler handler) {
         for (JsonValue entry : resultList) {
             // These can end up null
             String id = null;
             String rev = null;
             if (entry.isMap()) {
-                id = entry.get(Resource.FIELD_ID).asString();
-                rev = entry.get(Resource.FIELD_REVISION).asString();
+                id = entry.get(ResourceResponse.FIELD_ID).asString();
+                rev = entry.get(ResourceResponse.FIELD_REVISION).asString();
             }
-            handler.handleResource(new Resource(id, rev, entry));
+            handler.handleResource(newResourceResponse(id, rev, entry));
         }
     }
     
 
-    public void handleRead(ServerContext context, ReadRequest request,
-            ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
+        EventEntry measure = Publisher.start(Name.get("openidm/internal/script/" + this.getScriptEntry().getName().getName() + "/read"), null, null);
         try {
             final ScriptEntry _scriptEntry = getScriptEntry();
             if (!_scriptEntry.isActive()) {
@@ -364,18 +378,20 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
             final Script script = _scriptEntry.getScript(context);
             script.setBindings(script.createBindings());
             customizer.handleRead(context, request, script.getBindings());
-            evaluate(request, handler, script);
+            return evaluate(request, script);
         } catch (ScriptException e) {
-            handleScriptException(handler, e);
+            return convertScriptException(e).asPromise();
         } catch (ResourceException e) {
-            handler.handleError(e);
+            return e.asPromise();
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e.getMessage(), e));
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        } finally {
+            measure.end();
         }
     }
 
-    public void handleUpdate(ServerContext context, UpdateRequest request,
-            ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, UpdateRequest request) {
+        EventEntry measure = Publisher.start(Name.get("openidm/internal/script/" + this.getScriptEntry().getName().getName() + "/update"), null, null);
         try {
             final ScriptEntry _scriptEntry = getScriptEntry();
             if (!_scriptEntry.isActive()) {
@@ -384,17 +400,19 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
             final Script script = _scriptEntry.getScript(context);
             script.setBindings(script.createBindings());
             customizer.handleUpdate(context, request, script.getBindings());
-            evaluate(request, handler, script);
+            return evaluate(request, script);
         } catch (ScriptException e) {
-            handleScriptException(handler, e);
+            return convertScriptException(e).asPromise();
         } catch (ResourceException e) {
-            handler.handleError(e);
+            return e.asPromise();
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e.getMessage(), e));
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        } finally {
+            measure.end();
         }
     }
 
-    protected void handleScriptException(final ResultHandler<?> handler, final ScriptException scriptException) {
+    protected ResourceException convertScriptException(final ScriptException scriptException) {
 
         ResourceException convertedError;
         try {
@@ -416,21 +434,24 @@ public class ScriptedRequestHandler implements Scope, RequestHandler {
             detail.put("columnNumber", scriptException.getColumnNumber());
         }
 
-        handler.handleError(convertedError);
+        return convertedError;
     }
 
-    private void evaluate(final Request request, final ResultHandler<Resource> handler,
-            final Script script) throws ScriptException {
+    private Promise<ResourceResponse, ResourceException> evaluate(final Request request, final Script script)
+            throws ScriptException {
         Object result = script.eval();
+        ResourcePath resourcePath = request.getResourcePathObject();
         if (null == result) {
-            handler.handleResult(new Resource(request.getResourceName(), null, new JsonValue(null)));
-        } else if (result instanceof JsonValue) {
-            handler.handleResult(new Resource(request.getResourceName(), null, (JsonValue) result));
-        } else if (result instanceof Map) {
-            handler.handleResult(new Resource(request.getResourceName(), null, new JsonValue(result)));
-        } else {
-            JsonValue resource = new JsonValue(result);
-            handler.handleResult(new Resource(request.getResourceName(), null, resource));
+            return new NotFoundException("script returned null").asPromise();
         }
+        JsonValue resultJson = (result instanceof JsonValue)
+                ? (JsonValue) result
+                : new JsonValue(result);
+        // If the resultJson isn't able to provide an ID, then we default to the resourcePath.
+        String id = resultJson.get(ResourceResponse.FIELD_CONTENT_ID).defaultTo("").asString();
+        if (id.isEmpty() && resourcePath.size() > 0) {
+            id = resourcePath.leaf();
+        }
+        return newResourceResponse(id, null, resultJson).asPromise();
     }
 }

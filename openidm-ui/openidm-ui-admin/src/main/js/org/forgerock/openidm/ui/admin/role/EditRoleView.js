@@ -1,59 +1,59 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 
-/*global define, $, _, JSONEditor, form2js */
+/*global define */
 
-/**
- * @author huck.elliott
- */
 define("org/forgerock/openidm/ui/admin/role/EditRoleView", [
-    "org/forgerock/commons/ui/common/main/AbstractView",
+    "jquery",
+    "underscore",
+    "form2js",
+    "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
-    "org/forgerock/commons/ui/common/util/UIUtils",
     "org/forgerock/openidm/ui/common/delegates/ResourceDelegate",
     "org/forgerock/commons/ui/common/components/Messages",
     "org/forgerock/openidm/ui/admin/role/RoleUsersView",
-    "org/forgerock/openidm/ui/admin/role/RoleEntitlementsListView"
-], function(AbstractView, eventManager, constants, uiUtils, resourceDelegate, messagesManager, roleUsersView, roleEntitlementsListView) {
-    var EditRoleView = AbstractView.extend({
+    "org/forgerock/openidm/ui/admin/role/RoleEntitlementsListView",
+    "org/forgerock/commons/ui/common/util/UIUtils"
+], function($, _,
+            form2js,
+            AdminAbstractView,
+            eventManager,
+            constants,
+            resourceDelegate,
+            messagesManager,
+            roleUsersView,
+            roleEntitlementsListView,
+            UIUtils) {
+    var EditRoleView = AdminAbstractView.extend({
         template: "templates/admin/role/EditRoleViewTemplate.html",
-        
+
         events: {
             "click .saveRole": "saveRole",
-            "click #deleteRole": "deleteRole",
-            "click .backToList": "backToList"
+            "click #deleteRole": "deleteRole"
         },
         render: function(args, callback) {
             var rolePromise,
                 schemaPromise = resourceDelegate.getSchema(args),
                 roleId = args[2],
                 assignment = args[3];
-            
+
             this.data.args = args;
             this.data.serviceUrl = resourceDelegate.getServiceUrl(args);
-    
+
             if(roleId){
                 rolePromise = resourceDelegate.readResource(this.data.serviceUrl, roleId);
                 this.data.newRole = false;
@@ -61,7 +61,7 @@ define("org/forgerock/openidm/ui/admin/role/EditRoleView", [
                 rolePromise = $.Deferred().resolve({});
                 this.data.newRole = true;
             }
-            
+
             $.when(rolePromise, schemaPromise).then(_.bind(function(role, schema){
                 if(role.length && !role[0].assignments) {
                     role[0].assignments = {};
@@ -77,9 +77,9 @@ define("org/forgerock/openidm/ui/admin/role/EditRoleView", [
                             }
                         }, this));
                     }
-                    
+
                     this.$el.find(":input.form-control:first").focus();
-                    
+
                     if(callback) {
                         callback();
                     }
@@ -99,42 +99,35 @@ define("org/forgerock/openidm/ui/admin/role/EditRoleView", [
                     }
                     this.render(this.data.args, callback);
                 }, this);
-            
+
             if(e) {
                 e.preventDefault();
             }
-            
+
             if(this.data.newRole){
                 resourceDelegate.createResource(this.data.serviceUrl, null, formVal.role, successCallback);
             } else {
                 resourceDelegate.patchResourceDifferences(this.data.serviceUrl, {id: this.data.role._id, rev: this.data.role._rev}, this.data.role, formVal.role, successCallback);
             }
         },
-        backToList: function(e){
-            if(e){
-                e.preventDefault();
-            }
-            
-            eventManager.sendEvent(constants.ROUTE_REQUEST, {routeName: "adminListManagedObjectView", args: this.data.args});
-        },
         deleteRole: function(e, callback){
             if(e) {
                 e.preventDefault();
             }
-            
-            uiUtils.jqConfirm($.t("templates.admin.ResourceEdit.confirmDelete",{ objectTitle: this.data.args[1] }), _.bind(function(){
+
+            UIUtils.confirmDialog($.t("templates.admin.ResourceEdit.confirmDelete",{ objectTitle: this.data.args[1] }),  "danger", _.bind(function(){
                 resourceDelegate.deleteResource(this.data.serviceUrl, this.data.role._id, _.bind(function(){
                     messagesManager.messages.addMessage({"message": $.t("templates.admin.ResourceEdit.deleteSuccess",{ objectTitle: this.data.role.properties.name })});
-                    this.backToList();
+
+                    eventManager.sendEvent(constants.ROUTE_REQUEST, {routeName: "adminListManagedObjectView", args: ["managed","role"]});
+
                     if(callback) {
                         callback();
                     }
                 }, this));
             }, this));
         }
-    }); 
-    
+    });
+
     return new EditRoleView();
 });
-
-

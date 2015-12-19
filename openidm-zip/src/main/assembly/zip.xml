@@ -12,7 +12,7 @@
   Header, with the fields enclosed by brackets [] replaced by your own identifying
   information: "Portions Copyrighted [year] [name of copyright owner]".
 
-  Copyright (c) 2011-2014 ForgeRock AS. All rights reserved.
+  Copyright (c) 2011-2015 ForgeRock AS. All rights reserved.
 -->
 <assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
  xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2 http://maven.apache.org/xsd/assembly-1.1.2.xsd">
@@ -56,7 +56,14 @@
                 <exclude>**/usecase/workflow/manualMatch*</exclude>
                 <exclude>**/usecase/workflow/newUserCreate.bpmn20.xml</exclude>
                 <exclude>**/usecase/workflow/nUC*.xhtml</exclude>
-                <exclude>**/workflow/workflow/chess*</exclude>
+                <exclude>**/workflow/workflow/*</exclude>
+
+                <!--
+                    Remove Sample7 and scriptedazure from the resulting zip until they are redesigned.
+                -->
+                <exclude>**/sample7/**</exclude>
+                <exclude>**/scriptedazure/**</exclude>
+                <exclude>**/provisioners/provisioner.openicf-scriptedazure.json</exclude>
             </excludes>
         </fileSet>
         <fileSet>
@@ -305,7 +312,7 @@
             <outputDirectory>/openidm/samples/scriptedcrest2dj</outputDirectory>
         </fileSet>
         <!-- Setup scriptedazure  -->
-        <fileSet>
+        <!-- fileSet>
             <directory>${basedir}/src/main/resources/samples/provisioners</directory>
             <includes>
                 <include>provisioner.openicf-scriptedazure.json</include>
@@ -319,7 +326,7 @@
                 <include>script/**</include>
             </includes>
             <outputDirectory>/openidm/samples/scriptedazure</outputDirectory>
-        </fileSet>
+        </fileSet-->
         <!-- Setup Sample5  -->
         <fileSet>
             <directory>${basedir}/src/main/resources/samples/internal-common</directory>
@@ -387,7 +394,7 @@
             </includes>
             <outputDirectory>/openidm/samples/sample6</outputDirectory>
         </fileSet>
-        <!-- Setup Sample7  -->
+        <!-- Setup Sample7 
         <fileSet>
             <directory>${basedir}/src/main/resources</directory>
             <includes>
@@ -395,7 +402,7 @@
                 <include>script/**</include>
             </includes>
             <outputDirectory>/openidm/samples/sample7</outputDirectory>
-        </fileSet>
+        </fileSet-->
         <!-- Setup Sample8  -->
         <fileSet>
             <directory>${basedir}/src/main/resources/samples/internal-common</directory>
@@ -463,6 +470,13 @@
             </excludes>
             <outputDirectory>/openidm/samples/workflow</outputDirectory>
         </fileSet>
+        <fileSet>
+            <directory>${basedir}/src/main/resources/samples/misc</directory>
+            <includes>
+                <include>external.email.json</include>
+            </includes>
+            <outputDirectory>/openidm/samples/workflow/conf</outputDirectory>
+        </fileSet>
         <!-- Setup audit sample  -->
         <fileSet>
             <directory>${basedir}/src/main/resources/samples/internal-common</directory>
@@ -500,41 +514,6 @@
             </includes>
             <outputDirectory>/openidm/samples/audit-sample</outputDirectory>
         </fileSet>
-        <!-- Setup openam sample  -->
-        <fileSet>
-            <directory>${basedir}/src/main/resources/samples/internal-common</directory>
-            <includes>
-                <include>**</include>
-            </includes>
-            <excludes>
-                <exclude>data/*.xsd</exclude>
-                <exclude>data/*.xml</exclude>
-            </excludes>
-            <outputDirectory>/openidm/samples/openam</outputDirectory>
-        </fileSet>
-        <fileSet>
-            <directory>${basedir}/src/main/resources/samples/provisioners</directory>
-            <includes>
-                <include>provisioner.openicf-ldap.json</include>
-            </includes>
-            <outputDirectory>/openidm/samples/openam/conf</outputDirectory>
-        </fileSet>
-        <fileSet>
-            <directory>${basedir}/src/main/resources/samples/sample2c</directory>
-            <includes>
-                <include>conf/sync.json</include>
-                <include>script/ldapBackCorrelationQuery.js</include>
-            </includes>
-            <outputDirectory>/openidm/samples/openam</outputDirectory>
-        </fileSet>
-        <fileSet>
-            <directory>${basedir}/src/main/resources</directory>
-            <includes>
-                <include>conf/**</include>
-                <include>script/**</include>
-            </includes>
-            <outputDirectory>/openidm/samples/openam</outputDirectory>
-        </fileSet>
         <!-- Setup fullStack  -->
         <fileSet>
             <directory>${basedir}/src/main/resources/samples/internal-common</directory>
@@ -561,6 +540,25 @@
                 <include>script/**</include>
             </includes>
             <outputDirectory>/openidm/samples/fullStack</outputDirectory>
+        </fileSet>
+        <!-- Setup Trusted ServletFilter Sample  -->
+        <fileSet>
+            <directory>${basedir}/src/main/resources/samples/internal-common</directory>
+            <includes>
+                <include>**</include>
+            </includes>
+            <excludes>
+                <exclude>data/**</exclude>
+            </excludes>
+            <outputDirectory>/openidm/samples/trustedservletfilter</outputDirectory>
+        </fileSet>
+        <fileSet>
+            <directory>${basedir}/src/main/resources</directory>
+            <includes>
+                <include>conf/**</include>
+                <include>script/**</include>
+            </includes>
+            <outputDirectory>/openidm/samples/trustedservletfilter</outputDirectory>
         </fileSet>
         <!-- Setup use case samples-->
         <fileSet>
@@ -727,7 +725,7 @@
             <outputDirectory>/openidm/samples/usecase/usecase4</outputDirectory>
         </fileSet>
 
-        <!--Use case 5 Certification workflow-->
+        <!--Use case 5 Certification workflow
         <fileSet>
             <directory>${basedir}/src/main/resources</directory>
             <includes>
@@ -772,7 +770,7 @@
             </includes>
             <outputDirectory>/openidm/samples/usecase/usecase5</outputDirectory>
         </fileSet>
-
+        -->
         <!--Use case 6 Password change workflow-->
         <fileSet>
             <directory>${basedir}/src/main/resources</directory>
@@ -846,7 +844,7 @@
             <includes>
                 <include>provisioner.openicf*ldap.json</include>
             </includes>
-            <outputDirectory>/openidm/ui/default/admin/public/templates/admin/connector/configs/ldap</outputDirectory>
+            <outputDirectory>/openidm/ui/admin/default/templates/admin/connector/configs/ldap</outputDirectory>
         </fileSet>
         <!-- Setup roles samples  -->
         <fileSet>
@@ -926,6 +924,71 @@
         </includes>
         <outputDirectory>/openidm/samples/multiaccountlinking/</outputDirectory>
     </fileSet>
+	<!-- Setup Historical Account Linking Sample -->
+	<fileSet>
+		<directory>${basedir}/src/main/resources/samples/internal-common</directory>
+		<includes>
+			<include>**</include>
+		</includes>
+		<excludes>
+			<exclude>data/*.xsd</exclude>
+			<exclude>data/*.xml</exclude>
+		</excludes>
+		<outputDirectory>/openidm/samples/historicalaccountlinking</outputDirectory>
+	</fileSet>
+	<fileSet>
+		<directory>${basedir}/src/main/resources/samples/provisioners</directory>
+		<includes>
+			<include>provisioner.openicf-ldap.json</include>
+		</includes>
+		<outputDirectory>/openidm/samples/historicalaccountlinking/conf</outputDirectory>
+	</fileSet>
+	<fileSet>
+		<directory>${basedir}/src/main/resources</directory>
+		<includes>
+			<include>conf/**</include>
+			<include>script/**</include>
+		</includes>
+		<outputDirectory>/openidm/samples/historicalaccountlinking</outputDirectory>
+	</fileSet>
+    <!-- Setup Multiple Passwords Sample  -->
+    <fileSet>
+        <directory>${basedir}/src/main/resources/samples/internal-common</directory>
+        <includes>
+            <include>**</include>
+        </includes>
+        <excludes>
+            <exclude>data/*.xsd</exclude>
+            <exclude>data/*.xml</exclude>
+        </excludes>
+        <outputDirectory>/openidm/samples/multiplepasswords</outputDirectory>
+    </fileSet>
+	<fileSet>
+		<directory>${basedir}/src/main/resources/samples/multiplepasswords</directory>
+		<includes>
+			<include>README.md</include>
+            <include>conf/**</include>
+            <include>script/**</include>
+            <include>data/**</include>
+		</includes>
+		<outputDirectory>/openidm/samples/multiplepasswords/</outputDirectory>
+	</fileSet>
+	<fileSet>
+		<directory>${basedir}/src/main/resources/samples/provisioners</directory>
+		<includes>
+            <include>provisioner.openicf-ldap.json</include>
+            <include>provisioner.openicf-ldap2.json</include>
+		</includes>
+		<outputDirectory>/openidm/samples/multiplepasswords/conf</outputDirectory>
+	</fileSet>
+	<fileSet>
+		<directory>${basedir}/src/main/resources</directory>
+		<includes>
+			<include>conf/**</include>
+			<include>script/**</include>
+		</includes>
+		<outputDirectory>/openidm/samples/multiplepasswords/</outputDirectory>
+	</fileSet>
   </fileSets>
     <!-- sample6 -->
     <files>
@@ -955,7 +1018,7 @@
                 <exclude>org.forgerock.openidm:openidm-workflow-activiti:**:jar-with-dependencies</exclude>
                 <exclude>org.forgerock.openidm:openidm-workflow-remote</exclude>
                 <exclude>org.apache.felix:*gogo*</exclude>
-                <exclude>org.springframework*:*</exclude> <!--exclude optional Activiti dependecy-->
+                <exclude>org.springframework*:*</exclude> <!--exclude optional Activiti dependency-->
                 <exclude>stax:*</exclude>
                 <exclude>snappy:*</exclude>
                 <exclude>colt:*</exclude>
@@ -965,6 +1028,7 @@
                 <exclude>org.javassist:*</exclude>
                 <exclude>*:*:js</exclude>
                 <exclude>*:*:css</exclude>
+                <exclude>*:*:less</exclude>
                 <exclude>*:*:zip</exclude>
                 <exclude>*:*:pom</exclude>
                 <exclude>com.google.oauth-client:google-oauth-client</exclude>
@@ -1012,7 +1076,7 @@
             <outputFileNameMapping>handlebars.js</outputFileNameMapping>
             <outputDirectory>/openidm/bin/defaults/script/lib</outputDirectory>
             <includes>
-                <include>org.forgerock.commons.ui.libs:handlebars</include>
+                <include>org.forgerock.commons.ui.libs:handlebars:js:4.0.5</include>
             </includes>
         </dependencySet>
         <!-- Explode UI for easy modification -->
@@ -1020,7 +1084,7 @@
             <unpack>true</unpack>
             <fileMode>644</fileMode>
             <directoryMode>755</directoryMode>
-            <outputDirectory>/openidm/ui/default/selfservice</outputDirectory>
+            <outputDirectory>/openidm/ui/selfservice</outputDirectory>
             <includes>
                 <include>org.forgerock.openidm:openidm-ui-enduser</include>
             </includes>
@@ -1029,26 +1093,10 @@
             <unpack>true</unpack>
             <fileMode>644</fileMode>
             <directoryMode>755</directoryMode>
-            <outputDirectory>/openidm/ui/default/admin</outputDirectory>
+            <outputDirectory>/openidm/ui/admin</outputDirectory>
             <includes>
                 <include>org.forgerock.openidm:openidm-ui-admin</include>
             </includes>
-        </dependencySet>
-        <dependencySet>
-            <unpack>true</unpack>
-            <fileMode>644</fileMode>
-            <directoryMode>755</directoryMode>
-            <outputDirectory>/openidm/samples/openam/ui/openam</outputDirectory>
-            <includes>
-                <include>org.forgerock.openidm:openidm-ui-enduser</include>
-            </includes>
-            <unpackOptions>
-                <excludes>
-                    <!-- Conflicts between the core UI files and the ones specific to this sample UI -->
-                    <exclude>public/config/AppConfiguration.js</exclude>
-                    <exclude>public/main.js</exclude>
-                </excludes>
-            </unpackOptions>
         </dependencySet>
         <dependencySet>
             <useProjectArtifact>false</useProjectArtifact>

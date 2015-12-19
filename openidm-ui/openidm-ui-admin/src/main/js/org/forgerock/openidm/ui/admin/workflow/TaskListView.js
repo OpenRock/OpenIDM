@@ -1,30 +1,24 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/workflow/TaskListView", [
+    "jquery",
+    "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/commons/ui/common/util/ModuleLoader",
     "org/forgerock/openidm/ui/common/delegates/ResourceDelegate",
@@ -37,7 +31,8 @@ define("org/forgerock/openidm/ui/admin/workflow/TaskListView", [
     "org/forgerock/openidm/ui/admin/util/WorkflowUtils",
     "backgrid"
 
-], function(AdminAbstractView,
+], function($, _,
+            AdminAbstractView,
             ModuleLoader,
             ResourceDelegate,
             AbstractModel,
@@ -58,59 +53,35 @@ define("org/forgerock/openidm/ui/admin/workflow/TaskListView", [
         render: function(args, callback) {
             this.parentRender(_.bind(function() {
                 var tasksGrid,
-                    TaskModel = AbstractCollection.extend({
-                        model: AbstractModel.extend({ "url": "/openidm/workflow/taskinstance?_queryId=filtered-query" })
-                    }),
                     TaskInstanceModel = AbstractModel.extend({ url: "/openidm/workflow/taskinstance" }),
+                    TaskModel = AbstractCollection.extend({
+                        model: TaskInstanceModel,
+                        url: "/openidm/workflow/taskinstance?_queryId=filtered-query"
+                    }),
                     Tasks = new TaskModel();
 
                 this.model = new TaskInstanceModel();
 
                 Tasks.url = "/openidm/workflow/taskinstance?_queryId=filtered-query";
-                Tasks.setSorting("createTime");
+                Tasks.setSorting("-createTime");
                 Tasks.state.pageSize = null;
 
                 tasksGrid = new Backgrid.Grid({
-                    className: "table",
-                    columns: [{
-                        name: "smallScreenCell",
-                        cell: Backgrid.Cell.extend({
-                            className: "smallScreenCell",
-                            render: function () {
-                                var username = this.model.get("assignee") || "unassigned",
-                                    className = "badge assignTask",
-                                    html;
-
-                                if (_.isNull(this.model.get("assignee"))) {
-                                    className += " unassigned";
-                                }
-
-                                html = "<a href='#workflow/taskinstance/"+this.model.id+"'><i class='fa fa-pencil grid-icon pull-right'></i></a>" +
-                                "<p>" + this.model.get("name") + "</p>" +
-                                "<p><a href='#workflow/taskinstance/"+this.model.id+"'>" + this.model.get("processDefinitionId") + " <small class='text-muted'>(" + this.model.id + ")</small></a></p>" +
-                                "<p><a class='" + className + "' data-id='" + this.model.id + "'>" + username + "</a></p>" +
-                                "<p>" + CustomCells.formatDate(this.model.get("createTime")) + "</p>" +
-                                "<p>" + CustomCells.formatDate(this.model.get("dueDate")) + "</p>";
-
-
-                                this.$el.html(html);
-                                return this;
-                            }
-                        }),
-                        sortable: false,
-                        editable: false
-                    }, {
+                    className: "table backgrid",
+                    emptyText: $.t("templates.workflows.tasks.noActiveTasks"),
+                    columns: CustomCells.addSmallScreenCell([{
                         label: $.t("templates.workflows.tasks.task"),
                         name: "_id",
                         cell: CustomCells.DisplayNameCell("name"),
                         sortable: true,
-                        editable: false
+                        editable: false,
+                        sortType: "toggle"
                     }, {
                         label: $.t("templates.workflows.tasks.process"),
                         name: "processDefinitionId",
                         cell: Backgrid.Cell.extend({
                             render: function () {
-                                this.$el.html("<a href='#workflow/taskinstance/"+this.model.id+"'>" + this.model.get("processDefinitionId")+ " <small class='text-muted'>(" + this.model.id + ")</small></a>");
+                                this.$el.html("<a href='#workflow/processinstance/"+this.model.get("processInstanceId")+"'>" + this.model.get("processDefinitionId")+ " <small class='text-muted'>(" + this.model.id + ")</small></a>");
                                 return this;
                             }
                         }),
@@ -137,19 +108,22 @@ define("org/forgerock/openidm/ui/admin/workflow/TaskListView", [
                             }
                         }),
                         sortable: true,
-                        editable: false
+                        editable: false,
+                        sortType: "toggle"
                     }, {
                         name: "createTime",
                         label: $.t("templates.workflows.tasks.created"),
                         cell: CustomCells.DateCell("createTime"),
                         sortable: true,
-                        editable: false
+                        editable: false,
+                        sortType: "toggle"
                     }, {
                         name: "dueDate",
                         label: $.t("templates.workflows.tasks.due"),
                         cell: CustomCells.DateCell("dueDate"),
                         sortable: true,
-                        editable: false
+                        editable: false,
+                        sortType: "toggle"
                     }, {
                         name: "",
                         cell: CustomCells.ButtonCell([{
@@ -160,7 +134,7 @@ define("org/forgerock/openidm/ui/admin/workflow/TaskListView", [
                         }]),
                         sortable: false,
                         editable: false
-                    }],
+                    }]),
                     collection: Tasks
                 });
 
@@ -175,7 +149,7 @@ define("org/forgerock/openidm/ui/admin/workflow/TaskListView", [
                     preload: true,
                     onChange: _.bind(function(value) {
                         if(value === "anyone") {
-                            Tasks.url = "/openidm/workflow/taskinstance?_queryId=query-all-ids";
+                            Tasks.url = "/openidm/workflow/taskinstance?_queryId=filtered-query";
                         } else if(value === "unassigned") {
                             Tasks.url = "/openidm/workflow/taskinstance?_queryId=filtered-query&unassigned=true";
                         } else {
@@ -187,30 +161,24 @@ define("org/forgerock/openidm/ui/admin/workflow/TaskListView", [
 
                     render : {
                         item: function(item, escape) {
-                            var icon = "fa-user",
-                                userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "";
+                            var userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "",
+                                displayName = (item.displayName) ? item.displayName : item.givenName + " " + item.sn;
 
-                            if(item._id === "anyone") {
-                                icon = "fa-users";
-                            }
 
                             return '<div>' +
                                 '<span class="user-title">' +
-                                '<span class="user-fullname"><i class="fa ' +icon +'"></i> ' + escape(item.displayName) + userName + '</span>' +
+                                '<span class="user-fullname">' + escape(displayName) + userName + '</span>' +
                                 '</span>' +
                                 '</div>';
                         },
                         option: function(item, escape) {
-                            var icon = "fa-user",
-                                userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "";
+                            var userName = item.userName.length > 0 ? ' (' + escape(item.userName) + ')': "",
+                                displayName = (item.displayName) ? item.displayName : item.givenName + " " + item.sn;
 
-                            if(item._id === "anyone") {
-                                icon = "fa-users";
-                            }
 
                             return '<div>' +
                                 '<span class="user-title">' +
-                                '<span class="user-fullname"><i class="fa ' +icon +'"></i> ' + escape(item.displayName) + userName + '</span>' +
+                                '<span class="user-fullname">' + escape(displayName) + userName + '</span>' +
                                 '</span>' +
                                 '</div>';
                         }

@@ -1,4 +1,4 @@
-/** 
+/**
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
  * Copyright (c) 2011-2014 ForgeRock AS. All rights reserved.
@@ -22,105 +22,38 @@
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
 
-/** 
- * @author jdabrowski
- * 
- * This script sets default fields. 
+/**
+ * This script sets default fields.
  * It forces that user role is openidm-authorized and account status
  * is active.
- * 
- * It is run every time new user is created.
- */  
+ *
+ * It is expected to be called as the managed/user onCreate script.
+ */
 
 /*global object */
-
-var uiConfig =  openidm.read("config/ui/configuration");
 
 if (!object.accountStatus) {
     object.accountStatus = 'active';
 }
 
-if(!object.roles) {
-    object.roles = ['openidm-authorized'];    
+if (!object.authzRoles) {
+    object.authzRoles = [
+        {
+            "_ref" : "repo/internal/role/openidm-authorized"
+        }
+    ];
 }
 
-if (!object.lastPasswordSet) {
-    object.lastPasswordSet = "";
-}
+/* uncomment to randomly generate passwords for new users
+if (!object.password) {
 
-if (!object.postalCode) {
-    object.postalCode = "";
-}
-
-if (!object.stateProvince) {
-    object.stateProvince = "";
-}
-
-if (!object.passwordAttempts) {
-    object.passwordAttempts = "0";
-}
-
-if (!object.lastPasswordAttempt) {
-    object.lastPasswordAttempt = (new Date()).toString();
-}
-
-if (!object.postalAddress) {
-    object.postalAddress = "";
-}
-
-if (!object.address2) {
-    object.address2 = "";
-}
-
-if (!object.country) {
-    object.country = "";
-}
-
-if (!object.city) {
-    object.city = "";
-}
-if (!object.givenName) {
-    object.givenName = "";
-}
-
-if (!object.sn) {
-    object.sn = "";
-}
-
-if (!object.telephoneNumber) {
-    object.telephoneNumber = "";
-}
-
-if (!object.mail) {
-    object.mail = "";
-}
-
-if (uiConfig.configuration.siteIdentification) {
-
-    if (!object.siteImage) {
-        object.siteImage = "user.png";
-    }
-
-    if (!object.passPhrase) {
-        object.passPhrase = "Welcome new user";
-    }
+    // generate random password that aligns with policy requirements
+    object.password = require("crypto").generateRandomString([
+        { "rule": "UPPERCASE", "minimum": 1 },
+        { "rule": "LOWERCASE", "minimum": 1 },
+        { "rule": "INTEGERS", "minimum": 1 },
+        { "rule": "SPECIAL", "minimum": 1 }
+    ], 16);
 
 }
-
-if (uiConfig.configuration.securityQuestions) {
-    if (!object.securityAnswer) {
-        object.securityAnswer = java.util.UUID.randomUUID().toString();
-    }
-
-    if (!object.securityQuestion) {
-        object.securityQuestion = "1";
-    }
-
-    if (!object.securityAnswerAttempts) {
-        object.securityAnswerAttempts = "0";
-    }
-
-    if (!object.lastSecurityAnswerAttempt) {
-        object.lastSecurityAnswerAttempt = (new Date()).toString();
-    }
-}
+*/

@@ -1,7 +1,40 @@
-.event-hook-window {
+/**
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
+ *
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
+ *
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
+ *
+ * Copyright 2015 ForgeRock AS.
+ */
 
+/*
+  Gives the code dialog a larger size
+*/
+@media (min-width: 768px) {
+  .script-large-dialog .modal-dialog {
+    width:600px;
+    margin: 30px auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .script-large-dialog .modal-dialog {
+    width:1024px;
+  }
+}
+
+.event-hook-window {
   .panel {
     border: none;
+    box-shadow:none;
+    -webkit-box-shadow: none;
     margin-left: 6px;
   }
   .panel-heading {
@@ -22,6 +55,12 @@
   }
 
   .script-accordions {
+    .event-hook-piece {
+      .panel-heading {
+        padding-bottom:0px;
+      }
+    }
+
     .inline-code {
       .codemirror-holder {
         padding: 0;
@@ -29,14 +68,6 @@
       .CodeMirror {
         border: 1px solid #ddd;
       }
-
-      .code-collapse {
-        display: none;
-      }
-    }
-
-    .file-code {
-
     }
   }
 
@@ -91,6 +122,10 @@
   .script-eval-message {
     margin-top:30px;
   }
+}
+
+.scripts-container .group-field-block .border-bottom:first-child {
+  border-bottom: 2px solid #ddd;
 }
 
 /**

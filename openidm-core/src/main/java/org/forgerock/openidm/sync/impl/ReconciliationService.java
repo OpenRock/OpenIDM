@@ -1,28 +1,25 @@
-/**
-* DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-*
-* Copyright (c) 2012-2015 ForgeRock AS. All Rights Reserved
-*
-* The contents of this file are subject to the terms
-* of the Common Development and Distribution License
-* (the License). You may not use this file except in
-* compliance with the License.
-*
-* You can obtain a copy of the License at
-* http://forgerock.org/license/CDDLv1.0.html
-* See the License for the specific language governing
-* permission and limitations under the License.
-*
-* When distributing Covered Code, include this CDDL
-* Header Notice in each file and include the License file
-* at http://forgerock.org/license/CDDLv1.0.html
-* If applicable, add the following below the CDDL Header,
-* with the fields enclosed by brackets [] replaced by
-* your own identifying information:
-* "Portions Copyrighted [year] [name of copyright owner]"
-*
-*/
+/*
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
+ *
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
+ *
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
+ *
+ * Portions copyright 2012-2015 ForgeRock AS.
+ */
 package org.forgerock.openidm.sync.impl;
+
+import static org.forgerock.json.resource.Responses.newActionResponse;
+import static org.forgerock.json.resource.Responses.newResourceResponse;
+import static org.forgerock.openidm.util.ResourceUtil.notSupported;
+import static org.forgerock.util.query.QueryFilter.and;
+import static org.forgerock.util.query.QueryFilter.equalTo;
 
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
@@ -37,6 +34,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -47,8 +47,14 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonValueException;
+import org.forgerock.openidm.router.IDMConnectionFactory;
+import org.forgerock.openidm.sync.ReconContext;
+import org.forgerock.services.context.Context;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.ConflictException;
 import org.forgerock.json.resource.ConnectionFactory;
@@ -58,24 +64,19 @@ import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.NotFoundException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.RequestHandler;
 import org.forgerock.json.resource.Requests;
-import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.RouterContext;
-import org.forgerock.json.resource.ServerContext;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.core.IdentityServer;
-import org.forgerock.openidm.util.ResourceUtil;
+import org.forgerock.util.promise.Promise;
 import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
 
 /**
  * Reconciliation service implementation.
@@ -93,6 +94,8 @@ public class ReconciliationService
 
     public static final String PID = "org.forgerock.openidm.recon";
     private static final String MBEAN_NAME = "org.forgerock.openidm.recon:type=Reconciliation";
+    private static final String AUDIT_RECON = "audit/recon";
+    private static final String SUMMARY = "summary";
 
     public enum ReconAction {
         recon, reconByQuery, reconById;
@@ -116,9 +119,13 @@ public class ReconciliationService
     /**
      * The Connection Factory
      */
-    @Reference(policy = ReferencePolicy.STATIC, target="(service.pid=org.forgerock.openidm.internal)")
-    protected ConnectionFactory connectionFactory;
+    @Reference(policy = ReferencePolicy.STATIC)
+    protected IDMConnectionFactory connectionFactory;
 
+    protected void bindConnectionFactory(IDMConnectionFactory connectionFactory) {
+    	this.connectionFactory = connectionFactory;
+    }
+    
     public ConnectionFactory getConnectionFactory() {
         return connectionFactory;
     }
@@ -152,47 +159,56 @@ public class ReconciliationService
      * {@inheritDoc}
      */
     @Override
-    public void handleRead(ServerContext context, ReadRequest request, ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
         try {
-            if (request.getResourceNameObject().isEmpty()) {
-                List<Map> runList = new ArrayList<Map>();
+            if (request.getResourcePathObject().isEmpty()) {
+                List<Map> runList = new ArrayList<>();
                 for (ReconciliationContext entry : reconRuns.values()) {
                     runList.add(entry.getSummary());
                 }
-                Map<String, Object> result = new LinkedHashMap<String, Object>();
+                Map<String, Object> result = new LinkedHashMap<>();
                 result.put("reconciliations", runList);
-                handler.handleResult(new Resource("", null, new JsonValue(result)));
+                return newResourceResponse("", null, new JsonValue(result)).asPromise();
             } else {
-                final String localId = request.getResourceNameObject().leaf();
+                final String localId = request.getResourcePathObject().leaf();
                 // First try and get it from in memory
                 if (reconRuns.containsKey(localId)) {
-                    handler.handleResult(new Resource(localId, null, new JsonValue(reconRuns.get(localId).getSummary())));
+                	return newResourceResponse(localId, null, new JsonValue(reconRuns.get(localId).getSummary())).asPromise();
                 } else {
                     // Next, if not in memory, try and get it from audit log
-                    QueryRequest auditQuery = Requests.newQueryRequest("audit/recon");
-                    auditQuery.setQueryId("audit-by-recon-id-type");
-                    auditQuery.setAdditionalParameter("reconId", localId);
-                    auditQuery.setAdditionalParameter("entryType", "summary");
-
-                    ServerContext routerContext = context.asContext(RouterContext.class);
-                    Collection<Resource> queryResult = new ArrayList<Resource>();
-                    getConnectionFactory().getConnection().query(routerContext, auditQuery, queryResult);
-
+                    final Collection<ResourceResponse> queryResult = new ArrayList<>();
+                    getConnectionFactory().getConnection().query(
+                            context,
+                            Requests.newQueryRequest(AUDIT_RECON).setQueryFilter(
+                                    and(
+                                            equalTo(new JsonPointer(ReconAuditEventBuilder.RECON_ID), localId),
+                                            equalTo(new JsonPointer(ReconAuditEventBuilder.ENTRY_TYPE), SUMMARY)
+                                    )
+                            ),
+                            queryResult);
+                    
+                    ResourceResponse response = null;
+                    
                     if (queryResult.isEmpty()) {
-                        throw new NotFoundException("Reconciliation with id " + localId + " not found." );
+                    	return new NotFoundException("Reconciliation with id " + localId + " not found." ).asPromise();
+                    } else {
+                        for (ResourceResponse resource : queryResult) {
+                        	response = newResourceResponse(localId, null, 
+                                        resource.getContent().get(ReconAuditEventBuilder.MESSAGE_DETAIL).expect(Map.class));
+                        	break;
+                        }
                     }
 
-                    for (Resource resource : queryResult) {
-                        handler.handleResult(new Resource( localId, null,
-                                new JsonValue(resource.getContent().get("messageDetail").asMap())));
-                    }
+                    return response.asPromise();
 
                 }
             }
         } catch (ResourceException e) {
-            handler.handleError(e);
-        } catch (Throwable t) {
-            handler.handleError(ResourceUtil.adapt(t));
+        	return e.asPromise();
+        } catch (JsonValueException e) {
+            return new BadRequestException(e.getMessage(), e).asPromise();
+        } catch (Exception e) {
+        	return new InternalServerErrorException(e).asPromise();
         }
     }
 
@@ -200,44 +216,45 @@ public class ReconciliationService
      * {@inheritDoc}
      */
     @Override
-    public void handleCreate(ServerContext context, CreateRequest request, ResultHandler<Resource> handler) {
-        handler.handleError(ResourceUtil.notSupported(request));
+    public Promise<ResourceResponse, ResourceException>  handleCreate(Context context, CreateRequest request) {
+        return notSupported(request).asPromise();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void handleDelete(ServerContext context, DeleteRequest request, ResultHandler<Resource> handler) {
-        handler.handleError(ResourceUtil.notSupported(request));
+    public Promise<ResourceResponse, ResourceException> handleDelete(Context context, DeleteRequest request) {
+        return notSupported(request).asPromise();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void handlePatch(ServerContext context, PatchRequest request, ResultHandler<Resource> handler) {
-        handler.handleError(ResourceUtil.notSupported(request));
+    public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
+        return notSupported(request).asPromise();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void handleQuery(ServerContext context, QueryRequest request, QueryResultHandler handler) {
-        handler.handleError(ResourceUtil.notSupported(request));
+    public Promise<QueryResponse, ResourceException> handleQuery(final Context context, final QueryRequest request, 
+    		final QueryResourceHandler handler) {
+        return notSupported(request).asPromise();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void handleUpdate(ServerContext context, UpdateRequest request, ResultHandler<Resource> handler) {
-        handler.handleError(ResourceUtil.notSupported(request));
+    public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, UpdateRequest request) {
+        return notSupported(request).asPromise();
     }
 
     @Override
-    public void handleAction(ServerContext context, ActionRequest request, ResultHandler<JsonValue> handler) {
+    public Promise<ActionResponse, ResourceException> handleAction(Context context, ActionRequest request) {
         ObjectSetContext.push(context);
         try {
             if (request.getAction() == null) {
@@ -247,7 +264,7 @@ public class ReconciliationService
             Map<String, Object> result = new LinkedHashMap<String, Object>();
             JsonValue paramsVal = new JsonValue(request.getAdditionalParameters());
 
-            if (request.getResourceNameObject().isEmpty()) {
+            if (request.getResourcePathObject().isEmpty()) {
                 // operation on collection
                 if (ReconciliationService.ReconAction.isReconAction(request.getAction())) {
                     String reconId;
@@ -261,18 +278,20 @@ public class ReconciliationService
                         } else {
                             waitForCompletion = Boolean.parseBoolean(waitParam.asString());
                         }
-                        reconId = reconcile(ReconAction.valueOf(request.getAction()), mapping, waitForCompletion, paramsVal, request.getContent());
+                        reconId = reconcile(ReconAction.valueOf(request.getAction()), mapping, waitForCompletion, 
+                                paramsVal, request.getContent());
                         result.put("_id",  reconId);
                         result.put("state", reconRuns.get(reconId).getState());
                     } catch (SynchronizationException se) {
                         throw new ConflictException(se);
                     }
                 } else {
-                    throw new BadRequestException("Action " + request.getAction() + " on reconciliation not supported " + request.getAdditionalParameters());
+                    throw new BadRequestException("Action " + request.getAction() + " on reconciliation not supported " 
+                            + request.getAdditionalParameters());
                 }
             } else {
                 // operation on individual resource
-                final String id = request.getResourceNameObject().leaf();
+                final String id = request.getResourcePathObject().leaf();
                 ReconciliationContext foundRun = reconRuns.get(id);
                 if (foundRun == null) {
                     throw new NotFoundException("Reconciliation with id " + id + " not found." );
@@ -284,14 +303,18 @@ public class ReconciliationService
                     result.put("action", request.getAction());
                     result.put("status", "SUCCESS");
                 } else {
-                    throw new BadRequestException("Action " + request.getAction() + " on recon run " + id + " not supported " + request.getAdditionalParameters());
+                    throw new BadRequestException("Action " + request.getAction() + " on recon run " + id 
+                            + " not supported " + request.getAdditionalParameters());
                 }
             }
-            handler.handleResult(new JsonValue(result));
-        } catch (Throwable t) {
-            handler.handleError(ResourceUtil.adapt(t));
-        }
-        finally {
+            return newActionResponse(new JsonValue(result)).asPromise();
+        } catch (ResourceException e) {
+            return e.asPromise();
+        } catch (JsonValueException e) {
+            return new BadRequestException(e.getMessage(), e).asPromise();
+        } catch (Exception e) {
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        } finally {
             ObjectSetContext.pop();
         }
     }
@@ -300,21 +323,38 @@ public class ReconciliationService
      * {@inheritDoc}
      */
     @Override
-    public String reconcile(ReconAction reconAction, final JsonValue mapping, Boolean synchronous, JsonValue reconParams, JsonValue config)
-            throws ResourceException {
-
-        final ReconciliationContext reconContext = newReconContext(reconAction, mapping, reconParams, config);
-        addReconRun(reconContext);
-        if (Boolean.TRUE.equals(synchronous)) {
-            reconcile(reconContext);
+    public String reconcile(ReconAction reconAction, final JsonValue mapping, Boolean synchronous, 
+            JsonValue reconParams, JsonValue config) throws ResourceException {
+        
+        ObjectMapping objMapping = null;
+        if (mapping.isString()) {
+            objMapping = mappings.getMapping(mapping.asString());
+        } else if (mapping.isMap()) {
+            // FIXME: Entire mapping configs defined in scheduled jobs?! Not a good idea! –PB
+            objMapping = mappings.createMapping(mapping);
         } else {
-            final ServerContext threadContext = ObjectSetContext.get();
+            throw new BadRequestException("Unknown mapping type");
+        }
+
+        // Set the ReconContext on the request context chain.
+        Context currentContext = ObjectSetContext.pop();
+        ObjectSetContext.push(new ReconContext(currentContext, objMapping.getName()));
+        
+        final ReconciliationContext reconciliationContext =
+                newReconContext(reconAction, objMapping, reconParams, config);
+        
+        
+        addReconRun(reconciliationContext);
+        if (Boolean.TRUE.equals(synchronous)) {
+            reconcile(reconciliationContext);
+        } else {
+            final Context threadContext = ObjectSetContext.get();
             Runnable command = new Runnable() {
                 @Override
                 public void run() {
                     try {
                         ObjectSetContext.push(threadContext);
-                        reconcile(reconContext);
+                        reconcile(reconciliationContext);
                     } catch (SynchronizationException ex) {
                         logger.info("Reconciliation reported exception", ex);
                     } catch (Exception ex) {
@@ -327,7 +367,7 @@ public class ReconciliationService
             };
             fullReconExecutor.execute(command);
         }
-        return reconContext.getReconId();
+        return reconciliationContext.getReconId();
     }
 
     /**
@@ -340,26 +380,14 @@ public class ReconciliationService
      * @param reconParams
      * @return a new reconciliation context
      */
-    private ReconciliationContext newReconContext(ReconAction reconAction, JsonValue mapping, JsonValue reconParams, JsonValue config)
-            throws ResourceException {
-
-        ReconciliationContext reconContext = null;
+    private ReconciliationContext newReconContext(ReconAction reconAction, ObjectMapping mapping, JsonValue reconParams,
+            JsonValue config) throws ResourceException {
         if (mappings == null) {
             throw new BadRequestException("Unknown mapping type, no mappings configured");
         }
 
-        ServerContext context = ObjectSetContext.get();
-        ObjectMapping objMapping = null;
-        if (mapping.isString()) {
-            objMapping = mappings.getMapping(mapping.asString());
-        } else if (mapping.isMap()) {
-// FIXME: Entire mapping configs defined in scheduled jobs?! Not a good idea! –PB
-            objMapping = mappings.createMapping(mapping);
-        } else {
-            throw new BadRequestException("Unknown mapping type");
-        }
-
-        return new ReconciliationContext(reconAction, objMapping, context, reconParams, config, this);
+        Context context = ObjectSetContext.get();
+        return new ReconciliationContext(reconAction, mapping, context, reconParams, config, this);
     }
 
     /**
@@ -455,10 +483,11 @@ public class ReconciliationService
     }
 
     /**
-     * Accessor to router
-     * @return handle to router accessor
+     * Returns the {@link Context}
+     * 
+     * @return the {@link Context}
      */
-    ServerContext getRouter() {
+    Context getContext() {
         return ObjectSetContext.get();
     }
 
@@ -566,5 +595,4 @@ public class ReconciliationService
             throw new InternalServerErrorException("Unable to get the maximum pool size in recon thread pool");
         }
     }
-
 }

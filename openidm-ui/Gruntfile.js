@@ -1,29 +1,32 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014-2015 ForgeRock AS. All Rights Reserved
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
 module.exports = function(grunt) {
 
+    /*
+        If your system has never been configured to use increased processes you will need to increase the limit on your system (for Mac not sure about
+        windows).
+
+        Type the following in terminal:
+        launchctl limit maxfiles 2048 2048 && ulimit -n 2048
+
+        You will also need to configure an environment variable
+
+        export FORGEROCK_UI_SRC=PATH TO COMMONS (Example: ~/Documents/workspace/forgerock-ui)
+    */
     grunt.initConfig({
         forgerockui: process.env.FORGEROCK_UI_SRC,
         watch: {
@@ -50,7 +53,21 @@ module.exports = function(grunt) {
                     'openidm-ui-enduser/src/main/resources/**',
                     'openidm-ui-enduser/src/test/qunit/**',
                 ],
-                tasks: [ 'sync:target', 'sync:zip' ]
+                tasks: [ 'sync:target', 'less', 'sync:zip' ]
+            }
+        },
+        less: {
+            admin: {
+                files: {
+                    "openidm-ui-admin/target/www/css/theme.css": "openidm-ui-admin/target/www/css/theme.less",
+                    "openidm-ui-admin/target/www/css/structure.css": "openidm-ui-admin/target/www/css/structure.less"
+                }
+            },
+            enduser: {
+                files: {
+                    "openidm-ui-admin/target/www/css/theme.css": "openidm-ui-admin/target/www/css/theme.less",
+                    "openidm-ui-admin/target/www/css/structure.css": "openidm-ui-admin/target/www/css/structure.less"
+                }
             }
         },
         sync: {
@@ -203,13 +220,13 @@ module.exports = function(grunt) {
                     {
                         cwd     : 'openidm-ui-admin/target/www',
                         src     : ['**'],
-                        dest    : '../openidm-zip/target/openidm/ui/default/admin/public'
+                        dest    : '../openidm-zip/target/openidm/ui/admin/default'
                     },
 
                     {
                         cwd     : 'openidm-ui-enduser/target/www',
                         src     : ['**'],
-                        dest    : '../openidm-zip/target/openidm/ui/default/enduser/public'
+                        dest    : '../openidm-zip/target/openidm/ui/selfservice/default'
                     }
                 ]
             }
@@ -228,12 +245,11 @@ module.exports = function(grunt) {
 
     grunt.loadNpmTasks('grunt-contrib-qunit');
     grunt.loadNpmTasks('grunt-contrib-watch');
-
     grunt.loadNpmTasks('grunt-notify');
-
     grunt.loadNpmTasks('grunt-sync');
+    grunt.loadNpmTasks('grunt-contrib-less');
 
     grunt.task.run('notify_hooks');
-    grunt.registerTask('default', ['sync:target', 'sync:zip', 'watch']);
+    grunt.registerTask('default', ['sync:target', 'less', 'sync:zip', 'watch']);
 
 };

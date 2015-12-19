@@ -1,44 +1,36 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
-/*global define, $, _, require */
+/*global define */
 
 define("org/forgerock/openidm/ui/common/MandatoryPasswordChangeDialog", [
-    "org/forgerock/openidm/ui/common/delegates/InternalUserDelegate",
+    "jquery",
+    "underscore",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/main/ValidatorsManager",
     "org/forgerock/commons/ui/common/main/Configuration",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/Router",
-    "AuthnDelegate",
+    "org/forgerock/commons/ui/common/util/ModuleLoader",
     "bootstrap-dialog",
     "org/forgerock/commons/ui/common/util/UIUtils"
-], function(InternalUserDelegate, AbstractView, validatorsManager, conf, eventManager, constants, router, authnDelegate, BootstrapDialog, uiUtils) {
+], function($, _, AbstractView, validatorsManager, conf, eventManager, constants, router, ModuleLoader, BootstrapDialog, uiUtils) {
     var MandatoryPasswordChangeDialog = AbstractView.extend({
         contentTemplate: "templates/admin/MandatoryPasswordChangeDialogTemplate.html",
-        delegate: InternalUserDelegate,
         events: {
             "onValidate": "onValidate",
             "customValidate": "customValidate"
@@ -48,71 +40,61 @@ define("org/forgerock/openidm/ui/common/MandatoryPasswordChangeDialog", [
         },
 
         render: function(args, callback) {
-            var landingView = require(router.configuration.routes.landingPage.view),
-                _this = this,
-                currentDialog = $('<div id="mandatoryPasswordChangeDialog"></div>');
+            ModuleLoader.load(router.configuration.routes.landingPage.view).then(_.bind(function (landingView) {
+                var _this = this,
+                    currentDialog = $('<div id="mandatoryPasswordChangeDialog"></div>');
 
-            if (landingView.baseTemplate) {
-                this.baseTemplate = landingView.baseTemplate;
-            }
+                if (landingView.baseTemplate) {
+                    this.baseTemplate = landingView.baseTemplate;
+                }
 
-            this.setElement(currentDialog);
+                this.setElement(currentDialog);
 
-            uiUtils.renderTemplate(
-                _this.contentTemplate,
-                _this.$el,
-                _.extend({}, conf.globalData, _this.data),
-                _.bind(function() {
-                    this.model.dialog = BootstrapDialog.show({
-                        title: $.t("templates.MandatoryChangePassword.title"),
-                        type: BootstrapDialog.TYPE_DEFAULT,
-                        message: currentDialog,
-                        onshown : _.bind(function (dialogRef) {
-                            validatorsManager.bindValidators(this.$el, this.delegate.baseEntity + "/" + conf.loggedUser._id, _.bind(function () {
-                                this.$el.find("[name=password]").focus();
+                uiUtils.renderTemplate(
+                    _this.contentTemplate,
+                    _this.$el,
+                    _.extend({}, conf.globalData, _this.data),
+                    _.bind(function() {
+                        this.model.dialog = BootstrapDialog.show({
+                            title: $.t("templates.MandatoryChangePassword.title"),
+                            type: BootstrapDialog.TYPE_DEFAULT,
+                            message: currentDialog,
+                            onshow: _.bind(function(dialogRef){
+                                dialogRef.$modalFooter.find("#submitPasswordChange").prop('disabled', true);
+                            }, this),
+                            onshown : _.bind(function (dialogRef) {
+                                validatorsManager.bindValidators(this.$el, conf.loggedUser.component + "/" + conf.loggedUser.id, _.bind(function () {
+                                    this.$el.find("[name=password]").focus();
 
-                                this.model.dialog.$modalFooter.find("#submitPasswordChange").prop('disabled', true);
-
-                                if (callback) {
-                                    callback();
-                                }
-                            }, this));
-                        }, _this),
-                        onhide: _.bind(function(){
-                            eventManager.sendEvent(constants.EVENT_DIALOG_CLOSE);
-                        }, this),
-                        buttons:
-                            [{
-                                label: $.t("common.form.submit"),
-                                id: "submitPasswordChange",
-                                cssClass: "btn-primary",
-                                action: _.bind(function(dialogRef) {
-                                    event.preventDefault();
-
-                                    var patchDefinitionObject = [], element;
-                                    if(validatorsManager.formValidated(this.$el.find("#passwordChange"))) {
-                                        patchDefinitionObject.push({operation: "replace", field: "/password", value: this.$el.find("input[name=password]").val()});
+                                    if (callback) {
+                                        callback();
                                     }
-
-                                    this.delegate.patchSelectedUserAttributes(conf.loggedUser._id, conf.loggedUser._rev, patchDefinitionObject, _.bind(function(r) {
-                                        eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "securityDataChanged");
-                                        delete conf.passwords;
-
-                                        dialogRef.close();
-
-                                        return authnDelegate.getProfile()
-                                            .then(function(user) {
-                                                conf.loggedUser = user;
-                                                return user;
+                                }, this));
+                            }, _this),
+                            onhide: _.bind(function(){
+                                eventManager.sendEvent(constants.EVENT_DIALOG_CLOSE);
+                            }, this),
+                            buttons:
+                                [{
+                                    label: $.t("common.form.submit"),
+                                    id: "submitPasswordChange",
+                                    cssClass: "btn-primary",
+                                    action: _.bind(function(dialogRef) {
+                                        if (validatorsManager.formValidated(this.$el.find("#passwordChange"))) {
+                                            conf.loggedUser.save({"password": this.$el.find("input[name=password]").val()}).then(function () {
+                                                delete conf.passwords;
+                                                dialogRef.close();
+                                                eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "securityDataChanged");
                                             });
+                                        }
+                                    }, this)
+                                }]
+                        });
+                    }, _this),
+                    "append");
 
-                                    }, this));
+            }, this));
 
-                                }, this)
-                            }]
-                    });
-                }, _this),
-                "append");
         },
 
         close: function() {

@@ -1,3 +1,5 @@
+<!-- Copyright 2015 ForgeRock AS.
+	License terms: https://forgerock.org/cddlv1-0/ -->
 <div class="panel-collapse-group">
     <div class="panel panel-default panel-collapse">
         <div class="panel-heading correlationBody" role="tab" id="reconQueriesBaseHeading">
@@ -6,7 +8,7 @@
             </h4>
         </div>
         <div id="reconQueriesBase" class="collapse" role="tabpanel" aria-labelledby="reconQueriesBase" aria-expanded="false">
-            <div class="clearfix panel-connector" id="reconQueriesView"></div>
+            <div id="reconQueriesView"></div>
         </div>
     </div>
 
@@ -17,7 +19,7 @@
             </h4>
         </div>
         <div id="objectFiltersBase" class="collapse" role="tabpanel" aria-labelledby="objectFiltersBase" aria-expanded="false">
-            <div class="clearfix panel-connector" id="objectFiltersView"></div>
+            <div id="objectFiltersView"></div>
         </div>
     </div>
 
@@ -28,7 +30,7 @@
             </h4>
         </div>
         <div id="correlationQueryBase" class="collapse in" role="tabpanel" aria-labelledby="correlationQueryBase" aria-expanded="true">
-            <div class="panel-connector"  id="correlationQueryView"></div>
+            <div id="correlationQueryView"></div>
         </div>
     </div>
 
@@ -39,7 +41,9 @@
             </h4>
         </div>
         <div id="analysisBase" class="collapse in" role="tabpanel" aria-labelledby="correlationQueryBase" aria-expanded="true">
-            <div class="panel-connector" id="analysisView"></div>
+            <p class="panel-description inline-description">{{t "templates.correlation.dataAssociationManagmentInfo"}}</p>
+            <div id="analysisView"></div>
         </div>
     </div>
 </div>
+

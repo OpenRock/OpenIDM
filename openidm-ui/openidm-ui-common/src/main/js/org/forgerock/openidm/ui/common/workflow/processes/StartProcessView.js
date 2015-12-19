@@ -1,33 +1,25 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2012 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 
-/*global define, $, form2js, _, js2form, document, require */
+/*global define */
 
-/**
- * @author mbilski
- */
 define("org/forgerock/openidm/ui/common/workflow/processes/StartProcessView", [
+    "jquery",
+    "underscore",
+    "form2js",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/main/ValidatorsManager",
     "org/forgerock/commons/ui/common/main/EventManager",
@@ -35,14 +27,26 @@ define("org/forgerock/openidm/ui/common/workflow/processes/StartProcessView", [
     "org/forgerock/openidm/ui/common/workflow/WorkflowDelegate",
     "org/forgerock/openidm/ui/common/workflow/FormManager",
     "org/forgerock/openidm/ui/common/workflow/processes/TemplateStartProcessForm",
-    "org/forgerock/commons/ui/common/util/FormGenerationUtils",
-    "org/forgerock/commons/ui/common/util/DateUtil"
-], function(AbstractView, validatorsManager, eventManager, constants, workflowManager, formManager, templateStartProcessForm, formGenerationUtils, dateUtil) {
+    "org/forgerock/openidm/ui/common/util/FormGenerationUtils",
+    "org/forgerock/commons/ui/common/util/DateUtil",
+    "org/forgerock/commons/ui/common/util/ModuleLoader"
+], function($, _,
+            form2js,
+            AbstractView,
+            validatorsManager,
+            eventManager,
+            constants,
+            workflowManager,
+            formManager,
+            templateStartProcessForm,
+            formGenerationUtils,
+            dateUtil,
+            ModuleLoader) {
     var StartProcessView = AbstractView.extend({
         template: "templates/workflow/processes/StartProcessTemplate.html",
 
         element: "#processDetails",
-        
+
         events: {
             "click input[name=startProcessButton]": "formSubmit",
             "onValidate": "onValidate",
@@ -54,13 +58,17 @@ define("org/forgerock/openidm/ui/common/workflow/processes/StartProcessView", [
                 event.preventDefault();
             }
 
+            //since this view is limited have to go above to set arrows correct
+            $("#processes").find(".details-link .fa").toggleClass("fa-caret-right", true);
+            $("#processes").find(".details-link .fa").toggleClass("fa-caret-down", false);
+
             this.$el.empty();
         },
-        
-        
+
+
         formSubmit: function(event) {
             event.preventDefault();
-            
+
             if(validatorsManager.formNotInvalid(this.$el)) {
                 var params = form2js(this.$el.attr("id"), '.', false), param, typeName, paramValue, date, dateFormat;
                 delete params.startProcessButton;
@@ -69,11 +77,11 @@ define("org/forgerock/openidm/ui/common/workflow/processes/StartProcessView", [
                         delete params[param];
                     }
                 }
-                
+
                 if (this.definitionFormPropertyMap) {
                     formGenerationUtils.changeParamsToMeetTheirTypes(params, this.definitionFormPropertyMap);
                 }
-                
+
                 workflowManager.startProcessById(this.processDefinition._id, params, _.bind(function() {
                     eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "startedProcess");
                     //eventManager.sendEvent(constants.ROUTE_REQUEST, {routeName: "", trigger: true});
@@ -81,30 +89,24 @@ define("org/forgerock/openidm/ui/common/workflow/processes/StartProcessView", [
                 }, this));
             }
         },
-        
-        render: function(id, category, callback) { 
+
+        render: function(id, category, callback) {
             this.parentRender(function() {
                 validatorsManager.bindValidators(this.$el);
                     workflowManager.getProcessDefinition(id, _.bind(function(definition) {
                         var template = this.getGenerationTemplate(definition), view, passJSLint;
                         this.processDefinition = definition;
                         delete this.definitionFormPropertyMap;
-                        
+
                         if(template === false && definition.formResourceKey) {
-                            view = require(formManager.getViewForForm(definition.formResourceKey));
-                            if (view.render) {
+                            ModuleLoader.load(formManager.getViewForForm(definition.formResourceKey)).then(function (view) {
                                 view.render(definition, {}, {}, callback);
-                                return;
-                            } else {
-                                console.log("There is no view defined for " + definition.formResourceKey);
-                            }
-                        } 
-                        
-                        if(template !== false) {
+                            });
+                        } else if(template !== false) {
                             templateStartProcessForm.render(definition, {}, template, _.bind(function() {
                                 validatorsManager.bindValidators(this.$el);
                                 validatorsManager.validateAllFields(this.$el);
-                                
+
                                 if(callback) {
                                     callback();
                                 }
@@ -115,17 +117,19 @@ define("org/forgerock/openidm/ui/common/workflow/processes/StartProcessView", [
                             templateStartProcessForm.render({"formProperties": definition.formProperties.formPropertyHandlers}, {}, formGenerationUtils.generateTemplateFromFormProperties(definition), _.bind(function() {
                                 validatorsManager.bindValidators(this.$el);
                                 validatorsManager.validateAllFields(this.$el);
-                                
+
+                                this.$el.find("select").toggleClass("form-control", true);
+
                                 if(callback) {
                                     callback();
                                 }
                             }, this));
                             return;
                         }
-                    }, this));                  
-            });            
+                    }, this));
+            });
         },
-        
+
         getGenerationTemplate: function(definition) {
             var property, i;
             if (typeof definition.formGenerationTemplate === "string") {
@@ -139,10 +143,8 @@ define("org/forgerock/openidm/ui/common/workflow/processes/StartProcessView", [
             }
             return false;
         }
-        
-    }); 
-    
+
+    });
+
     return new StartProcessView();
 });
-
-

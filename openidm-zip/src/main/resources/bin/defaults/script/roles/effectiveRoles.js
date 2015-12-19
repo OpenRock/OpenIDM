@@ -28,23 +28,28 @@
 
 /*global object */
 
+var directRoles = null,
+    objectId = object._id,
+    response;
+
 logger.debug("Invoked effectiveRoles script on property {}", propertyName);
+
 // Allow for configuration in virtual attribute config, but default
 if (rolesPropName === undefined) {
     var rolesPropName = "roles";
 }
-logger.trace("Configured rolesPropName: {}", rolesPropName);
 
-var effectiveRoles = [];
-var directRoles = object[rolesPropName];
-if (directRoles != null)  {
-    if (typeof directRoles === 'string') { 
-        // Basic compatibility with roles in comma separated format
-        effectiveRoles = directRoles.split(',');
-    }  else {
-        effectiveRoles = directRoles;
-    }
+logger.trace("Configured rolesPropName: {}", rolesPropName);
+if (object[rolesPropName] === undefined && objectId !== undefined && objectId !== null) {
+    logger.trace("User's " + rolesPropName + " is not present so querying the roles", rolesPropName);
+    var path = org.forgerock.json.resource.ResourcePath.valueOf("managed/user").child(objectId).child(rolesPropName);
+    response = openidm.query(path.toString(), {"_queryId": "find-relationships-for-resource"});
+    directRoles = response.result;
+} else {
+    directRoles = object[rolesPropName];
 }
+
+var effectiveRoles = directRoles == null ? [] : directRoles;
 
 // This is the location to expand to dynamic roles, 
 // project role script return values can then be added via

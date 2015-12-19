@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 ForgeRock, AS.
+ * Copyright 2013-2015 ForgeRock, AS.
  *
  * The contents of this file are subject to the terms of the Common Development and
  * Distribution License (the License). You may not use this file except in compliance with the
@@ -18,8 +18,9 @@ package org.forgerock.openidm.provisioner.openicf.syncfailure;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.resource.RootContext;
+import org.forgerock.services.context.Context;
+import org.forgerock.services.context.RootContext;
+import org.forgerock.json.JsonValue;
 import org.forgerock.script.Script;
 import org.forgerock.script.ScriptEntry;
 import org.forgerock.script.ScriptRegistry;
@@ -52,7 +53,7 @@ public class ScriptedSyncFailureHandler implements SyncFailureHandler {
         throws ScriptException {
 
         this.scriptEntry = scriptRegistry.takeScript(config);
-        this.builtInHandlers = new HashMap<String,SyncFailureHandler>();
+        this.builtInHandlers = new HashMap<>();
         for (SyncFailureHandler handler : builtInHandlers) {
             if (handler instanceof LoggedIgnoreHandler) {
                 this.builtInHandlers.put("loggedIgnore", handler);
@@ -66,10 +67,11 @@ public class ScriptedSyncFailureHandler implements SyncFailureHandler {
      * Handle sync failure by counting retries on this sync token, passing to
      * (optional) post-retry handler when retries are exceeded.
      *
+     * @param context the request context associated with the invocation
      * @param syncFailure @throws SyncHandlerException when retries are not exceeded
      * @param failureCause the cause of the sync failure
      */
-    public void invoke(Map<String, Object> syncFailure, Exception failureCause)
+    public void invoke(Context context, Map<String, Object> syncFailure, Exception failureCause)
         throws SyncHandlerException {
 
         if (null == scriptEntry) {
@@ -77,6 +79,7 @@ public class ScriptedSyncFailureHandler implements SyncFailureHandler {
         }
 
         Script script = scriptEntry.getScript(new RootContext());
+        script.put("context", syncFailure);
         script.put("syncFailure", syncFailure);
         script.put("failureCause", failureCause);
         script.put("failureHandlers", builtInHandlers);

@@ -1,30 +1,25 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js, window */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
+    "jquery",
+    "underscore",
+    "form2js",
     "org/forgerock/openidm/ui/admin/connector/AbstractConnectorView",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/main/ValidatorsManager",
@@ -40,8 +35,8 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
     "org/forgerock/openidm/ui/admin/util/Scheduler",
     "org/forgerock/openidm/ui/admin/util/InlineScriptEditor",
     "org/forgerock/commons/ui/common/util/UIUtils"
-
-], function(AbstractConnectorView,
+], function($, _, form2js,
+            AbstractConnectorView,
             eventManager,
             validatorsManager,
             constants,
@@ -55,14 +50,13 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
             SchedulerDelegate,
             Scheduler,
             InlineScriptEditor,
-            uiUtils) {
+            UIUtils) {
 
     var AddEditConnectorView = AbstractConnectorView.extend({
         template: "templates/admin/connector/EditConnectorTemplate.html",
         events: {
             "change #connectorType" : "loadConnectorTemplate",
             "onValidate": "onValidate",
-            "click #connectorForm fieldset legend" : "sectionHideShow",
             "click #updateObjectTypes" : "objectTypeFormSubmit",
             "click #updateSync" : "syncFormSubmit",
             "click .addLiveSync" : "addLiveSync",
@@ -126,6 +120,7 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
             this.data.versionDisplay = {};
             this.data.currentMainVersion = null;
             this.data.objectTypes = null;
+            this.data.versionCheck = null;
             this.oAuthConnector = false;
             this.connectorTypeRef = null;
             this.connectorList = null;
@@ -160,7 +155,8 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
                     .value();
 
                 var splitDetails = args[0].match(/(.*?)_(.*)/).splice(1),
-                    urlArgs = router.convertCurrentUrlToJSON();
+                    urlArgs = router.convertCurrentUrlToJSON(),
+                    version;
 
                 this.data.editState = true;
                 this.data.systemType = splitDetails[0];
@@ -210,6 +206,24 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
                         return parseFloat(this.data.currentMainVersion) === parseFloat(tempVersion);
                     }, this);
 
+                    version = this.data.fullversion;
+
+                    if(version.indexOf("(") !== -1 || version.indexOf(")") !== -1 || version.indexOf("[") !== -1 || version.indexOf("]") !== -1) {
+                        version = version.replace(/\[|\)|\(|\]/g,'');
+                        version = version.split(",");
+                        version = version[0].split(".");
+                        version = version[0] +"." +version[1];
+                    } else {
+                        version = version.split(".");
+                        version = version[0] +"." +version[1];
+                    }
+
+                    if(version >= 1.4) {
+                        this.data.versionCheck = true;
+                    } else {
+                        this.data.versionCheck = false;
+                    }
+
                     //Get the connector type for top header display
                     this.data.displayConnectorType = this.data.versionDisplay[0].versions[0].displayName;
 
@@ -217,9 +231,11 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
                     if (urlArgs.params && urlArgs.params.code) {
                         this.oAuthCode = urlArgs.params.code;
 
-                        this.connectorTypeRef = ConnectorRegistry.getConnectorModule(this.data.connectorTypeName + "_" +this.data.currentMainVersion);
-                        this.connectorTypeRef.getToken(data, this.oAuthCode).then(_.bind(function(tokenDetails) {
-                            this.connectorTypeRef.setToken(tokenDetails, data, this.data.systemType + "/" +this.data.connectorId, urlArgs);
+                        ConnectorRegistry.getConnectorModule(this.data.connectorTypeName + "_" +this.data.currentMainVersion).then(_.bind(function (connectorTypeRef) {
+                            this.connectorTypeRef = connectorTypeRef;
+                            this.connectorTypeRef.getToken(data, this.oAuthCode).then(_.bind(function(tokenDetails) {
+                                this.connectorTypeRef.setToken(tokenDetails, data, this.data.systemType + "/" +this.data.connectorId, urlArgs);
+                            }, this));
                         }, this));
                     } else {
                         this.parentRender(_.bind(function () {
@@ -266,35 +282,38 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
                             }
 
                             //Get connector template
-                            this.connectorTypeRef = ConnectorRegistry.getConnectorModule(this.data.connectorTypeName + "_" + this.data.currentMainVersion);
+                            ConnectorRegistry.getConnectorModule(this.data.connectorTypeName + "_" + this.data.currentMainVersion).then(_.bind(function (connectorTypeRef) {
+                                this.connectorTypeRef = connectorTypeRef;
 
-                            //Determine if the template is OAuth
-                            if (this.connectorTypeRef.oAuthConnector) {
-                                this.oAuthConnector = true;
-                            } else {
-                                this.oAuthConnector = false;
-                            }
+                                //Determine if the template is OAuth
+                                if (this.connectorTypeRef.oAuthConnector) {
+                                    this.oAuthConnector = true;
+                                } else {
+                                    this.oAuthConnector = false;
+                                }
 
-                            //Render the connector template / details
-                            this.connectorTypeRef.render({"connectorType": this.data.connectorTypeName + "_" + this.data.currentMainVersion,
-                                    "animate": true,
-                                    "connectorDefaults": data,
-                                    "editState": this.data.editState,
-                                    "systemType": this.data.systemType },
-                                _.bind(function () {
-                                    validatorsManager.validateAllFields(this.$el);
+                                //Render the connector template / details
+                                this.connectorTypeRef.render({"connectorType": this.data.connectorTypeName + "_" + this.data.currentMainVersion,
+                                        "animate": true,
+                                        "connectorDefaults": data,
+                                        "editState": this.data.editState,
+                                        "systemType": this.data.systemType },
+                                    _.bind(function () {
+                                        validatorsManager.validateAllFields(this.$el);
 
-                                    //Set the current newest version incase there is a range
-                                    this.connectorTypeRef.data.connectorDefaults.connectorRef.bundleVersion = data.connectorRef.bundleVersion;
+                                        //Set the current newest version incase there is a range
+                                        this.connectorTypeRef.data.connectorDefaults.connectorRef.bundleVersion = data.connectorRef.bundleVersion;
 
-                                    this.setSubmitFlow();
+                                        this.setSubmitFlow();
 
-                                    if (callback) {
-                                        callback();
-                                    }
-                                }, this));
+                                        if (callback) {
+                                            callback();
+                                        }
+                                    }, this));
 
-                            this.setupLiveSync();
+                                this.setupLiveSync();
+                            }, this));
+
                         }, this));
                     }
                 }, this));
@@ -310,7 +329,7 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
         deleteResource: function(event) {
             event.preventDefault();
 
-            uiUtils.jqConfirm($.t("templates.connector.connectorDelete"), _.bind(function(){
+            UIUtils.confirmDialog($.t("templates.connector.connectorDelete"), "danger", _.bind(function(){
                 ConfigDelegate.deleteEntity(this.data.systemType +"/" +this.data.connectorId).then(function(){
                         ConnectorDelegate.deleteCurrentConnectorsCache();
 
@@ -657,43 +676,50 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
 
         //Returns the current provisioner based on a merged copy of the connector defaults and what was set in the template by the user
         getProvisioner: function() {
-            var connectorData,
+            var connectorData = {},
                 connDetails = this.connectorTypeRef.data.connectorDefaults,
                 mergedResult = {},
                 tempArrayObject,
                 tempKeys,
                 arrayComponents = $(".connector-array-component");
 
-            connectorData = form2js('connectorForm', '.', true);
-
             if(this.connectorTypeRef.getGenericState()) {
                 delete connectorData.root;
-                connectorData.configurationProperties = this.connectorTypeRef.getGenericConnector();
-            }
 
-            if (connectorData.enabled === "true") {
-                connectorData.enabled = true;
+                $.extend(true, mergedResult, connDetails);
+
+                mergedResult.configurationProperties = this.connectorTypeRef.getGenericConnector();
+                mergedResult.enabled = this.$el.find("#connectorEnabled").val();
             } else {
-                connectorData.enabled = false;
+                connectorData = form2js('connectorForm', '.', true);
+
+                delete connectorData.connectorType;
+
+                connectorData.configurationProperties.readSchema = false;
+                connectorData.objectTypes = {};
+
+                $.extend(true, mergedResult, connDetails, connectorData);
+
+                //Added logic to ensure array parts correctly add and delete what is set
+                _.each(arrayComponents, function (component) {
+                    tempArrayObject = form2js($(component).prop("id"), ".", false);
+
+                    _.each(tempArrayObject.configurationProperties, function(item, key) {
+                        mergedResult.configurationProperties[key] = item;
+
+                        //Need this check for when an array is saved with an empty string after containing data to properly remove it
+                        if(_.isArray(mergedResult.configurationProperties[key]) && mergedResult.configurationProperties[key].length === 1 && mergedResult.configurationProperties[key][0] === "") {
+                            delete mergedResult.configurationProperties[key];
+                        }
+                    });
+                }, this);
             }
 
-            delete connectorData.connectorType;
-
-            connectorData.configurationProperties.readSchema = false;
-            connectorData.objectTypes = {};
-
-            $.extend(true, mergedResult, connDetails, connectorData);
-
-            //Added logic to ensure array parts correctly add and delete what is set
-            _.each(arrayComponents, function(component){
-                tempArrayObject = form2js($(component).prop("id"), ".", true);
-                tempKeys = _.keys(tempArrayObject.configurationProperties);
-
-                if(tempKeys.length) {
-                    mergedResult.configurationProperties[tempKeys[0]] = tempArrayObject.configurationProperties[tempKeys[0]];
-                }
-
-            }, this);
+            if (mergedResult.enabled === "true") {
+                mergedResult.enabled = true;
+            } else {
+                mergedResult.enabled = false;
+            }
 
             mergedResult.objectTypes = this.userDefinedObjectTypes || this.data.objectTypes;
 
@@ -779,7 +805,7 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
 
             $(event.target).val(this.currentObjectTypeLoaded);
 
-            uiUtils.jqConfirm($.t('templates.connector.objectTypes.changeConfiguration'), _.bind(function(){
+            UIUtils.jqConfirm($.t('templates.connector.objectTypes.changeConfiguration'), _.bind(function(){
                 if(value === "fullConfig") {
                     this.connectorDetails.configurationProperties.readSchema = true;
 
@@ -809,7 +835,7 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
                 this.currentObjectTypeLoaded = value;
                 $(event.target).val(this.currentObjectTypeLoaded);
 
-            }, this), "330px");
+            }, this));
         }
     });
 

@@ -1,8 +1,7 @@
+<!-- Copyright 2015 ForgeRock AS.
+	License terms: https://forgerock.org/cddlv1-0/ -->
 <div class="panel-body">
-    <p class="panel-description">{{t "templates.correlation.dataAssociationManagmentInfo"}}</p>
-
     <div id="reconContainer">
-
         {{#if reconAvailable}}
         <div id="newLinksWarning" class="changesPending alert-box warning-message" style="display:none;">
             <div class="alert-message">
@@ -32,8 +31,9 @@
         </form>
 
         <div id="analysisGridContainer">
-            <table class="recon-grid" id="analysisGrid"></table>
-            <div class="recon-pager" id="analysisGridGridPager"></div>
+            <div id="analysisGrid" class="table-responsive"></div>
+            <div id="analysisGrid-paginator"></div>
+        </div>
         </div>
         {{else}}
         <button id="doSyncButton" class="btn btn-primary" type="button" title="{{t "templates.mapping.syncNow"}}" class="button">

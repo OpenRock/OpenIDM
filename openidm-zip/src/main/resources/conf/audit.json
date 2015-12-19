@@ -1,44 +1,45 @@
 {
     "auditServiceConfig" : {
-        "handlerForQueries" : "csv"
+        "handlerForQueries" : "repo",
+        "availableAuditEventHandlers" : [
+            "org.forgerock.audit.handlers.csv.CsvAuditEventHandler",
+            "org.forgerock.openidm.audit.impl.RepositoryAuditEventHandler",
+            "org.forgerock.openidm.audit.impl.RouterAuditEventHandler"
+        ],
+        "filterPolicies" : {
+            "value" : {
+                "excludeIf" : [
+                    "/access/http/request/headers/Authorization",
+                    "/access/http/request/headers/X-OpenIDM-Password",
+                    "/access/http/request/cookies/session-jwt",
+                    "/access/http/response/headers/Authorization",
+                    "/access/http/response/headers/X-OpenIDM-Password"
+                ],
+                "includeIf" : [
+
+                ]
+            }
+        }
     },
     "eventHandlers" : [
         {
-            "name" : "csv",
-            "class" : "org.forgerock.audit.events.handlers.impl.CSVAuditEventHandler",
+            "class" : "org.forgerock.audit.handlers.csv.CsvAuditEventHandler",
             "config" : {
-                "logDirectory" : "audit"
-            },
-            "events" : [ "access", "activity", "recon", "sync", "authentication" ]
+                "name" : "csv",
+                "logDirectory" : "&{launcher.working.location}/audit",
+                "topics" : [ "access", "activity", "recon", "sync", "authentication", "config" ]
+            }
         },
         {
-            "name": "repo",
             "class": "org.forgerock.openidm.audit.impl.RepositoryAuditEventHandler",
-            "config": {},
-            "events": [ "access", "activity", "recon", "sync", "authentication" ]
+            "config": {
+                "name": "repo",
+                "topics" : [ "access", "activity", "recon", "sync", "authentication", "config" ]
+            }
         }
     ],
-    "extendedEventTypes" : {
-        "activity": {
-            "schema": {
-                "$schema": "http://json-schema.org/draft-04/schema#",
-                "id": "/",
-                "type": "object",
-                "properties": {
-                    "objectId": {
-                        "type": "string"
-                    },
-                    "status": {
-                        "type": "string"
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "passwordChanged": {
-                        "type": "boolean"
-                    }
-                }
-            },
+    "eventTopics" : {
+        "config": {
             "filter" : {
                 "actions" : [
                     "create",
@@ -48,137 +49,23 @@
                     "action"
                 ]
             }
+        },
+        "activity": {
+            "filter" : {
+                "actions" : [
+                    "create",
+                    "update",
+                    "delete",
+                    "patch",
+                    "action"
+                ]
+            },
+            "watchedFields" : [ ],
+            "passwordFields" : [ "password" ]
         }
     },
-    "customEventTypes" : {
-        "recon": {
-            "schema": {
-                "$schema": "http://json-schema.org/draft-04/schema#",
-                "id": "/",
-                "type": "object",
-                "properties": {
-                    "transactionId": {
-                        "type": "string"
-                    },
-                    "timestamp": {
-                        "type": "string"
-                    },
-                    "eventName": {
-                        "type": "string"
-                    },
-                    "authentication": {
-                        "type": "object",
-                        "properties": {
-                            "id": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "action": {
-                        "type": "string"
-                    },
-                    "exception": {
-                        "type": "string"
-                    },
-                    "linkQualifier": {
-                        "type": "string"
-                    },
-                    "mapping": {
-                        "type": "string"
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "messageDetail": {
-                        "type": "object",
-                        "properties": {}
-                    },
-                    "situation": {
-                        "type": "string"
-                    },
-                    "sourceObjectId": {
-                        "type": "string"
-                    },
-                    "status": {
-                        "type": "string"
-                    },
-                    "targetObjectId": {
-                        "type": "string"
-                    },
-                    "reconciling": {
-                        "type": "string"
-                    },
-                    "ambiguousTargetObjectIds": {
-                        "type": "string"
-                    },
-                    "reconAction": {
-                        "type": "string"
-                    },
-                    "entryType": {
-                        "type": "string"
-                    },
-                    "reconId": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "sync": {
-            "schema": {
-                "$schema": "http://json-schema.org/draft-04/schema#",
-                "id": "/",
-                "type": "object",
-                "properties": {
-                    "transactionId": {
-                        "type": "string"
-                    },
-                    "timestamp": {
-                        "type": "string"
-                    },
-                    "eventName": {
-                        "type": "string"
-                    },
-                    "authentication": {
-                        "type": "object",
-                        "properties": {
-                            "id": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "action": {
-                        "type": "string"
-                    },
-                    "exception": {
-                        "type": "string"
-                    },
-                    "linkQualifier": {
-                        "type": "string"
-                    },
-                    "mapping": {
-                        "type": "string"
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "messageDetail": {
-                        "type": "object",
-                        "properties": {}
-                    },
-                    "situation": {
-                        "type": "string"
-                    },
-                    "sourceObjectId": {
-                        "type": "string"
-                    },
-                    "status": {
-                        "type": "string"
-                    },
-                    "targetObjectId": {
-                        "type": "string"
-                    }
-                }
-            }
-        }
+    "exceptionFormatter" : {
+        "type" : "text/javascript",
+        "file" : "bin/defaults/script/audit/stacktraceFormatter.js"
     }
 }

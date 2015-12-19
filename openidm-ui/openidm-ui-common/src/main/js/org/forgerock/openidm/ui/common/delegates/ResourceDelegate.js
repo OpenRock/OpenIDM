@@ -1,38 +1,29 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 
-/*global $, define, _ */
+/*global define */
 
-/**
- * @author huck.elliott
- */
 define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
+    "jquery",
+    "underscore",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/AbstractDelegate",
     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate",
     "org/forgerock/commons/ui/common/components/Messages"
-], function(constants, AbstractDelegate, configDelegate, messagesManager) {
+], function($, _, constants, AbstractDelegate, configDelegate, messagesManager) {
 
     var obj = new AbstractDelegate(constants.host + "/openidm/");
 
@@ -41,12 +32,13 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
             objectName = args[1],
             objectName2 = args[2];
 
-        if(objectType === "managed") {
+        if (objectType === "managed") {
             return configDelegate.readEntity("managed").then(function(managed){
                 var managedObject = _.findWhere(managed.objects,{ name: objectName });
 
                 if(managedObject){
                     if(managedObject.schema){
+                        managedObject.schema.allSchemas = managed.objects;
                         return managedObject.schema;
                     } else {
                         return false;
@@ -55,7 +47,7 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
                     return "invalidObject";
                 }
             });
-        } else {
+        } else if (objectType === "system") {
             return obj.getProvisioner(objectType, objectName).then(function(prov){
                 var schema;
 
@@ -71,7 +63,19 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
                     return "invalidObject";
                 }
             });
+        } else {
+            return $.Deferred().resolve({});
         }
+    };
+
+    obj.serviceCall = function (callParams) {
+        callParams.errorsHandlers = callParams.errorsHandlers || {};
+        callParams.errorsHandlers.policy = {
+            status: 403,
+            event: constants.EVENT_POLICY_FAILURE
+        };
+
+        return AbstractDelegate.prototype.serviceCall.call(this, callParams);
     };
 
     obj.createResource = function (serviceUrl) {
@@ -85,9 +89,9 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
     };
     obj.deleteResource = function (serviceUrl, id, successCallback, errorCallback) {
         var callParams = {
-                serviceUrl: serviceUrl, url: "/" + id, 
-                type: "DELETE", 
-                success: successCallback, 
+                serviceUrl: serviceUrl, url: "/" + id,
+                type: "DELETE",
+                success: successCallback,
                 error: errorCallback,
                 errorsHandlers: {
                     "Conflict": {
@@ -98,7 +102,7 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
                     "If-Match": "*"
                 }
             };
-        
+
         return obj.serviceCall(callParams).fail(function(err){
             var response = err.responseJSON;
             if(response.code === 409) {
@@ -125,7 +129,7 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
             url: serviceUrl +"?_queryFilter="+filter
         });
     };
-    
+
     obj.getProvisioner = function(objectType, objectName) {
         return obj.serviceCall({
             serviceUrl: obj.serviceUrl + objectType + "/" + objectName,
@@ -133,11 +137,11 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
             type: "POST"
         }).then(function(connector) {
             var config = connector.config.replace("config/","");
-            
+
             return configDelegate.readEntity(config);
         });
     };
-    
+
     obj.linkedView = function(id, resourcePath) {
         return obj.serviceCall({
             serviceUrl: constants.host + "/openidm/endpoint/linkedView/" + resourcePath,

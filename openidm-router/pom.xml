@@ -27,14 +27,14 @@
     <parent>
         <groupId>org.forgerock.openidm</groupId>
         <artifactId>openidm-project</artifactId>
-        <version>3.2.0-SNAPSHOT</version>
+        <version>4.1.0-SNAPSHOT</version>
     </parent>
     <artifactId>openidm-router</artifactId>
     <packaging>bundle</packaging>
     <name>OpenIDM Router Bundle</name>
     <description>This bundle contains OpenIDM</description>
     <properties>
-        <openidm.osgi.import.defaults>org.forgerock.json.resource.servlet,org.forgerock.script,org.forgerock.openidm.sync</openidm.osgi.import.defaults>
+        <openidm.osgi.import.defaults>org.forgerock.script,org.forgerock.openidm.sync</openidm.osgi.import.defaults>
     </properties>
     <dependencies>
         <dependency>
@@ -128,6 +128,23 @@
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
                 <extensions>true</extensions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>2.6</version>
+                <configuration>
+                    <includes>
+                        <include>**</include>
+                    </includes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

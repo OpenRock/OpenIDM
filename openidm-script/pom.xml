@@ -27,7 +27,7 @@
     <parent>
         <artifactId>openidm-project</artifactId>
         <groupId>org.forgerock.openidm</groupId>
-        <version>3.2.0-SNAPSHOT</version>
+        <version>4.1.0-SNAPSHOT</version>
     </parent>
     <artifactId>openidm-script</artifactId>
     <packaging>bundle</packaging>
@@ -35,6 +35,10 @@
     <description>This bundle implement the Scripting support for the Common Resource Access Protocol</description>
 
     <dependencies>
+        <dependency>
+            <groupId>org.forgerock.http</groupId>
+            <artifactId>chf-http-core</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.forgerock.openidm</groupId>
             <artifactId>openidm-enhanced-config</artifactId>
@@ -49,11 +53,13 @@
             <groupId>org.forgerock.commons</groupId>
             <artifactId>script-common</artifactId>
         </dependency>
-
         <dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-all</artifactId>
-            <optional>true</optional>
+            <groupId>org.forgerock.commons</groupId>
+            <artifactId>script-groovy</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.forgerock.commons</groupId>
+            <artifactId>script-javascript</artifactId>
         </dependency>
 
         <!-- Provided OSGi Dependencies -->
@@ -102,8 +108,8 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.easytesting</groupId>
-            <artifactId>fest-assert-core</artifactId>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

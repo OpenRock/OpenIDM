@@ -1,16 +1,25 @@
 /**
- * Created by forgerock on 8/7/14.
- */
-/**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
+ *
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
+ *
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _ */
+/*global define */
 
 define("config/validators/AdminValidators", [
-], function(constants, eventManager) {
+    "jquery",
+    "underscore"
+], function ($, _) {
     var obj = {
         "changed": {
             "name": "Changed field",
@@ -106,7 +115,8 @@ define("config/validators/AdminValidators", [
 
                 callback();
             }
-        }, "spaceCheck": {
+        },
+        "spaceCheck": {
             "name": "Whitespace validator",
             "dependencies": [
             ],
@@ -122,6 +132,21 @@ define("config/validators/AdminValidators", [
                 }
 
                 callback();
+            }
+        },
+        "unique": {
+            "name": "Unique value",
+            "dependencies": [
+            ],
+            "validator": function(el, input, callback) {
+                var v = input.val().toUpperCase().trim(),
+                    usedNames = JSON.parse($(input).attr("data-unique-list").toUpperCase());
+
+                if (v.length > 0 && !_.contains(usedNames, v)) {
+                    callback();
+                } else {
+                    callback([$.t("common.form.validation.unique")]);
+                }
             }
         }
     };

@@ -1,30 +1,25 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014 - 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js, window */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
+    "jquery",
+    "underscore",
+    "form2js",
     "org/forgerock/openidm/ui/admin/connector/AbstractConnectorView",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/main/ValidatorsManager",
@@ -36,7 +31,9 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
     "org/forgerock/commons/ui/common/main/Router",
     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate"
 
-], function(AbstractConnectorView,
+], function($, _,
+            form2js,
+            AbstractConnectorView,
             eventManager,
             validatorsManager,
             constants,
@@ -51,8 +48,7 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
         template: "templates/admin/connector/AddConnectorTemplate.html",
         events: {
             "change #connectorType" : "loadConnectorTemplate",
-            "onValidate": "onValidate",
-            "click #connectorForm fieldset legend" : "sectionHideShow"
+            "onValidate": "onValidate"
         },
         data: {
 
@@ -164,7 +160,9 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
             ConnectorDelegate.testConnector(mergedResult).then(_.bind(function (testResult) {
                     eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "connectorSaved");
 
-                    mergedResult.objectTypes = testResult.objectTypes;
+                    if(!mergedResult.objectTypes) {
+                        mergedResult.objectTypes = testResult.objectTypes;
+                    }
 
                     ConfigDelegate.createEntity(this.data.systemType + "/" + urlName, mergedResult).then(_.bind(function () {
                         eventManager.sendEvent(constants.EVENT_CHANGE_VIEW, {route: router.configuration.routes.editConnectorView, args: [this.data.systemType +"_" +urlName,""]});

@@ -27,9 +27,9 @@
         "SEARCH" : -1
     },
     "configurationProperties" : {
-        "filePath" : "&{launcher.project.location}/data/hr.csv",
-        "uniqueAttribute" : "uid",
-        "nameAttribute" : "uid"
+        "csvFile" : "&{launcher.project.location}/data/hr.csv",
+        "headerName" : "username",
+        "headerUid" : "uid"
     },
     "syncFailureHandler" : {
         "maxRetries" : 5,
@@ -68,6 +68,11 @@
                     "type" : "string",
                     "nativeName" : "firstName",
                     "nativeType" : "string"
+                },
+                "username" : {
+                    "type" : "string",
+                    "nativeType" : "string",
+                    "nativeName" : "username"
                 }
             }
         }

@@ -1,13 +1,25 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014-2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
+ *
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
+ *
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js, window, JSON */
-/*jslint evil: true */
+/*global define, JSON */
 
 define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDialog", [
+    "jquery",
+    "underscore",
+    "form2js",
     "org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView",
     "org/forgerock/openidm/ui/admin/delegates/SyncDelegate",
     "org/forgerock/commons/ui/common/main/ValidatorsManager",
@@ -16,12 +28,14 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/SpinnerManager",
-    "org/forgerock/openidm/ui/admin/util/AutoCompleteUtils",
     "org/forgerock/openidm/ui/admin/util/InlineScriptEditor",
     "org/forgerock/openidm/ui/admin/mapping/util/LinkQualifierFilterEditor",
+    "org/forgerock/openidm/ui/admin/util/AdminUtils",
     "bootstrap-dialog",
-    "bootstrap-tabdrop"
-], function(MappingAdminAbstractView,
+    "bootstrap-tabdrop",
+    "selectize"
+], function($, _, form2js,
+            MappingAdminAbstractView,
             syncDelegate,
             validatorsManager,
             conf,
@@ -29,11 +43,12 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
             eventManager,
             constants,
             spinner,
-            autoCompleteUtils,
             inlineScriptEditor,
             LinkQualifierFilterEditor,
+            AdminUtils,
             BootstrapDialog,
-            tabdrop) {
+            tabdrop,
+            selectize) {
 
     var EditPropertyMappingDialog = MappingAdminAbstractView.extend({
         template: "templates/admin/mapping/properties/EditPropertyMappingDialogTemplate.html",
@@ -43,7 +58,8 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
             "change :input[name=source]": "updateProperty",
             "change :input": "validateMapping",
             "onValidate": "onValidate",
-            "change .conditionalUpdateType": "conditionalUpdateType"
+            "click .toggle-view-btn": "conditionalUpdateType",
+            "shown.bs.tab #conditionalScript" : "conditionalTabChange"
         },
 
         updateProperty: function (e) {
@@ -52,9 +68,12 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
             }
         },
 
-        conditionalUpdateType: function () {
-            var type = this.currentDialog.find(".conditionalUpdateType:checked").val(),
+        conditionalUpdateType: function (event) {
+            var type = $(event.target).attr("id"),
                 filter = "";
+
+            $(event.target).toggleClass("active", true);
+            this.$el.find(".toggle-view-btn").not(event.target).toggleClass("active", false);
 
             if (type === "conditionalFilter") {
                 if(this.conditionFilterEditor === null) {
@@ -75,16 +94,6 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
                     });
                 }
 
-                this.currentDialog.find(".conditionalFilter").show();
-                this.currentDialog.find(".conditionalScript").hide();
-
-            } else if (type === "script") {
-                this.currentDialog.find(".conditionalFilter").hide();
-                this.currentDialog.find(".conditionalScript").show();
-
-            } else if (type === "none") {
-                this.currentDialog.find(".conditionalFilter").hide();
-                this.currentDialog.find(".conditionalScript").hide();
             }
         },
 
@@ -155,16 +164,19 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
                 delete propertyObj.transform;
             }
 
-            if (this.currentDialog.find("input[name=conditionalUpdate]:checked").val() === "script" && this.conditional_script_editor !== undefined) {
+            if (this.currentDialog.find(".toggle-view-btn.active").attr("id") === "conditionalScript" && this.conditional_script_editor !== undefined) {
                 propertyObj.condition = this.conditional_script_editor.generateScript();
 
                 if (propertyObj.condition === null) {
                     delete propertyObj.condition;
                 }
-            } else if (this.currentDialog.find("#Condition_Script input[name=conditionalUpdate]:checked").val() === "conditionalFilter") {
+            } else if (this.currentDialog.find(".toggle-view-btn.active").attr("id") === "conditionalFilter") {
                 propertyObj.condition = {};
                 propertyObj.condition = this.conditionFilterEditor.getFilterString();
-
+                // applies when the filter option selected is "No Filter"
+                if (propertyObj.condition.length === 0) {
+                    delete propertyObj.condition;
+                }
             } else {
                 delete propertyObj.condition;
             }
@@ -187,10 +199,13 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
             $("#dialogs").hide();
         },
 
+        conditionalTabChange: function () {
+            this.conditional_script_editor.refresh();
+        },
+
         render: function(params, callback) {
-            var _this = this,
-                currentProperties,
-                settings;
+            var currentProperties,
+                sourceType;
 
             this.data.mappingName = this.getMappingName();
             this.property = params.id;
@@ -209,13 +224,26 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
                 this.data.sampleSourceTooltip = null;
             }
 
+            this.data.currentMappingDetails = this.getCurrentMapping();
+
+            sourceType = this.data.currentMappingDetails.source.split("/");
+
+            AdminUtils.findPropertiesList(sourceType).then(_.bind(function(properties){
+                this.data.resourceSchema = properties;
+
+                this.renderEditProperty(callback);
+            }, this));
+        },
+
+        renderEditProperty: function(callback) {
+            var _this = this,
+                settings;
+
             settings = {
                 "title": $.t("templates.mapping.propertyEdit.title", {"property": this.data.property.target}),
                 "template": this.template,
                 "postRender": _.bind(this.loadData, this)
             };
-
-            this.data.currentMappingDetails = this.getCurrentMapping();
 
             this.currentDialog = $('<form id="propertyMappingDialogForm"></form>');
 
@@ -232,6 +260,16 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
                         _.extend(conf.globalData, _this.data),
                         function () {
                             settings.postRender();
+
+                            _this.$el.find("#sourcePropertySelect").selectize({
+                                persist: false,
+                                create: false
+                            });
+
+                            if(_this.data.property.source) {
+                                _this.$el.find("#sourcePropertySelect")[0].selectize.setValue(_this.data.property.source);
+                            }
+
                             _this.currentDialog.find(".nav-tabs").tabdrop();
 
                             _this.currentDialog.find(".nav-tabs").on("shown.bs.tab", function (e) {
@@ -252,7 +290,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
                                 placement:'right',
                                 container: 'body',
                                 html: 'true',
-                                template: '<div class="popover popover-info popover-large" role="tooltip"><div class="popover-header">Raw Source Data:</div><div class="popover-content"></div></div>'
+                                title: ''
                             });
                         }, "replace");
                 },
@@ -277,7 +315,9 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
 
         loadData: function() {
             var _this = this,
-                prop = this.data.property;
+                prop = this.data.property,
+                filter = "",
+                conditionData = null;
 
             if (prop) {
                 if (typeof(prop.transform) === "object" && prop.transform.type === "text/javascript" &&
@@ -293,18 +333,33 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
                 }
 
                 if (_.has(prop, "condition")) {
-                    this.$el.find("#conditionTabButtons label").toggleClass("active", false);
-
+                    this.$el.find("#conditionTabButtons").toggleClass("active", false);
                     if (_.has(prop.condition, "type")) {
-                        this.currentDialog.find("#conditionalScript").parent().toggleClass("active", true);
-                        this.currentDialog.find("#conditionalScript").prop("checked", true).change();
+                        this.currentDialog.find("#conditionalScript").toggleClass("active", true);
+                        this.currentDialog.find("#conditionScriptTab").toggleClass("active", true);
                     } else {
-                        this.currentDialog.find("#conditionalFilter").parent().toggleClass("active", true);
-                        this.currentDialog.find("#conditionalFilter").prop("checked", true).change();
+                        this.currentDialog.find("#conditionalFilter").toggleClass("active", true);
+                        this.currentDialog.find("#conditionFilterTab").toggleClass("active", true);
+
+                        this.conditionFilterEditor = new LinkQualifierFilterEditor();
+
+                        if (_.has(this.data.property, "condition")) {
+                            if (!_.has(this.data.property.condition, "type")) {
+                                filter = this.data.property.condition;
+                            }
+                        }
+
+                        this.conditionFilterEditor.render({
+                            "queryFilter": filter,
+                            "mappingName" : this.data.mappingName,
+                            "mapProps": this.data.availableSourceProps,
+                            "element": "#" + "conditionFilterHolder",
+                            "resource": ""
+                        });
                     }
                 } else {
-                    this.currentDialog.find("#conditionalNone").parent().toggleClass("active", true);
-                    this.currentDialog.find("#conditionalNone").prop("checked", true).change();
+                    this.currentDialog.find("#conditionalNone").toggleClass("active", true);
+                    this.currentDialog.find("#noneTab").toggleClass("active", true);
                 }
             }
 
@@ -317,15 +372,17 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
                 "placeHolder" : "source.givenName.toLowerCase() + \" .\" + source.sn.toLowerCase()"
             });
 
+            if(!_.isString(_this.data.property.condition)) {
+                conditionData = _this.data.property.condition;
+            }
+
             _this.conditional_script_editor = inlineScriptEditor.generateScriptEditor({
                 "element": _this.currentDialog.find("#conditionScriptHolder"),
                 "eventName": "conditional",
                 "noValidation": true,
-                "scriptData": _this.data.property.condition,
+                "scriptData": conditionData,
                 "disablePassedVariable": false
             });
-
-            _this.conditionalUpdateType();
 
             $('#mappingDialogTabs a', this.currentDialog).click(function (e) {
                 e.preventDefault();
@@ -336,10 +393,6 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
             $('#mappingDialogTabs a:first', this.currentDialog).tab('show');
 
             $('#mappingDialogTabs .active :input:first', this.currentDialog).focus();
-
-            if (this.data.availableSourceProps) {
-                autoCompleteUtils.selectionSetup($("input[name='source']:last", this.currentDialog), _.sortBy(this.data.availableSourceProps,function(s){ return s; }));
-            }
 
             $("input[name='source']", this.currentDialog).on('change autocompleteclose', function (e, initialRender) {
                 var val = $(this).val(),

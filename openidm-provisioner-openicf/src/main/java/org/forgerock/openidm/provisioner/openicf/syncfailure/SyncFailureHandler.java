@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 ForgeRock, AS.
+ * Copyright 2013-2015 ForgeRock, AS.
  *
  * The contents of this file are subject to the terms of the Common Development and
  * Distribution License (the License). You may not use this file except in compliance with the
@@ -17,6 +17,8 @@ package org.forgerock.openidm.provisioner.openicf.syncfailure;
 
 import java.util.Map;
 
+import org.forgerock.services.context.Context;
+
 /**
  * A handler interface for liveSync failures.
  *
@@ -26,10 +28,11 @@ public interface SyncFailureHandler
     /**
      * Handle the sync failure.
      *
+     * @param context the request context associated with the invocation
      * @param syncFailure contains the sync failure data
      * @param failureCause the cause of the exception
      * @throws SyncHandlerException when retries are not exceeded
      */
-    public void invoke(Map<String, Object> syncFailure, Exception failureCause)
+    void invoke(Context context, Map<String, Object> syncFailure, Exception failureCause)
         throws SyncHandlerException;
 }

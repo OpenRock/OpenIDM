@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2015 ForgeRock AS. All Rights Reserved
+ * Copyright 2011-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -24,6 +24,10 @@
 
 package org.forgerock.openidm.provisioner.openicf.commons;
 
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.http.util.Paths.*;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -35,14 +39,18 @@ import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.forgerock.json.crypto.JsonCryptoException;
-import org.forgerock.json.fluent.JsonPointer;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.PatchOperation;
 import org.forgerock.json.resource.PatchRequest;
-import org.forgerock.json.resource.Resource;
+import org.forgerock.json.resource.Request;
+import org.forgerock.json.resource.RequestType;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.ResourceException;
+import org.forgerock.json.resource.ResourcePath;
+import org.forgerock.json.resource.Responses;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.crypto.CryptoService;
 import org.forgerock.openidm.provisioner.Id;
@@ -63,8 +71,6 @@ import org.identityconnectors.framework.common.serializer.SerializerUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.forgerock.json.fluent.JsonValue.json;
-import static org.forgerock.json.fluent.JsonValue.object;
 
 public class ObjectClassInfoHelper {
 
@@ -122,7 +128,10 @@ public class ObjectClassInfoHelper {
         if (null != fieldFilters) {
             Set<String> attrsToGet = new HashSet();
             for (JsonPointer field : fieldFilters) {
-                if (field.isEmpty() || returnResource || !Resource.FIELD_CONTENT_ID.equals(field.leaf()) || !Resource.FIELD_CONTENT_REVISION.equals(field.leaf())){
+                if (field.isEmpty()
+                        || returnResource
+                        || !ResourceResponse.FIELD_CONTENT_ID.equals(field.leaf())
+                        || !ResourceResponse.FIELD_CONTENT_REVISION.equals(field.leaf())){
                     returnResource = true;
                 }
                 
@@ -146,7 +155,7 @@ public class ObjectClassInfoHelper {
         String attributeName = field.leaf();
 
         // OPENIDM-2385 - map _id to the Uid attribute containing valueAssertion
-        if (Resource.FIELD_CONTENT_ID.equals(attributeName)) {
+        if (ResourceResponse.FIELD_CONTENT_ID.equals(attributeName)) {
             return new Uid(String.valueOf(valueAssertion));
         }
 
@@ -160,23 +169,33 @@ public class ObjectClassInfoHelper {
     }
 
     /**
-     * Get the resourceId from a CreateRequest
-     * @param request CreateRequest
-     * @return resourceId to be used for creating the object
+     * Get the un-encoded resourceId from the specified Request
+     * @param request Request
+     * @return resourceId to be used for CRUDPAQ operations
      */
-    public String getCreateResourceId(final CreateRequest request) {
-        String nameValue = request.getNewResourceId();
-
-        if (null == nameValue) {
-            JsonValue o = request.getContent().get(nameAttribute);
-            if (o.isNull()) {
-                o = request.getContent().get(Resource.FIELD_CONTENT_ID);
+    public String getFullResourceId(final Request request) {
+        ResourcePath fullId = request.getResourcePathObject();
+        
+        // For everything but Create requests, simply decode the resource path.
+        // If this is a Create request, construct the fullId from a concatentation
+        // of the resource path and the user spcified id if present.
+        if (request.getRequestType().equals(RequestType.CREATE)) {
+            CreateRequest cr = (CreateRequest)request;
+            String newResourceId = cr.getNewResourceId();
+            if (null == newResourceId) {
+                JsonValue o = cr.getContent().get(nameAttribute);
+                if (o.isNull()) {
+                    o = cr.getContent().get(ResourceResponse.FIELD_CONTENT_ID);
+                }
+                if (o.isString()) {
+                    newResourceId = o.asString();
+                }
             }
-            if (o.isString()) {
-                nameValue = o.asString();
+            if (newResourceId != null) {
+                fullId = fullId.concat(newResourceId);
             }
         }
-        return nameValue;
+        return urlDecode(fullId.toString());
     }
 
     /**
@@ -189,7 +208,7 @@ public class ObjectClassInfoHelper {
     public Set<Attribute> getCreateAttributes(final CreateRequest request,
             final CryptoService cryptoService) throws ResourceException {
         JsonValue content = request.getContent().required().expect(Map.class);
-        String nameValue = getCreateResourceId(request);
+        String nameValue = getFullResourceId(request);
 
         Set<String> keySet = content.keys();
         Map<String,Attribute> result = new HashMap<String, Attribute>(keySet.size());
@@ -209,7 +228,7 @@ public class ObjectClassInfoHelper {
                             + "' value is null");
                 }
                 Attribute a = attributeInfo.build(v.getObject(), cryptoService);
-                if (null != a) {
+                if (null != a && a.getValue() != null && a.getValue().size() > 0) {
                     result.put(attributeInfo.getAttributeInfo().getName(), a);
                 }
             }
@@ -276,90 +295,92 @@ public class ObjectClassInfoHelper {
     }
 
     /**
-     * Get the attributes are that are writable on a patch.
+     * Gets an attribute that is writable on a patch.
      * 
-     * @param request PatchRequest
+     * @param patchOperation the {@link PatchOperation}
      * @param before the before value
      * @param cryptoService encryption and decryption service
-     * @return Set of attributes to that are writable on update
+     * @return an Attributes that is writable on patch
      * @throws ResourceException if and error is encountered
      */
-    public Set<Attribute> getPatchAttributes(final PatchRequest request, final JsonValue before, 
+    public Attribute getPatchAttribute(final PatchOperation patchOperation, final JsonValue before, 
             final CryptoService cryptoService) throws ResourceException {
+        Attribute result = null;
         
         // A Map to hold the attributes being patched
-        JsonValue attributesToPatch = json(object());
-        
-        // A Set of attributes that will be removed
-        Set<JsonPointer> attributesToRemove = new HashSet<JsonPointer>();
-        
-        // Loop through the patch operations building up the map of attributes to map with their existing values
-        for (PatchOperation patchOperation : request.getPatchOperations()) {
-            JsonPointer field = patchOperation.getField();
-            JsonValue beforeValue = before.get(field);
-            if (patchOperation.isRemove()) {
-                // Keep track of the attributes that will be removed so we can set to null below
-                attributesToRemove.add(field);
-            }
-            
-            if (beforeValue != null && !beforeValue.isNull()) {
-                attributesToPatch.put(field, before.get(field).getObject());
-            }
-        }
-        
-        // Apply the patch operations to an object which contains only the attributes being patched
-        ResourceUtil.applyPatchOperations(request.getPatchOperations(), attributesToPatch);
+        JsonValue patchedContent = json(object());
+        // The field to patch
+    	JsonPointer field = patchOperation.getField();
+    	// The patched value
+    	Object value = null;
 
-        // Set any removed values to null
-        for (JsonPointer removedAttribute : attributesToRemove) {
-            attributesToPatch.put(removedAttribute, null);
+    	if (patchOperation.isAdd()) {
+    		value = patchOperation.getValue().getObject();
+    	} else if (patchOperation.isRemove()) {
+            if (patchOperation.getValue().isNull()) {
+                if (before.get(field) != null) {
+                    value = before.get(field).getObject();
+                }
+            } else {
+                value = patchOperation.getValue().getObject();
+            }
+    	} else {
+        	// If the patch operation is replace or increment, update the value
+        	JsonValue beforeValue = before.get(field);
+        	if (beforeValue != null && !beforeValue.isNull()) {
+        		patchedContent.put(field, before.get(field).getObject());
+        	}
+        	// Apply the patch operations to an object which contains only the attributes being patched
+        	ResourceUtil.applyPatchOperation(patchOperation, patchedContent);
+    		value = patchedContent.get(field).getObject();
         }
-        
-        Set<String> attributeKeys = attributesToPatch.keys();
-        Map<String, Attribute> result = new HashMap<String, Attribute>(attributeKeys.size());
-        
+
+    	// The String representation of the field, with the leading slash trimmed
+    	String fieldName = patchOperation.getField().get(0);
+
         // Build up the map of patched Attributes
         for (AttributeInfoHelper attributeInfo : attributes) {
             // Get the attribute's nativeName and check if it is on of the attributes to patch
             String attributeName = attributeInfo.getAttributeInfo().getName();
-            if (attributesToPatch.keys().contains(attributeName)) {
-                Object value = attributesToPatch.get(attributeName).getObject();
-                Attribute attribute = attributeInfo.build(value, cryptoService);
-                if (null != attribute) {
-                    result.put(attributeName, attribute);
-                }
+            if (fieldName.equals(attributeName)) {
+            	result = attributeInfo.build(value, cryptoService);
             }
         }
 
         // Check if any of the attributes to patch are invalid/unsupported
-        checkForInvalidAttributes(attributeKeys);
+        checkForInvalidAttribute(fieldName);
 
         if (logger.isTraceEnabled()) {
-            ConnectorObjectBuilder builder = new ConnectorObjectBuilder().addAttributes(result.values());
+            ConnectorObjectBuilder builder = new ConnectorObjectBuilder().addAttribute(result);
             builder.setName("***");
             builder.setUid("***");
             logger.trace("Patch ConnectorObject: {}", SerializerUtil.serializeXmlObject(builder.build(), false));
         }
         
-        return new HashSet<Attribute>(result.values());
+        return result;
     }
 
     // ensure all attributes specified in the data are present in the target schema
     private void checkForInvalidAttributes(Set<String> keys) throws BadRequestException {
         for (String requestKey : keys) {
-            if (!requestKey.startsWith("_")) {
-                boolean found = false;
-                for (AttributeInfoHelper attributeInfo : attributes) {
-                    if (attributeInfo.getName().equals(requestKey)) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    throw new BadRequestException("Target does not support attribute " + requestKey);
-                }
-            }
+        	checkForInvalidAttribute(requestKey);
         }
+    }
+
+    // ensure all attributes specified in the data are present in the target schema
+    private void checkForInvalidAttribute(String key) throws BadRequestException {
+    	if (!key.startsWith("_")) {
+    		boolean found = false;
+    		for (AttributeInfoHelper attributeInfo : attributes) {
+    			if (attributeInfo.getName().equals(key)) {
+    				found = true;
+    				break;
+    			}
+    		}
+    		if (!found) {
+    			throw new BadRequestException("Target does not support attribute " + key);
+    		}
+    	}
     }
 
     /**
@@ -368,13 +389,13 @@ public class ObjectClassInfoHelper {
      * @param source
      * @param cryptoService
      * @return
-     * @throws JsonResourceException if ID value can not be determined from the {@code source}
+     * @throws ResourceException if ID value can not be determined from the {@code source}
      */
     public ConnectorObject build(Class<? extends APIOperation> operation, String name, JsonValue source, CryptoService cryptoService) throws Exception {
         String nameValue = name;
 
         if (null == nameValue) {
-            JsonValue o = source.get(Resource.FIELD_CONTENT_ID);
+            JsonValue o = source.get(ResourceResponse.FIELD_CONTENT_ID);
             if (o.isNull()) {
                 o = source.get(nameAttribute);
             }
@@ -437,7 +458,7 @@ public class ObjectClassInfoHelper {
         return result;
     }
 
-    public Resource build(ConnectorObject source, CryptoService cryptoService) throws IOException, JsonCryptoException {
+    public ResourceResponse build(ConnectorObject source, CryptoService cryptoService) throws IOException, JsonCryptoException {
         if (null == source) {
             return null;
         }
@@ -453,12 +474,12 @@ public class ObjectClassInfoHelper {
         }
         Uid uid = source.getUid();
         // TODO are we going to escape ids?
-        result.put(Resource.FIELD_CONTENT_ID, /*Id.escapeUid(*/uid.getUidValue()/*)*/);
+        result.put(ResourceResponse.FIELD_CONTENT_ID, /*Id.escapeUid(*/uid.getUidValue()/*)*/);
         if (null != uid.getRevision()) {
             //System supports Revision
-            result.put(Resource.FIELD_CONTENT_REVISION, uid.getRevision());
+            result.put(ResourceResponse.FIELD_CONTENT_REVISION, uid.getRevision());
         }
-        return new Resource(uid.getUidValue(), uid.getRevision(), result );
+        return Responses.newResourceResponse(uid.getUidValue(), uid.getRevision(), result);
     }
 
     public Attribute build(String attributeName, Object source, CryptoService cryptoService) throws Exception {

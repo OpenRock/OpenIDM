@@ -1,32 +1,25 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, _, $, window */
+/*global define */
 
 define("config/process/AdminIDMConfig", [
-    "org/forgerock/commons/ui/common/util/Constants"
-], function(constants) {
+    "underscore",
+    "org/forgerock/openidm/ui/common/util/Constants"
+], function(_, constants) {
     var obj = [
             {
                 startEvent: constants.EVENT_QUALIFIER_CHANGED,
@@ -42,6 +35,61 @@ define("config/process/AdminIDMConfig", [
                 }
             },
             {
+                startEvent: constants.EVENT_AUTHENTICATED,
+                description: "",
+                override: true,
+                dependencies: [
+                    "org/forgerock/commons/ui/common/main/Router",
+                    "org/forgerock/commons/ui/common/main/EventManager",
+                    "org/forgerock/commons/ui/common/util/Constants",
+                    "org/forgerock/openidm/ui/admin/delegates/MaintenanceDelegate",
+                    "org/forgerock/openidm/ui/admin/delegates/SchedulerDelegate",
+                    "org/forgerock/commons/ui/common/components/Navigation",
+                    "config/routes/AdminRoutesConfig",
+                    "org/forgerock/commons/ui/common/util/URIUtils"
+                ],
+                processDescription: function(event,
+                                             Router,
+                                             EventManager,
+                                             Constants,
+                                             MaintenanceDelegate,
+                                             SchedulerDelegate,
+                                             Navigation,
+                                             AdminRoutesConfig,
+                                             URIUtils) {
+
+                    MaintenanceDelegate.getStatus().then(function (response) {
+                        if (response.maintenanceEnabled) {
+
+                            MaintenanceDelegate.getUpdateLogs().then(_.bind(function(updateLogData) {
+                                var runningUpdate = _.findWhere(updateLogData.result, {"status": "IN_PROGRESS"});
+
+                                //  In maintenance mode, but no install running
+                                if (_.isUndefined(runningUpdate)) {
+
+                                    MaintenanceDelegate.disable().then(_.bind(function() {
+                                        SchedulerDelegate.resumeJobs();
+
+                                    }, this));
+
+                                // An install is running, redirect to settings and disable everything
+                                } else {
+                                    if (!_.contains(URIUtils.getCurrentFragment(), "settings/update")) {
+                                        Navigation.configuration = {};
+                                        Router.configuration.routes["default"] = AdminRoutesConfig.settingsView;
+                                    }
+
+                                    if (!_.contains(URIUtils.getCurrentFragment(), "settings")) {
+                                        EventManager.sendEvent(Constants.EVENT_CHANGE_VIEW, {route: Router.configuration.routes.settingsView});
+                                    }
+                                }
+                            }, this));
+                        }
+                    });
+                }
+
+            },
+            {
                 startEvent: constants.EVENT_UPDATE_NAVIGATION,
                 description: "Update Navigation Bar",
                 dependencies: [
@@ -49,6 +97,12 @@ define("config/process/AdminIDMConfig", [
                     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate"
                 ],
                 processDescription: function(event, Navigation, ConfigDelegate) {
+                    var completedCallback;
+
+                    if (event) {
+                        completedCallback = event.callback;
+                    }
+
                     ConfigDelegate.readEntity("managed").then(function(managedConfig){
                         Navigation.configuration.links.admin.urls.managed.urls = [];
 
@@ -98,26 +152,11 @@ define("config/process/AdminIDMConfig", [
                         });
 
                         return Navigation.reload();
-                    }).then(event ? event.callback : $.noop);
-                }
-            },
-            {
-                startEvent: constants.EVENT_CHANGE_BASE_VIEW,
-                description: "",
-                override: true,
-                dependencies: [
-                    "org/forgerock/commons/ui/common/components/Navigation",
-                    "org/forgerock/commons/ui/common/components/popup/PopupCtrl",
-                    "org/forgerock/commons/ui/common/components/Breadcrumbs",
-                    "org/forgerock/commons/ui/common/main/Configuration",
-                    "org/forgerock/openidm/ui/admin/components/Footer"
-                ],
-                processDescription: function(event, navigation, popupCtrl, breadcrumbs, conf,footer) {
-                    navigation.init();
-                    popupCtrl.init();
-
-                    breadcrumbs.buildByUrl();
-                    footer.render();
+                    }).then(function () {
+                        if (completedCallback) {
+                            completedCallback();
+                        }
+                    });
                 }
             },
             {
@@ -129,7 +168,7 @@ define("config/process/AdminIDMConfig", [
                     "org/forgerock/commons/ui/common/main/Router"
                 ],
                 processDescription: function(event, configDelegate, router) {
-                    configDelegate.readEntity("ui.context/enduser").then(_.bind(function (data) {
+                    configDelegate.readEntity("ui.context/selfservice").then(_.bind(function (data) {
                         location.href = router.getCurrentUrlBasePart() + data.urlContextRoot;
                     }, this));
                 }

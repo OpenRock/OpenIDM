@@ -1,35 +1,194 @@
 /**
-* DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
-*
-* Copyright (c) 2015 ForgeRock AS. All rights reserved.
-*
-* The contents of this file are subject to the terms
-* of the Common Development and Distribution License
-* (the License). You may not use this file except in
-* compliance with the License.
-*
-* You can obtain a copy of the License at
-* http://forgerock.org/license/CDDLv1.0.html
-* See the License for the specific language governing
-* permission and limitations under the License.
-*
-* When distributing Covered Code, include this CDDL
-* Header Notice in each file and include the License file
-* at http://forgerock.org/license/CDDLv1.0.html
-* If applicable, add the following below the CDDL Header,
-* with the fields enclosed by brackets [] replaced by
-* your own identifying information:
-* "Portions Copyrighted [year] [name of copyright owner]"
-*/
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
+ *
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
+ *
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
+ *
+ * Copyright 2015 ForgeRock AS.
+ */
 
 /* entire container, keeps perspective */
 
-.dropdown-menu>li>span {
+#addManagedObjectForm,
+#managedDetailsContainer,
+#managedScriptsContainer,
+#managedPropertiesContainer,
+#managedSchemaContainer {
+  border: 1px solid #ddd;
+  .schemaEditor > div > h3 {
+    display:none;
+  }
+}
+
+#resourceConnectorContainer .dropdown-menu>li>span {
   display: block;
   padding: 3px 20px;
   clear: both;
   font-weight: normal;
   line-height: 1.42857143;
-  color: #333;
   white-space: nowrap;
+}
+
+.resource-collection-selectize {
+  width:400px;
+}
+
+/*
+  Resource Details
+*/
+.editResourceViewContainer .tab-content .tab-pane {
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+}
+
+.editResourceViewContainer .panel-footer {
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-bottom:1px solid #ddd;
+}
+
+.connector-delete,
+.managed-delete {
+  padding: 3px 20px;
+}
+
+.connector-delete:hover,
+.managed-delete:hover {
+  cursor:pointer;
+  color:white;
+  background-color: @base-theme-color;
+}
+
+#connectorGrid .backgrid td,
+#managedGrid .backgrid td {
+  position: relative;
+  top: 1px;
+  padding-top:18px;
+  padding-bottom:8px;
+  overflow:visible;
+}
+
+.connector-delete:hover,
+.managed-delete:hover {
+  cursor:pointer;
+  color:white;
+  background-color: @base-theme-color;
+}
+
+.dropdown-menu .direct-link a:hover{
+  color:white;
+}
+
+.backgrid {
+  .image.circle {
+    overflow: hidden;
+    background-color: @base-theme-color;
+    color: #fff;
+    height: 24px;
+    width: 24px;
+    border-radius: 40px;
+    font-size: 12px;
+    display:table;
+    float:left;
+    margin-right:10px;
+
+    i {
+      display: table-cell;
+      vertical-align: middle;
+      text-align:center;
+      position: relative;
+      top: 1px;
+    }
+  }
+
+  .btn-group .btn-link {
+    bottom:5px;
+  }
+
+  .dropdown-toggle {
+    color:#777;
+  }
+
+  .dropdown-toggle:hover {
+    color: #36625a;
+  }
+
+  .button-right-align {
+    text-align:right;
+  }
+
+  .dropdown-menu a:hover {
+    color:white;
+  }
+
+  .table-clink:hover {
+    text-decoration:none;
+    color:@base-theme-color;
+  }
+}
+
+.backgrid {
+  .smallScreenCell .btn-group {
+    float: right;
+    position: relative;
+    bottom: 30px;
+    right: 35px;
+
+    .btn-link {
+      position: absolute;
+      bottom: 0px;
+    }
+  }
+}
+
+/*
+  Managed Object
+*/
+
+/*
+    Managed Object Admin
+*/
+.schema-panel {
+  border-top: 1px solid #eee;
+  padding-top: 5px;
+
+  h3 {
+    margin-top: 0px;
+  }
+}
+
+#managedPropertyWrapper {
+  .managed-property {
+    border: 1px solid #efefef;
+    margin-top: 15px;
+    padding: 10px;
+
+    .managedPropertyEvents {
+      .control-label {
+        margin-top: 20px;
+        margin-bottom: 5px;
+      }
+
+      .scripts-container {
+        table {
+          margin-bottom: 0px;
+        }
+      }
+    }
+  }
+}
+
+@media (min-width: 767px) {
+  #managedPropertyWrapper {
+    input[type=text] {
+      width: 300px;
+    }
+  }
 }

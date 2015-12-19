@@ -24,6 +24,9 @@
 
 package org.forgerock.openidm.script.impl;
 
+import static org.forgerock.json.resource.Responses.newActionResponse;
+import static org.forgerock.util.promise.Promises.newResultPromise;
+
 import java.io.File;
 import java.net.URL;
 import java.security.MessageDigest;
@@ -56,30 +59,31 @@ import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.References;
 import org.apache.felix.scr.annotations.Service;
 import org.forgerock.audit.events.AuditEvent;
+import org.forgerock.openidm.router.IDMConnectionFactory;
+import org.forgerock.openidm.script.ResourceFunctions;
+import org.forgerock.services.context.Context;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.JsonValueException;
 import org.forgerock.json.crypto.JsonCrypto;
 import org.forgerock.json.crypto.JsonCryptoException;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.fluent.JsonValueException;
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.ConnectionFactory;
-import org.forgerock.json.resource.Context;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.ForbiddenException;
 import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchRequest;
-import org.forgerock.json.resource.PersistenceConfig;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.RequestHandler;
 import org.forgerock.json.resource.Requests;
-import org.forgerock.json.resource.Resource;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.ServiceUnavailableException;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
@@ -97,9 +101,9 @@ import org.forgerock.script.registry.ScriptRegistryImpl;
 import org.forgerock.script.scope.Function;
 import org.forgerock.script.scope.FunctionFactory;
 import org.forgerock.script.scope.Parameter;
-import org.forgerock.script.scope.ResourceFunctions;
 import org.forgerock.script.source.DirectoryContainer;
 import org.forgerock.script.source.SourceUnit;
+import org.forgerock.util.promise.Promise;
 import org.ops4j.pax.swissbox.extender.BundleWatcher;
 import org.ops4j.pax.swissbox.extender.ManifestEntry;
 import org.osgi.framework.Constants;
@@ -122,12 +126,8 @@ import org.slf4j.LoggerFactory;
     @Reference(name = "CryptoServiceReference", referenceInterface = CryptoService.class,
             bind = "bindCryptoService", unbind = "unbindCryptoService",
             cardinality = ReferenceCardinality.OPTIONAL_UNARY, policy = ReferencePolicy.DYNAMIC),
-    @Reference(name = "PersistenceConfigReference", referenceInterface = PersistenceConfig.class,
-            bind = "setPersistenceConfig", unbind = "unsetPersistenceConfig",
-            cardinality = ReferenceCardinality.OPTIONAL_UNARY, policy = ReferencePolicy.DYNAMIC),
-    @Reference(name = "ConnectionFactoryReference", referenceInterface = ConnectionFactory.class,
+    @Reference(name = "IDMConnectionFactoryReference", referenceInterface = IDMConnectionFactory.class,
             bind = "setConnectionFactory", unbind = "unsetConnectionFactory",
-            target = "(service.pid=org.forgerock.openidm.internal)",
             cardinality = ReferenceCardinality.OPTIONAL_UNARY, policy = ReferencePolicy.DYNAMIC),
     @Reference(name = "ScriptEngineFactoryReference",
             referenceInterface = ScriptEngineFactory.class, bind = "addingEntries",
@@ -153,6 +153,8 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         _reservedNames.add("encrypt");
         _reservedNames.add("decrypt");
         _reservedNames.add("isEncrypted");
+        _reservedNames.add("isHashed");
+        _reservedNames.add("matches");
 
         for (IdentityServerFunctions f : IdentityServerFunctions.values()) {
             _reservedNames.add(f.name());
@@ -321,7 +323,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         logger.info("OpenIDM Script Service component is deactivated.");
     }
 
-    public void setConnectionFactory(ConnectionFactory connectionFactory) {
+    public void setConnectionFactory(IDMConnectionFactory connectionFactory) {
         openidm.put("create", ResourceFunctions.newCreateFunction(connectionFactory));
         openidm.put("read", ResourceFunctions.newReadFunction(connectionFactory));
         openidm.put("update", ResourceFunctions.newUpdateFunction(connectionFactory));
@@ -333,7 +335,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         logger.info("Resource functions are enabled");
     }
 
-    public void unsetConnectionFactory(ConnectionFactory connectionFactory) {
+    public void unsetConnectionFactory(IDMConnectionFactory connectionFactory) {
         openidm.remove("create");
         openidm.remove("read");
         openidm.remove("update");
@@ -345,16 +347,46 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         logger.info("Resource functions are disabled");
     }
 
-    @Override
-    public void setPersistenceConfig(PersistenceConfig persistenceConfig) {
-        super.setPersistenceConfig(persistenceConfig);
-    }
-
-    public void unsetPersistenceConfig(PersistenceConfig persistenceConfig) {
-        super.setPersistenceConfig(null);
-    }
-
     protected void bindCryptoService(final CryptoService cryptoService) {
+        // hash(any value, string algorithm)
+        openidm.put("hash", new Function<JsonValue>() {
+
+            static final long serialVersionUID = 1L;
+
+            public JsonValue call(Parameter scope, Function<?> callback, Object... arguments)
+                    throws ResourceException, NoSuchMethodException {
+                if (arguments.length == 2) {
+                    JsonValue value = null;
+                    String algorithm = null;
+                    if (arguments[0] instanceof Map
+                            || arguments[0] instanceof List
+                            || arguments[0] instanceof String
+                            || arguments[0] instanceof Number
+                            || arguments[0] instanceof Boolean) {
+                        value = new JsonValue(arguments[0]);
+                    } else if (arguments[0] instanceof JsonValue) {
+                        value = (JsonValue) arguments[0];
+                    } else {
+                        throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage( "hash", arguments));
+                    }
+                    if (arguments[1] instanceof String) {
+                        algorithm = (String) arguments[1];
+                    } else if (arguments[1] == null) {
+                        algorithm = ServerConstants.SECURITY_CRYPTOGRAPHY_DEFAULT_HASHING_ALGORITHM;
+                    } else {
+                        throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage( "hash", arguments));
+                    }
+
+                    try {
+                        return cryptoService.hash(value, algorithm);
+                    } catch (JsonCryptoException e) {
+                        throw new InternalServerErrorException(e.getMessage(), e);
+                    }
+                } else {
+                    throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage( "hash", arguments));
+                }
+            }
+        });
         // encrypt(any value, string cipher, string alias)
         openidm.put("encrypt", new Function<JsonValue>() {
 
@@ -375,23 +407,20 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
                     } else if (arguments[0] instanceof JsonValue) {
                         value = (JsonValue) arguments[0];
                     } else {
-                        throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage(
-                                "encrypt", arguments));
+                        throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage("encrypt", arguments));
                     }
                     if (arguments[1] instanceof String) {
                         cipher = (String) arguments[1];
-                    } else if (arguments[0] == null) {
+                    } else if (arguments[1] == null) {
                         cipher = ServerConstants.SECURITY_CRYPTOGRAPHY_DEFAULT_CIPHER;
                     } else {
-                        throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage(
-                                "encrypt", arguments));
+                        throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage("encrypt", arguments));
                     }
 
                     if (arguments[2] instanceof String) {
                         alias = (String) arguments[2];
                     } else {
-                        throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage(
-                                "encrypt", arguments));
+                        throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage("encrypt", arguments));
                     }
                     try {
                         return cryptoService.encrypt(value, cipher, alias);
@@ -399,8 +428,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
                         throw new InternalServerErrorException(e.getMessage(), e);
                     }
                 } else {
-                    throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage(
-                            "encrypt", arguments));
+                    throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage("encrypt", arguments));
                 }
             }
         });
@@ -441,6 +469,48 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
                 }
             }
         });
+        // isHashed(any value)
+        openidm.put("isHashed", new Function<Boolean>() {
+
+            static final long serialVersionUID = 1L;
+
+            public Boolean call(Parameter scope, Function<?> callback, Object... arguments)
+                    throws ResourceException, NoSuchMethodException {
+                if (arguments == null || arguments.length == 0) {
+                    return false;
+                } else if (arguments.length == 1) {
+                    return cryptoService.isHashed(arguments[0] instanceof JsonValue
+                        ? (JsonValue) arguments[0] 
+                        : new JsonValue(arguments[0]));
+                } else {
+                    throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage(
+                            "isHashed", arguments));
+                }
+            }
+        });
+        // matches(String plaintext, any value)
+        openidm.put("matches", new Function<Boolean>() {
+
+            static final long serialVersionUID = 1L;
+
+            public Boolean call(Parameter scope, Function<?> callback, Object... arguments)
+                    throws ResourceException, NoSuchMethodException {
+                if (arguments == null || arguments.length == 0 || arguments.length == 1) {
+                    return false;
+                } else if (arguments.length == 2) {
+                    try {
+                        return cryptoService.matches(arguments[0].toString(), arguments[1] instanceof JsonValue
+                                ? (JsonValue) arguments[1] 
+                                : new JsonValue(arguments[1]));
+                    } catch (JsonCryptoException e) {
+                        throw new InternalServerErrorException(e.getMessage(), e);
+                    }
+                } else {
+                    throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage(
+                            "matches", arguments));
+                }
+            }
+        });
         logger.info("Crypto functions are enabled");
     }
 
@@ -448,6 +518,8 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         openidm.remove("encrypt");
         openidm.remove("decrypt");
         openidm.remove("isEncrypted");
+        openidm.remove("isHashed");
+        openidm.remove("matches");
         logger.info("Crypto functions are disabled");
     }
 
@@ -595,15 +667,14 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
 
     // ----- Implementation of RequestHandler interface
 
-    public void handleAction(final ServerContext context, final ActionRequest request,
-            final ResultHandler<JsonValue> handler) {
-        String resourceName = request.getResourceName();
+    public Promise<ActionResponse, ResourceException> handleAction(final Context context, final ActionRequest request) {
+        String resourcePath = request.getResourcePath();
         JsonValue content = request.getContent();
         Map<String, Object> bindings = new HashMap<String, Object>();
         JsonValue config = new JsonValue(new HashMap<String, Object>());
         ScriptEntry scriptEntry = null;
         try {
-            if (resourceName == null || "".equals(resourceName)) {
+            if (resourcePath == null || "".equals(resourcePath)) {
                 for (String key : content.keys()) {
                     if (isSourceUnit(key)) {
                         config.put(key, content.get(key).getObject());
@@ -623,71 +694,65 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
                     if (scriptEntry.isActive()) {
                         // just get the script - compilation technically happened above in takeScript
                         scriptEntry.getScript(context);
-                        handler.handleResult(new JsonValue(true));
+                        return newActionResponse(new JsonValue(true)).asPromise();
                     } else {
                         throw new ServiceUnavailableException();
                     }
-                    break;
                 case eval:
                     if (scriptEntry.isActive()) {
                         Script script = scriptEntry.getScript(context);
-                        handler.handleResult(new JsonValue(script.eval(new SimpleBindings(bindings))));
+                        return newResultPromise(newActionResponse(
+                                new JsonValue(script.eval(new SimpleBindings(bindings)))));
                     } else {
                         throw new ServiceUnavailableException();
                     }
-                    break;
                 default:
                     throw new BadRequestException("Unrecognized action ID " + request.getAction());
             }
         } catch (ResourceException e) {
-            handler.handleError(e);
+            return e.asPromise();
         } catch (ScriptCompilationException e) {
-            handler.handleError(new BadRequestException(e.getMessage(), e));
+            return new BadRequestException(e.getMessage(), e).asPromise();
         } catch (IllegalArgumentException e) { // from getActionAsEnum
-            handler.handleError(new BadRequestException(e.getMessage(), e));
+            return new BadRequestException(e.getMessage(), e).asPromise();
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e.getMessage(), e));
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
-    public void handleQuery(final ServerContext context, final QueryRequest request,
-            final QueryResultHandler handler) {
+    public Promise<QueryResponse, ResourceException> handleQuery(final Context context, final QueryRequest request,
+            final QueryResourceHandler handler) {
         final ResourceException e = new NotSupportedException("Query operations are not supported");
-        handler.handleError(e);
+        return e.asPromise();
     }
 
-    public void handleRead(final ServerContext context, final ReadRequest request,
-            final ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleRead(final Context context, final ReadRequest request) {
         final ResourceException e = new NotSupportedException("Read operations are not supported");
-        handler.handleError(e);
+        return e.asPromise();
     }
 
-    public void handleCreate(final ServerContext context, final CreateRequest request,
-            final ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleCreate(final Context context, final CreateRequest request) {
         final ResourceException e = new NotSupportedException("Create operations are not supported");
-        handler.handleError(e);
+        return e.asPromise();
     }
 
-    public void handleDelete(final ServerContext context, final DeleteRequest request,
-            final ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleDelete(final Context context, final DeleteRequest request) {
         final ResourceException e = new NotSupportedException("Delete operations are not supported");
-        handler.handleError(e);
+        return e.asPromise();
     }
 
-    public void handlePatch(final ServerContext context, final PatchRequest request,
-            final ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handlePatch(final Context context, final PatchRequest request) {
         final ResourceException e = new NotSupportedException("Patch operations are not supported");
-        handler.handleError(e);
+        return e.asPromise();
     }
 
-    public void handleUpdate(final ServerContext context, final UpdateRequest request,
-            final ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> handleUpdate(final Context context, final UpdateRequest request) {
         final ResourceException e = new NotSupportedException("Update operations are not supported");
-        handler.handleError(e);
+        return e.asPromise();
     }
     
     @Override
-    public void execute(ServerContext context, Map<String, Object> scheduledContext) throws ExecutionException {
+    public void execute(Context context, Map<String, Object> scheduledContext) throws ExecutionException {
         
         try {
             String scriptName = (String) scheduledContext.get(CONFIG_NAME);
@@ -717,7 +782,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
     }
 
     @Override
-    public void auditScheduledService(final ServerContext context, final AuditEvent auditEvent)
+    public void auditScheduledService(final Context context, final AuditEvent auditEvent)
             throws ExecutionException {
         try {
             if (connectionFactory != null) {
@@ -730,7 +795,8 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         }
     }
 
-    private void execScript(Context context, ScriptEntry script, JsonValue value) throws ForbiddenException, InternalServerErrorException {
+    private void execScript(Context context, ScriptEntry script, JsonValue value)
+            throws ForbiddenException, InternalServerErrorException {
         if (null != script && script.isActive()) {
             Script executable = script.getScript(context);
             executable.put("object", value.getObject());

@@ -1,30 +1,25 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2012 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 
-/*global define, $, _, require, JSONEditor, window */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
+    "jquery",
+    "underscore",
+    "jsonEditor",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/main/ValidatorsManager",
     "org/forgerock/commons/ui/common/main/Configuration",
@@ -33,7 +28,7 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
     "org/forgerock/commons/ui/common/util/UIUtils",
     "org/forgerock/openidm/ui/admin/delegates/ConnectorDelegate",
     "bootstrap-dialog"
-], function(AbstractView, validatorsManager, conf, eventManager, constants, uiUtils, ConnectorDelegate, BootstrapDialog) {
+], function($, _, JSONEditor, AbstractView, validatorsManager, conf, eventManager, constants, uiUtils, ConnectorDelegate, BootstrapDialog) {
     var ObjectTypesDialog = AbstractView.extend({
         template: "templates/admin/objectTypes/ObjectTypesTemplate.html",
         el: "#dialogs",
@@ -125,7 +120,7 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
         saveObjectType: function() {
             var objectType = this.editor.getValue();
 
-            if (this.editor && !_(objectType.objectName).isEmpty()) {
+            if (this.editor && !_.isEmpty(objectType.objectName)) {
 
                 if(this.selectedObjectType !== null) {
                     delete this.objectTypes[this.selectedObjectType];
@@ -249,7 +244,7 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
 
             OT_value.properties = {};
 
-            _(objectType.properties).each(function(property){
+            _.each(objectType.properties, function(property){
                 OT_value.properties[property.propertyName] = {
                     type: property.propertyType,
                     nativeType: property.nativeType,
@@ -258,7 +253,7 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
                 };
 
                 if (property.customProperties && property.customProperties.length > 0) {
-                    _(property.customProperties).each(function(customProperty){
+                    _.each(property.customProperties, function(customProperty){
                         OT_value.properties[property.propertyName][customProperty.propertyName] = customProperty.values;
                     });
                 }
@@ -286,7 +281,7 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
                 jsonEditorFormat.nativeType = this.objectTypes[key].nativeType;
 
                 // Properties of Object Types
-                _(this.objectTypes[key].properties).each(function(property, key) {
+                _.each(this.objectTypes[key].properties, function(property, key) {
                     tempProperty = {};
                     tempProperty.propertyName = key;
                     tempProperty.propertyType = property.type;
@@ -296,7 +291,7 @@ define("org/forgerock/openidm/ui/admin/objectTypes/ObjectTypesDialog", [
                     tempProperty.customProperties = [];
 
                     // Any additional properties are added to the customProperties object
-                    _(_.omit(property,["type", "nativeName", "nativeType", "required"])).each(function(customProperty, key){
+                    _.each(_.omit(property,["type", "nativeName", "nativeType", "required"]), function(customProperty, key){
                         customProperties.push({
                             "propertyName": key,
                             "values": customProperty

@@ -41,9 +41,9 @@
                     "source" : "roles",
                     "transform" : {
                         "type" : "text/javascript",
-                        "source" : "source.split(',')"
+                        "source" : "source.split(',').map(function(role) { return {'_ref': 'repo/internal/role/' + role}; });"
                     },
-                    "target" : "roles"
+                    "target" : "authzRoles"
                 }
             ],
             "policies" : [
@@ -112,10 +112,10 @@
                     "target" : "mobileTelephoneNumber"
                 },
                 {
-                    "source" : "roles",
+                    "source" : "authzRoles",
                     "transform" : {
                         "type" : "text/javascript",
-                        "source" : "source.join(',')"
+                        "source" : "source.map(function (r) { return r._ref.split('/').pop(); } ).join(',');"
                     },
                     "target" : "roles"
                 }

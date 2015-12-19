@@ -1,31 +1,23 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
-/*global define*/
+/*global define */
 
 define("config/AppConfiguration", [
-    "org/forgerock/commons/ui/common/util/Constants"
+    "org/forgerock/openidm/ui/common/util/Constants"
 ], function(constants) {
     var obj = {
         moduleDefinition: [
@@ -33,13 +25,6 @@ define("config/AppConfiguration", [
                 moduleClass: "org/forgerock/commons/ui/common/main/SessionManager",
                 configuration: {
                     loginHelperClass: "org/forgerock/openidm/ui/common/login/InternalLoginHelper"
-                }
-            },
-            {
-                moduleClass: "org/forgerock/commons/ui/common/main/GenericRouteInterfaceMap",
-                configuration: {
-                    LoginView : "org/forgerock/openidm/ui/admin/login/LoginView",
-                    LoginDialog: "org/forgerock/commons/ui/common/LoginDialog"
                 }
             },
             {
@@ -54,7 +39,8 @@ define("config/AppConfiguration", [
             {
                 moduleClass: "org/forgerock/openidm/ui/common/resource/ResourceEditViewRegistry",
                 configuration: {
-                    "resource-role" : "org/forgerock/openidm/ui/admin/role/EditRoleView"
+                    "resource-assignment" : "org/forgerock/openidm/ui/admin/assignment/AssignmentView",
+                    "resource-user" : "org/forgerock/openidm/ui/admin/user/EditUserView"
                 }
             },
             {
@@ -64,6 +50,7 @@ define("config/AppConfiguration", [
                     },
                     loader: [
                         {"messages":"config/messages/CommonMessages"},
+                        {"messages":"config/messages/CommonIDMMessages"},
                         {"messages":"config/messages/AdminMessages"}
                     ]
                 }
@@ -134,6 +121,11 @@ define("config/AppConfiguration", [
                         "admin" : {
                             "role": "ui-admin",
                             "urls": {
+                                "dashboard": {
+                                    "name": "config.AppConfiguration.Navigation.links.dashboard",
+                                    "icon": "fa fa-dashboard",
+                                    "url": "#dashboard/"
+                                },
                                 "configuration": {
                                     "name": "Configure",
                                     "icon": "fa fa-wrench",
@@ -162,7 +154,33 @@ define("config/AppConfiguration", [
                                             "name": "config.AppConfiguration.Navigation.links.systemPref",
                                             "icon": "fa fa-cog",
                                             "inactive": false
+                                        },
+                                        {
+                                            divider: true
+                                        },
+                                        {
+                                            "header": true,
+                                            "headerTitle": "config.AppConfiguration.Navigation.links.userSelfService"
+                                        },
+                                        {
+                                            "url": "#selfservice/userregistration/",
+                                            "name": "config.AppConfiguration.Navigation.links.userRegistration",
+                                            "icon": "fa fa-user",
+                                            "inactive": false
+                                        },
+                                        {
+                                            "url": "#selfservice/passwordreset/",
+                                            "name": "config.AppConfiguration.Navigation.links.passwordReset",
+                                            "icon": "fa fa-key",
+                                            "inactive": false
+                                        },
+                                        {
+                                            "url": "#selfservice/forgotUsername/",
+                                            "name": "config.AppConfiguration.Navigation.links.forgotUsername",
+                                            "icon": "fa fa-question",
+                                            "inactive": false
                                         }
+
                                     ]
                                 },
                                 "managed": {

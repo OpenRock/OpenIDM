@@ -25,8 +25,10 @@ package org.forgerock.openidm.repo.jdbc.impl;
 
 import java.util.Hashtable;
 
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonValue;
 import org.forgerock.openidm.config.persistence.ConfigBootstrapHelper;
+import org.forgerock.openidm.datasource.DataSourceService;
+import org.forgerock.openidm.datasource.jdbc.impl.JDBCDataSourceService;
 import org.forgerock.openidm.repo.RepoBootService;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
@@ -35,7 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * OSGi bundle activator
+ * OSGi bundle activator for JDBCRepoService.
  */
 public class Activator implements BundleActivator {
     final static Logger logger = LoggerFactory.getLogger(Activator.class);
@@ -44,35 +46,42 @@ public class Activator implements BundleActivator {
          logger.debug("JDBC bundle starting", context);
 
          JsonValue repoConfig = ConfigBootstrapHelper.getRepoBootConfig("jdbc", context);
-
-         if (repoConfig != null) {
-             logger.info("Bootstrapping JDBC repository");
-             // Only take the configuration strictly needed for bootstrapping the repository
-             // Also, bootstrap property keys are lower case, Repo expects camel case
-             /*Map<String,Object> bootConfig = new HashMap<String,Object>();
-
-           bootConfig.put(JDBCRepoService.CONFIG_JNDI_NAME, repoConfig.get(JDBCRepoService.CONFIG_JNDI_NAME.toLowerCase()));
-           bootConfig.put(JDBCRepoService.CONFIG_JTA_NAME, repoConfig.get(JDBCRepoService.CONFIG_JTA_NAME.toLowerCase()));
-            bootConfig.put(JDBCRepoService.CONFIG_DB_TYPE, repoConfig.get(JDBCRepoService.CONFIG_DB_TYPE.toLowerCase()));
-             bootConfig.put(JDBCRepoService.CONFIG_DB_DRIVER, repoConfig.get(JDBCRepoService.CONFIG_DB_DRIVER.toLowerCase()));
-             bootConfig.put(JDBCRepoService.CONFIG_DB_URL, repoConfig.get(JDBCRepoService.CONFIG_DB_URL.toLowerCase()));
-             bootConfig.put(JDBCRepoService.CONFIG_USER, repoConfig.get(JDBCRepoService.CONFIG_USER.toLowerCase()));
-             bootConfig.put(JDBCRepoService.CONFIG_PASSWORD, repoConfig.get(JDBCRepoService.CONFIG_PASSWORD.toLowerCase()));
-             bootConfig.put(JDBCRepoService.CONFIG_DB_SCHEMA, repoConfig.get(JDBCRepoService.CONFIG_DB_SCHEMA.toLowerCase()));*/
-
-             // Init the bootstrap repo
-             RepoBootService bootSvc = JDBCRepoService.getRepoBootService(repoConfig, context);
-
-             // Register bootstrap repo
-             Hashtable<String, String> prop = new Hashtable<String, String>();
-             prop.put(Constants.SERVICE_PID, "org.forgerock.openidm.bootrepo.jdbc");
-             prop.put("openidm.router.prefix", "bootrepo");
-             prop.put("db.type", "JDBC");
-             context.registerService(RepoBootService.class.getName(), bootSvc, prop);
-             logger.info("Registered bootstrap repository service");
-         } else {
+         if (repoConfig == null) {
              logger.debug("No JDBC configuration detected");
+             logger.debug("JDBC bundle started", context);
+             return;
          }
+         String dataSourcePid = repoConfig.get(JDBCRepoService.CONFIG_USE_DATASOURCE).asString();
+         if (dataSourcePid == null) {
+             logger.error("JDBC repository configured, but does not specify a datasource to use - "
+                     + "the \"" + JDBCRepoService.CONFIG_USE_DATASOURCE + "\" config property is required "
+                     + "and must be the <name> of a datasource.jdbc-<name>.json configuration.");
+             logger.debug("JDBC bundle started", context);
+             return;
+         }
+
+         JsonValue dataSourceConfig = ConfigBootstrapHelper.getDataSourceBootConfig("jdbc-" + dataSourcePid, context);
+         if (dataSourceConfig == null) {
+             logger.error("JDBC repository configured, but datasource \"" + dataSourcePid + "\" was not found - "
+                     + " must specify or configure a valid datasource for JDBC repository to use.");
+             logger.debug("JDBC bundle started", context);
+             return;
+         }
+
+         logger.info("Bootstrapping JDBC repository");
+
+         // Init the bootstrap connection manager
+         DataSourceService dataSourceService = JDBCDataSourceService.getBootService(dataSourceConfig, context);
+         // Init the bootstrap repo
+         RepoBootService bootSvc = JDBCRepoService.getRepoBootService(context, dataSourceService, repoConfig);
+
+         // Register bootstrap repo
+         Hashtable<String, String> prop = new Hashtable<String, String>();
+         prop.put(Constants.SERVICE_PID, "org.forgerock.openidm.bootrepo.jdbc");
+         prop.put("openidm.router.prefix", "bootrepo");
+         prop.put("db.type", "JDBC");
+         context.registerService(RepoBootService.class.getName(), bootSvc, prop);
+         logger.info("Registered bootstrap repository service");
          logger.debug("JDBC bundle started", context);
      }
 

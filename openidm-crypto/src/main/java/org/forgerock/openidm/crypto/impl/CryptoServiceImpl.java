@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2013 ForgeRock AS. All Rights Reserved
+ * Copyright (c) 2011-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -25,6 +25,10 @@
 // TODO: Expose as a set of resource actions.
 package org.forgerock.openidm.crypto.impl;
 
+import static org.forgerock.json.JsonValue.field;
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -42,19 +46,26 @@ import java.util.List;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
+import org.forgerock.json.JsonException;
+import org.forgerock.json.JsonTransformer;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.JsonValueException;
 import org.forgerock.json.crypto.JsonCrypto;
 import org.forgerock.json.crypto.JsonCryptoException;
 import org.forgerock.json.crypto.JsonCryptoTransformer;
 import org.forgerock.json.crypto.JsonEncryptor;
 import org.forgerock.json.crypto.simple.SimpleDecryptor;
 import org.forgerock.json.crypto.simple.SimpleEncryptor;
-import org.forgerock.json.fluent.JsonException;
-import org.forgerock.json.fluent.JsonTransformer;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.fluent.JsonValueException;
 import org.forgerock.openidm.cluster.ClusterUtils;
 import org.forgerock.openidm.core.IdentityServer;
+import org.forgerock.openidm.crypto.CryptoConstants;
 import org.forgerock.openidm.crypto.CryptoService;
+import org.forgerock.openidm.crypto.FieldStorageScheme;
+import org.forgerock.openidm.crypto.SaltedMD5FieldStorageScheme;
+import org.forgerock.openidm.crypto.SaltedSHA1FieldStorageScheme;
+import org.forgerock.openidm.crypto.SaltedSHA256FieldStorageScheme;
+import org.forgerock.openidm.crypto.SaltedSHA384FieldStorageScheme;
+import org.forgerock.openidm.crypto.SaltedSHA512FieldStorageScheme;
 import org.forgerock.openidm.crypto.factory.CryptoUpdateService;
 import org.forgerock.openidm.util.JsonUtil;
 import org.osgi.framework.BundleContext;
@@ -118,25 +129,31 @@ public class CryptoServiceImpl implements CryptoService, CryptoUpdateService {
                 String type = IdentityServer.getInstance().getProperty("openidm.keystore.type", KeyStore.getDefaultType());
                 String provider = IdentityServer.getInstance().getProperty("openidm.keystore.provider");
                 String location = IdentityServer.getInstance().getProperty("openidm.keystore.location");
-                String alias = IdentityServer.getInstance().getProperty("openidm.config.crypto.alias");
+                String[] configAliases = new String[] {
+                        IdentityServer.getInstance().getProperty("openidm.config.crypto.alias"),
+                        IdentityServer.getInstance().getProperty("openidm.config.crypto.selfservice.sharedkey.alias")
+                };
 
                 try {
                     logger.info(
                             "Activating cryptography service of type: {} provider: {} location: {}",
-                            new Object[] { type, provider, location });
-                    KeyStore ks =
-                            (provider == null || provider.trim().length() == 0 ? KeyStore
-                                    .getInstance(type) : KeyStore.getInstance(type, provider));
+                            type, provider, location);
+                    KeyStore ks = (provider == null || provider.trim().length() == 0)
+                            ? KeyStore.getInstance(type)
+                            : KeyStore.getInstance(type, provider);
                     InputStream in = openStream(location);
                     if (null != in) {
                         char[] clearPassword = Main.unfold(password);
                         ks.load(in, password == null ? null : clearPassword);
-                        if (instanceType.equals(ClusterUtils.TYPE_STANDALONE) || instanceType.equals(ClusterUtils.TYPE_CLUSTERED_FIRST)) {
-                            Key key = ks.getKey(alias, clearPassword);
-                            if (key == null) {
-                                // Initialize the keys
-                                logger.debug("Initializing secrety key entry in the keystore");
-                                generateDefaultKey(ks, alias, location, clearPassword);
+                        if (instanceType.equals(ClusterUtils.TYPE_STANDALONE)
+                                || instanceType.equals(ClusterUtils.TYPE_CLUSTERED_FIRST)) {
+                            for (String alias : configAliases) {
+                                Key key = ks.getKey(alias, clearPassword);
+                                if (key == null) {
+                                    // Initialize the keys
+                                    logger.debug("Initializing secret key entry {} in the keystore", alias);
+                                    generateDefaultKey(ks, alias, location, clearPassword);
+                                }
                             }
                         }
                         keySelector = new UpdatableKeyStoreSelector(ks, new String(clearPassword));
@@ -179,7 +196,8 @@ public class CryptoServiceImpl implements CryptoService, CryptoUpdateService {
      * @throws IOException
      * @throws GeneralSecurityException
      */
-    private void generateDefaultKey(KeyStore ks, String alias, String location, char[] password) throws IOException, GeneralSecurityException {
+    private void generateDefaultKey(KeyStore ks, String alias, String location, char[] password)
+            throws IOException, GeneralSecurityException {
         SecretKey newKey = KeyGenerator.getInstance("AES").generateKey();
         ks.setEntry(alias, new SecretKeyEntry(newKey), new KeyStore.PasswordProtection(password));
         OutputStream out = new FileOutputStream(location);
@@ -274,6 +292,67 @@ public class CryptoServiceImpl implements CryptoService, CryptoUpdateService {
     @Override
     public boolean isEncrypted(String value) {
         return JsonUtil.isEncrypted(value);
+    }
+
+    @Override
+    public JsonValue hash(JsonValue value, String algorithm) throws JsonException, JsonCryptoException {
+        final FieldStorageScheme fieldStorageScheme = getFieldStorageScheme(algorithm);
+        final String plainTextField = value.asString();
+        final String encodedField = fieldStorageScheme.hashField(plainTextField);
+        return json(object(
+                field("$crypto", object(
+                        field("value", object(
+                                field("algorithm", algorithm),
+                                field("data", encodedField))),
+                        field("type", CryptoConstants.STORAGE_TYPE_HASH)))));
+    }
+
+    @Override
+    public boolean isHashed(JsonValue value) {
+        return value != null 
+                &&!value.isNull() 
+                && JsonCrypto.isJsonCrypto(value) 
+                && value.get("$crypto").get("value").isDefined("algorithm");
+    }
+    
+    /**
+     * Returns a {@link FieldStorageScheme} instance based on the supplied algorithm.
+     * 
+     * @param algorithm a string representing a storage scheme algorithm
+     * @return a field storage scheme implementation.
+     * @throws JsonCryptoException
+     */
+    private FieldStorageScheme getFieldStorageScheme(String algorithm) throws JsonCryptoException {
+        try {
+            if (algorithm.equals(CryptoConstants.ALGORITHM_MD5)) {
+                return new SaltedMD5FieldStorageScheme();
+            } else if (algorithm.equals(CryptoConstants.ALGORITHM_SHA_1)) {
+                return new SaltedSHA1FieldStorageScheme();
+            } else if (algorithm.equals(CryptoConstants.ALGORITHM_SHA_256)) {
+                return new SaltedSHA256FieldStorageScheme();
+            } else if (algorithm.equals(CryptoConstants.ALGORITHM_SHA_384)) {
+                return new SaltedSHA384FieldStorageScheme();
+            } else if (algorithm.equals(CryptoConstants.ALGORITHM_SHA_512)) {
+                return new SaltedSHA512FieldStorageScheme();
+            } else {
+                throw new JsonCryptoException("Unsupported field storage algorithm " + algorithm);
+            }
+        } catch (JsonCryptoException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new JsonCryptoException(e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public boolean matches(String plainTextValue, JsonValue value) throws JsonCryptoException {
+        if (isHashed(value)) {
+            JsonValue cryptoValue = value.get("$crypto").get("value");
+            String algorithm = cryptoValue.get("algorithm").asString();
+            final FieldStorageScheme fieldStorageScheme = getFieldStorageScheme(algorithm);
+            return fieldStorageScheme.fieldMatches(plainTextValue, cryptoValue.get("data").asString());
+        }
+        return false;
     }
 
 }

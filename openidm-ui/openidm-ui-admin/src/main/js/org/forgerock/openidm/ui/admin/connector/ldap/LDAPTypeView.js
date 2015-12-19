@@ -1,30 +1,24 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/connector/ldap/LDAPTypeView", [
+    "jquery",
+    "underscore",
     "org/forgerock/openidm/ui/admin/connector/ConnectorTypeAbstractView",
     "org/forgerock/commons/ui/common/main/ValidatorsManager",
     "org/forgerock/openidm/ui/admin/connector/ldap/LDAPFilterDialog",
@@ -32,13 +26,13 @@ define("org/forgerock/openidm/ui/admin/connector/ldap/LDAPTypeView", [
     "org/forgerock/commons/ui/common/util/UIUtils",
     "org/forgerock/openidm/ui/admin/delegates/SecurityDelegate",
     "bootstrap-dialog"
-], function(ConnectorTypeAbstractView, validatorsManager, ldapFilterDialog, ConnectorDelegate, uiUtils, securityDelegate, BootstrapDialog) {
+], function($, _, ConnectorTypeAbstractView, validatorsManager, ldapFilterDialog, ConnectorDelegate, uiUtils, securityDelegate, BootstrapDialog) {
 
     var LDAPTypeView = ConnectorTypeAbstractView.extend({
         events: {
             "click .add-btn": "addField",
             "click .remove-btn": "removeField",
-            "focus .filter": "showFilterDialog",
+            "click .filter": "showFilterDialog",
             "click #ssl": "toggleSSLPort",
             "click #syncBaseContext" : "toggleSyncBaseContext",
             "click #toggleCert": "toggleCert",
@@ -207,7 +201,7 @@ define("org/forgerock/openidm/ui/admin/connector/ldap/LDAPTypeView", [
         showFilterDialog: function (event) {
             event.preventDefault();
 
-            var filterProp = $(event.target).attr("id"),
+            var filterProp = $(event.target).closest(".filter-holder").find("input").attr("id"),
                 updatePromise = $.Deferred();
 
             ldapFilterDialog.render({

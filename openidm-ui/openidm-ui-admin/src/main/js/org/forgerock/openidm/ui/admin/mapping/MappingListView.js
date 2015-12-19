@@ -1,48 +1,44 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/mapping/MappingListView", [
+    "jquery",
+    "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate",
     "org/forgerock/commons/ui/common/util/Constants",
-    "org/forgerock/commons/ui/common/util/UIUtils",
     "org/forgerock/openidm/ui/admin/delegates/ReconDelegate",
     "org/forgerock/commons/ui/common/util/DateUtil",
     "org/forgerock/openidm/ui/admin/delegates/SyncDelegate",
-    "org/forgerock/openidm/ui/admin/util/ConnectorUtils"
-], function(AdminAbstractView,
+    "org/forgerock/openidm/ui/admin/util/ConnectorUtils",
+    "org/forgerock/commons/ui/common/util/UIUtils",
+    "jquerySortable"
+], function($, _,
+            AdminAbstractView,
             eventManager,
             configDelegate,
             constants,
-            uiUtils,
             reconDelegate,
             dateUtil,
             syncDelegate,
-            connectorUtils) {
+            connectorUtils,
+            UIUtils) {
 
     var MappingListView = AdminAbstractView.extend({
         template: "templates/admin/mapping/MappingListTemplate.html",
@@ -121,18 +117,31 @@ define("org/forgerock/openidm/ui/admin/mapping/MappingListView", [
                     }, this);
 
                     this.parentRender(_.bind(function () {
-                        $('#mappingConfigHolder').sortable({
-                            items: '.mapping-config-body',
-                            start: _.bind(function (event, ui) {
-                                this.startIndex = this.$el.find("#mappingConfigHolder .mapping-config-body").index(ui.item);
+                        var startIndex = null;
+
+                        this.$el.find("#mappingConfigHolder ul").nestingSortable({
+                            handle: "div",
+                            items: "li",
+                            toleranceElement: "ul",
+                            disabledClass: "disabled",
+                            placeholder: "<li class='placeholder well'></li>",
+                            onMousedown: _.bind(function ($item, _super, event) {
+                                startIndex = this.$el.find("#mappingConfigHolder ul li:not(.disabled)").index($item);
+                                if (!event.target.nodeName.match(/^(input|select)$/i)) {
+                                    event.preventDefault();
+                                    return true;
+                                }
                             }, this),
-                            stop: _.bind(function (event, ui) {
-                                var stopIndex = this.$el.find("#mappingConfigHolder .mapping-config-body").index(ui.item),
+                            onDrop: _.bind(function ($item, container, _super, event) {
+                                var endIndex = this.$el.find("#mappingConfigHolder ul li:not(.disabled)").index($item),
                                     tempRemoved;
 
-                                if (this.startIndex !== stopIndex) {
-                                    tempRemoved = this.cleanConfig.splice(this.startIndex, 1);
-                                    this.cleanConfig.splice(stopIndex, 0, tempRemoved[0]);
+                                _super($item, container, _super, event);
+
+                                if (startIndex !== endIndex) {
+                                    tempRemoved = this.cleanConfig.splice(startIndex, 1);
+                                    this.cleanConfig.splice(endIndex, 0, tempRemoved[0]);
+
                                     configDelegate.updateEntity("sync", {"mappings": this.cleanConfig}).then(_.bind(function () {
                                         eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "mappingSaveSuccess");
                                     }, this));
@@ -165,7 +174,7 @@ define("org/forgerock/openidm/ui/admin/mapping/MappingListView", [
             var selectedEl = $(event.target).parents(".mapping-config-body"),
                 index = this.$el.find("#mappingConfigHolder .mapping-config-body").index(selectedEl);
 
-            uiUtils.jqConfirm($.t("templates.mapping.confirmDeleteMapping", {"mappingName": this.cleanConfig[index].name}), _.bind(function(){
+            UIUtils.confirmDialog($.t("templates.mapping.confirmDeleteMapping", {"mappingName": this.cleanConfig[index].name}), "danger", _.bind(function(){
                 this.cleanConfig.splice(index, 1);
 
                 configDelegate.updateEntity("sync", {"mappings":this.cleanConfig}).then(_.bind(function() {
@@ -177,7 +186,7 @@ define("org/forgerock/openidm/ui/admin/mapping/MappingListView", [
 
                     selectedEl.remove();
                 }, this));
-            }, this), "550px");
+            }, this));
         },
         showSyncStatus: function(){
             _.each(this.data.mappingConfig, function (sync){

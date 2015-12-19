@@ -32,7 +32,7 @@
                     "propertyMapping" : {
                         "authenticationId" : "username",
                         "userCredential" : "password",
-                        "userRoles" : "roles"
+                        "userRoles" : "authzRoles"
                     },
                     "defaultUserRoles" : [ ]
                 },

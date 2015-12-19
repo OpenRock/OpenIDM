@@ -1,46 +1,38 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2012 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 
-/*global define, $, form2js, _, Backbone, moment */
+/*global define */
 
-/**
- * @author mbilski
- */
 define("org/forgerock/openidm/ui/common/workflow/tasks/TasksMenuView", [
+    "jquery",
+    "underscore",
+    "backbone",
+    "moment",
     "org/forgerock/openidm/ui/common/workflow/WorkflowDelegate",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/Configuration",
     "org/forgerock/commons/ui/common/util/UIUtils",
-    "UserDelegate",
     "org/forgerock/commons/ui/common/util/DateUtil",
     "org/forgerock/commons/ui/common/components/popup/PopupCtrl"
-], function(workflowManager, eventManager, constants, conf, uiUtils, userDelegate, dateUtil, popupCtrl) {
+], function($, _, Backbone, moment, workflowManager, eventManager, constants, conf, uiUtils, dateUtil, popupCtrl) {
     var TasksMenuView = Backbone.View.extend({
 
         events: {
-            "click .detailsLink": "showTask",
+            "click .details-link": "showTask",
             "change select[name=assignedUser]": "claimTask",
             "mouseenter .userLink": "showUser",
             "click .closeLink" : "hideDetails",
@@ -54,7 +46,7 @@ define("org/forgerock/openidm/ui/common/workflow/tasks/TasksMenuView", [
         requeueTaskHandler: function(event) {
             event.preventDefault();
 
-            var id = $(event.target).closest("tr").prev().find("[name=taskId]").val();
+            var id = $(event.target).parents(".list-group-item").find("[name=taskId]").val();
 
             this.requeueTask(id, _.bind(function() {
                 this.hideDetails();
@@ -67,13 +59,30 @@ define("org/forgerock/openidm/ui/common/workflow/tasks/TasksMenuView", [
                 event.preventDefault();
             }
 
-            $("#taskDetails").closest("tr").remove();
+            this.$el.find(".details-link .fa").toggleClass("fa-caret-right", true);
+            this.$el.find(".details-link .fa").toggleClass("fa-caret-down", false);
+
+            $("#taskDetails").remove();
         },
 
         showTask: function(event) {
             event.preventDefault();
 
-            var id = $(event.target).parent().parent().find("input[name=taskId]").val(), task;
+            var parent = $(event.target).parents(".list-group-item"),
+                id = parent.find("input[name=taskId]").val(),
+                collapse = parent.find('#taskDetails').length,
+                task;
+
+            this.$el.find(".claim-item .fa-caret-down").toggleClass("fa-caret-right", true);
+            this.$el.find(".claim-item .fa-caret-down").toggleClass("fa-caret-down", false);
+
+            if (collapse) { // hide div and switch arrow
+                this.$el.find("#taskDetails").remove();
+                id = null;
+            } else {
+                parent.find(".details-link .fa").toggleClass("fa-caret-right", false);
+                parent.find(".details-link .fa").toggleClass("fa-caret-down", true);
+            }
 
             if(id) {
                 task = this.getTaskFromCacheById(id);
@@ -106,7 +115,9 @@ define("org/forgerock/openidm/ui/common/workflow/tasks/TasksMenuView", [
         showUser: function(event) {
             event.preventDefault();
 
-            var userId = $(event.target).next().val(), data = {}, requesterDisplayName = $(event.target).next().next().val(), user, taskId;
+            var userId = $(event.target).next().val(),
+                data = {},
+                requesterDisplayName = $(event.target).next().next().val(), user, taskId;
 
             taskId = $(event.target).parent().parent().find("input[name=taskId]").val();
             user = this.getParamForTask("user", taskId);
@@ -146,57 +157,65 @@ define("org/forgerock/openidm/ui/common/workflow/tasks/TasksMenuView", [
             this.$el.show();
 
             if(category === "all") {
-                workflowManager.getAllTaskUsingEndpoint(conf.loggedUser._id, _.bind(this.displayTasks, this), _.bind(this.errorHandler, this));
+                workflowManager.getAllTaskUsingEndpoint(conf.loggedUser.id, _.bind(this.displayTasks, this), _.bind(this.errorHandler, this));
             } else if(category === "assigned") {
-                workflowManager.getMyTaskUsingEndpoint(conf.loggedUser._id, _.bind(this.displayTasks, this), _.bind(this.errorHandler, this));
+                workflowManager.getMyTaskUsingEndpoint(conf.loggedUser.id, _.bind(this.displayTasks, this), _.bind(this.errorHandler, this));
             }
         },
 
         errorHandler: function() {
             this.$el.html('');
             if(this.category === "assigned") {
-                this.$el.append('<h5 class="text-center">' + $.t("openidm.ui.admin.tasks.TasksMenuView.noTasksAssigned") + '</h5>');
+                this.$el.append('<li class="list-group-item"><h5 class="text-center">' + $.t("openidm.ui.admin.tasks.TasksMenuView.noTasksAssigned") + '</h5></li>');
             } else {
-                this.$el.append('<h5 class="text-center">' + $.t("openidm.ui.admin.tasks.TasksMenuView.noTasksInGroupQueue") + '</h5>');
+                this.$el.append('<li class="list-group-item"><h5 class="text-center">' + $.t("openidm.ui.admin.tasks.TasksMenuView.noTasksInGroupQueue") + '</h5>');
             }
         },
 
         displayTasks: function(tasks) {
-            var process, data, processName, taskType, taskName, actions, i, task, active, before, types = 0;
-            before = this.$el.find(".ui-accordion-header").length;
+            var process,
+                data = {
+                    taskGroup : []
+                },
+                processName,
+                taskType,
+                taskName,
+                actions,
+                i,
+                task,
+                active,
+                before,
+                types = 0,
+                taskGroup;
+
             this.tasks = tasks;
             this.$el.html('');
 
             for(processName in tasks) {
-                process = tasks[processName];
-
                 types++;
 
-                data = {
+                process = tasks[processName];
+
+                data.taskGroup.push({
                     processName: process.name,
                     taskName: process.name,
                     count: process.tasks.length,
-                    headers: this.getParamsForTaskType(taskType),
                     batchOperation: this.category === 'assigned',
                     id: process.name.replace(/\s/g, '') + this.category + types,
                     taskCount: process.tasks.length,
                     tasks: []
-                };
+                });
 
                 for(i = 0; i < process.tasks.length; i++) {
-                    task = process.tasks[i];
-                    data.tasks.push(this.prepareParamsFromTask(task));
+                    taskGroup = data.taskGroup[data.taskGroup.length - 1];
+
+                    taskGroup.tasks.push(process.tasks[i]);
+
+                    taskGroup.tasks[taskGroup.tasks.length - 1].convertedTask = this.prepareParamsFromTask(process.tasks[i]);
                 }
-
-                this.$el.append(uiUtils.fillTemplateWithData("templates/workflow/tasks/ProcessUserTaskTableTemplate.html", data));
             }
 
-            active = false;
-            if(this.$el.hasClass('ui-accordion') && before === types) {
-                active = this.$el.accordion("option", "active");
-            }
-
-            this.$el.accordion({header: "table-header", heightStyle: "content", collapsible: true, autoHeight: false, active: active});
+            uiUtils.renderTemplate("templates/workflow/tasks/ProcessUserTaskTableTemplate.html", this.$el, data);
 
             this.refreshAssignedSelectors();
 
@@ -247,19 +266,19 @@ define("org/forgerock/openidm/ui/common/workflow/tasks/TasksMenuView", [
                     for(i = 0; i < task.usersToAssign.users.length; i++) {
                         user = task.usersToAssign.users[i];
 
-                        if($(target).find("option[value='"+ user.username +"']").length === 0 && user.username !== conf.loggedUser.userName) {
+                        if($(target).find("option[value='"+ user.username +"']").length === 0 && user.username !== conf.loggedUser.get("userName")) {
                             $(target).append('<option value="'+ user.username +'">'+ user.displayableName +'</option');
                         }
                     }
                 }
 
-                if(conf.loggedUser.userName === assignedUser) {
+                if(conf.loggedUser.get("userName") === assignedUser) {
                     $(target).val('me');
 
-                    if(conf.loggedUser.givenName) {
-                        $(target).find('option[value=me]').html(conf.loggedUser.givenName + ' ' + conf.loggedUser.familyName);
+                    if(conf.loggedUser.has("givenName")) {
+                        $(target).find('option[value=me]').html(conf.loggedUser.get("givenName") + ' ' + conf.loggedUser.get("sn"));
                     } else {
-                        $(target).find('option[value=me]').html(conf.loggedUser.userName);
+                        $(target).find('option[value=me]').html(conf.loggedUser.get("userName"));
                     }
                 } else if(assignedUser !== "null") {
                     $(target).val(assignedUser);
@@ -287,13 +306,13 @@ define("org/forgerock/openidm/ui/common/workflow/tasks/TasksMenuView", [
         claimTask: function(event) {
             event.preventDefault();
 
-            var id = $(event.target).parent().parent().find("input[name=taskId]").val(), newAssignee, assignee;
+            var id = $(event.target).parents(".list-group-item").find("input[name=taskId]").val(), newAssignee, assignee;
 
             newAssignee = $(event.target).val();
-            assignee = $(event.target).parent().parent().find("input[name=assignedUser]").val();
+            assignee = $(event.target).parents(".list-group-item").find("input[name=assignedUser]").val();
 
             if(newAssignee === "me") {
-                newAssignee = conf.loggedUser.userName;
+                newAssignee = conf.loggedUser.get("userName");
             }
 
             if(!assignee) {
@@ -305,7 +324,7 @@ define("org/forgerock/openidm/ui/common/workflow/tasks/TasksMenuView", [
                     $(event.target).parent().parent().find("input[name=assignedUser]").val(newAssignee);
                     eventManager.sendEvent("refreshMyTasksMenu");
                 }, this), function() {
-                    if(assignee === conf.loggedUser.userName) {
+                    if(assignee === conf.loggedUser.get("userName")) {
                         $(event.target).val("me");
                     } else {
                         $(event.target).val(assignee);

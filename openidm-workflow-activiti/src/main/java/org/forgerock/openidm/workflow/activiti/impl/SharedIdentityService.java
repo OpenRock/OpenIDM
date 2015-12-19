@@ -1,27 +1,21 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright © 2012-2014 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2012-2015 ForgeRock AS.
  */
 package org.forgerock.openidm.workflow.activiti.impl;
+
+import static org.forgerock.json.resource.Requests.newUpdateRequest;
 
 import org.activiti.engine.IdentityService;
 import org.activiti.engine.identity.Group;
@@ -34,13 +28,13 @@ import org.activiti.engine.impl.identity.Authentication;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
 import org.activiti.engine.identity.NativeGroupQuery;
 import org.activiti.engine.identity.NativeUserQuery;
+import org.forgerock.services.context.Context;
 import org.forgerock.json.resource.*;
 import org.forgerock.openidm.crypto.CryptoService;
-import org.forgerock.openidm.router.RouteService;
+import org.forgerock.openidm.util.ContextUtil;
 
 /**
  * @version $Revision$ $Date$
@@ -87,25 +81,13 @@ public class SharedIdentityService implements IdentityService {
     public static final String SCIM_X509CERTIFICATES = "x509Certificates";
     //SCIM Group Schema
     public static final String SCIM_MEMBERS = "members";
-    private RouteService repositoryRoute;
-    private ServerContext serverContext;
+    private Context context = ContextUtil.createInternalContext();
     private CryptoService cryptoService;
     private ConnectionFactory connectionFactory;
     
     public static final String USER_PATH = "managed/user/";
     public static final String GROUP_PATH = "managed/group/";
 
-    public void setRouter(RouteService router) {
-        repositoryRoute = router;
-        if (router != null) {
-            try {
-                this.serverContext = repositoryRoute.createServerContext();
-            } catch (ResourceException ex) {
-                Logger.getLogger(SharedIdentityService.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-    }
-    
     public void setCryptoService(CryptoService service) {
         this.cryptoService = service;
     }
@@ -118,12 +100,13 @@ public class SharedIdentityService implements IdentityService {
         return connectionFactory.getConnection();
     }
 
-    public QueryResult query(QueryRequest request, QueryResultHandler handler) throws ResourceException {
-        return getConnection().query(serverContext, request, handler);
+    public QueryResponse query(QueryRequest request, QueryResourceHandler handler) throws ResourceException {
+        return getConnection().query(context, request, handler);
     }
 
-    public QueryResult query(QueryRequest request, Collection<? super Resource> result) throws ResourceException {
-        return getConnection().query(serverContext, request, result);
+    public QueryResponse query(QueryRequest request, Collection<? super ResourceResponse> result)
+            throws ResourceException {
+        return getConnection().query(context, request, result);
     }
 
     /**
@@ -150,11 +133,11 @@ public class SharedIdentityService implements IdentityService {
             User existingUser = query.executeSingleResult(null);
             try {
                 if (existingUser != null) {
-                    UpdateRequest request = Requests.newUpdateRequest(USER_PATH, jsonUser.getId(), jsonUser);
-                    getConnection().update(serverContext, request);
+                    UpdateRequest request = newUpdateRequest(USER_PATH, jsonUser.getId(), jsonUser);
+                    getConnection().update(context, request);
                 } else {
                     CreateRequest request = Requests.newCreateRequest(USER_PATH, jsonUser.getId(), jsonUser);
-                    getConnection().create(serverContext, request);
+                    getConnection().create(context, request);
                 }
             } catch (ResourceException ex) {
                 throw new RuntimeException(ex);
@@ -177,7 +160,7 @@ public class SharedIdentityService implements IdentityService {
     public void deleteUser(String userId) {
         try {
             DeleteRequest request = Requests.newDeleteRequest(USER_PATH + userId);
-            getConnection().delete(serverContext, request);
+            getConnection().delete(context, request);
         } catch (ResourceException ex) {
             throw new RuntimeException(ex);
         }
@@ -215,11 +198,11 @@ public class SharedIdentityService implements IdentityService {
             Group existingGroup = query.executeSingleResult(null);
             try {
                 if (existingGroup != null) {
-                    UpdateRequest request = Requests.newUpdateRequest(GROUP_PATH, jsonGroup.getId(), jsonGroup);
-                    getConnection().update(serverContext, request);
+                    UpdateRequest request = newUpdateRequest(GROUP_PATH, jsonGroup.getId(), jsonGroup);
+                    getConnection().update(context, request);
                 } else {
                     CreateRequest request = Requests.newCreateRequest(GROUP_PATH, jsonGroup.getId(), jsonGroup);
-                    getConnection().create(serverContext, request);
+                    getConnection().create(context, request);
                 }
             } catch (ResourceException ex) {
                 throw new RuntimeException(ex);
@@ -236,7 +219,7 @@ public class SharedIdentityService implements IdentityService {
     public void deleteGroup(String groupId) {
         try {
             DeleteRequest request = Requests.newDeleteRequest(GROUP_PATH + groupId);
-            getConnection().delete(serverContext, request);
+            getConnection().delete(context, request);
         } catch (ResourceException e) {
             throw new RuntimeException(e);
         }

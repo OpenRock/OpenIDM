@@ -24,6 +24,7 @@
 
 package org.forgerock.openidm.repo.jdbc.impl;
 
+import static org.forgerock.json.resource.Responses.newResourceResponse;
 import static org.forgerock.openidm.repo.QueryConstants.PAGED_RESULTS_OFFSET;
 import static org.forgerock.openidm.repo.QueryConstants.PAGE_SIZE;
 import static org.forgerock.openidm.repo.QueryConstants.SORT_KEYS;
@@ -41,16 +42,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.forgerock.json.fluent.JsonPointer;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.NotFoundException;
 import org.forgerock.json.resource.PreconditionFailedException;
-import org.forgerock.json.resource.QueryFilter;
-import org.forgerock.json.resource.QueryFilterVisitor;
-import org.forgerock.json.resource.Resource;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.SortKey;
 import org.forgerock.openidm.config.enhanced.InvalidException;
@@ -64,6 +63,8 @@ import org.forgerock.openidm.repo.util.StringSQLQueryFilterVisitor;
 import org.forgerock.openidm.repo.util.StringSQLRenderer;
 import org.forgerock.openidm.util.Accessor;
 import org.forgerock.openidm.util.JsonUtil;
+import org.forgerock.util.query.QueryFilter;
+import org.forgerock.util.query.QueryFilterVisitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,7 +81,7 @@ public class MappedTableHandler implements TableHandler {
 
     final LinkedHashMap<String, Object> rawMappingConfig;
     final Mapping explicitMapping;
-    private final QueryFilterVisitor<StringSQLRenderer, Map<String, Object>> queryFilterVisitor;
+    private final QueryFilterVisitor<StringSQLRenderer, Map<String, Object>, JsonPointer> queryFilterVisitor;
 
     // The json pointer (used as names) of the properties to replace the ?
     // tokens in the prepared statement,
@@ -142,12 +143,15 @@ public class MappedTableHandler implements TableHandler {
         queries = new TableQueries(this, tableName, null, dbSchemaName, 0, new ExplicitQueryResultMapper(explicitMapping));
         queries.setConfiguredQueries(tableName, dbSchemaName, queriesConfig, commandsConfig, null);
 
-        String mainTable = dbSchemaName == null ? tableName : dbSchemaName + "." + tableName;
+        initializeQueries();
+    }
 
-        StringBuffer colNames = new StringBuffer();
-        StringBuffer tokenNames = new StringBuffer();
-        StringBuffer prepTokens = new StringBuffer();
-        StringBuffer updateAssign = new StringBuffer();
+    protected void initializeQueries() {
+        final String mainTable = dbSchemaName == null ? tableName : dbSchemaName + "." + tableName;
+        final StringBuffer colNames = new StringBuffer();
+        final StringBuffer tokenNames = new StringBuffer();
+        final StringBuffer prepTokens = new StringBuffer();
+        final StringBuffer updateAssign = new StringBuffer();
         boolean isFirst = true;
 
         for (ColumnMapping colMapping : explicitMapping.columnMappings) {
@@ -183,10 +187,10 @@ public class MappedTableHandler implements TableHandler {
      *      java.lang.String, java.lang.String, java.sql.Connection)
      */
     @Override
-    public Resource read(String fullId, String type, String localId, Connection connection)
+    public ResourceResponse read(String fullId, String type, String localId, Connection connection)
             throws NotFoundException, SQLException, IOException, InternalServerErrorException {
         JsonValue resultValue = null;
-        Resource result = null;
+        ResourceResponse result = null;
         PreparedStatement readStatement = null;
         ResultSet rs = null;
         try {
@@ -202,7 +206,7 @@ public class MappedTableHandler implements TableHandler {
                 resultValue = explicitMapping.mapToJsonValue(rs, Mapping.getColumnNames(rs));
                 JsonValue rev = resultValue.get("_rev");
                 logger.debug(" full id: {}, rev: {}, obj {}", fullId, rev, resultValue);
-                result = new Resource(localId, rev.asString(), resultValue);
+                result = newResourceResponse(localId, rev.asString(), resultValue);
             } else {
                 throw new NotFoundException("Object " + fullId + " not found in " + type);
             }
@@ -520,7 +524,7 @@ public class MappedTableHandler implements TableHandler {
     }
 
     @Override
-    public String renderQueryFilter(QueryFilter filter, Map<String, Object> replacementTokens, Map<String, Object> params) {
+    public String renderQueryFilter(QueryFilter<JsonPointer> filter, Map<String, Object> replacementTokens, Map<String, Object> params) {
         final String offsetParam = (String) params.get(PAGED_RESULTS_OFFSET);
         final String pageSizeParam = (String) params.get(PAGE_SIZE);
         String pageClause = " LIMIT " + pageSizeParam + " OFFSET " + offsetParam;
@@ -565,7 +569,7 @@ public class MappedTableHandler implements TableHandler {
      * @param replacementTokens replacement tokens for the query string
      * @return a query string
      */
-    protected String getFilterString(QueryFilter filter, Map<String, Object> replacementTokens) {
+    protected String getFilterString(QueryFilter<JsonPointer> filter, Map<String, Object> replacementTokens) {
         return " WHERE " + filter.accept(queryFilterVisitor, replacementTokens).toSQL();
     }
 }
@@ -644,7 +648,7 @@ class Mapping {
                 } else {
                     throw new InternalServerErrorException("Unsupported DB column type " + entry.dbColType);
                 }
-                mappedResult.put(entry.objectColPointer, value);
+                mappedResult.putPermissive(entry.objectColPointer, value);
             }
         }
         logger.debug("Mapped rs {} to {}", rs, mappedResult);

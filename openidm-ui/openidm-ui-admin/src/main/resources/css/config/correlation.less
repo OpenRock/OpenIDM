@@ -1,18 +1,28 @@
+/**
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
+ *
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
+ *
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
+ *
+ * Copyright 2015 ForgeRock AS.
+ */
+
 #mappingContent .panel-footer {
   border-top:0px;
 }
 
 #reconContainer .form-inline {
   margin-bottom:15px;
-}
 
-#reconContainer .ui-jqgrid {
-  margin: auto;
-}
-
-#objectFiltersView {
-  .panel-body {
-    padding-top:0px;
+  .ui-jqgrid {
+    margin: auto;
   }
 }
 
@@ -40,7 +50,8 @@
   margin-top:15px;
 }
 
-#correlationQueryView, #correlationQueryBuilderView {
+#correlationQueryView,
+#correlationQueryBuilderView {
   .correlationQueryType{
     margin-bottom: 5px;
   }
@@ -109,11 +120,12 @@
       margin-top: 10px;
       height: 15px;
     }
+
     &>ul{
       padding: 10px 10px 10px 15px;
     }
 
-    ul {
+    ul:not(.dropdown-menu) {
       border-left: 3px #ddd solid;
       padding-left:5px;
       margin-top:5px;
@@ -147,24 +159,17 @@
         label {
           padding-left:0;
         }
+      }
+    }
 
-        .expressionMenu {
-          width: 100px;
-          z-index: 10;
-          display:none;
-          position: absolute;
-          right: -40px;
-          top: 30px;
-          padding: 5px;
-          padding-bottom: 20px;
-          cursor: pointer;
+    .dropdown {
+      margin-bottom:10px;
+      float:right;
 
-          li {
-            margin-left: 0;
-            a {
-              color: #5d6871;
-            }
-          }
+      .dropdown-menu {
+        li {
+          line-height: inherit;
+          margin-left: 0;
         }
       }
     }

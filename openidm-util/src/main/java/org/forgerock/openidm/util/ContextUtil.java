@@ -11,16 +11,27 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions Copyrighted [year] [name of copyright owner]".
  *
- * Copyright © 2014 ForgeRock AS. All rights reserved.
+ * Copyright © 2014-2015 ForgeRock AS. All rights reserved.
  */
 package org.forgerock.openidm.util;
 
-import org.forgerock.json.resource.ClientContext;
-import org.forgerock.json.resource.Context;
+import static org.forgerock.services.context.ClientContext.newInternalClientContext;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.forgerock.services.context.ClientContext;
+import org.forgerock.services.context.Context;
+import org.forgerock.services.context.RootContext;
+import org.forgerock.services.context.SecurityContext;
 
 /**
  */
 public class ContextUtil {
+
+    public static final String INTERNAL_AUTHENTICATION_ID = "system";
 
     /**
      * {@code ContextUtil} instances should NOT be constructed in standard
@@ -42,5 +53,26 @@ public class ContextUtil {
     public static boolean isExternal(Context context) {
         return context.containsContext(ClientContext.class)
                 && context.asContext(ClientContext.class).isExternal();
+    }
+    /**
+     * Create a internal context used for trusted, internal calls.
+     * <p>
+     * If the request is initiated in a non-authenticated location (
+     * {@code BundleActivator}, {@code Scheduler}, {@code ConfigurationAdmin})
+     * this context should be used. The AUTHORIZATION module grants full access
+     * to this context.
+     *
+     * @return a new {@link ClientContext}
+     */
+    public static Context createInternalContext() {
+        // Ideally, we would have an internal system user that we could point to;
+        // point to it now and build it later
+        final Map<String, Object> authzid = new HashMap<String, Object>();
+        authzid.put(SecurityContext.AUTHZID_ID, INTERNAL_AUTHENTICATION_ID);
+        List<String> roles = new ArrayList<String>();
+        roles.add("system");
+        authzid.put(SecurityContext.AUTHZID_ROLES, roles);
+        authzid.put(SecurityContext.AUTHZID_COMPONENT, "internal/user");
+        return newInternalClientContext(new SecurityContext(new RootContext(), INTERNAL_AUTHENTICATION_ID, authzid));
     }
 }

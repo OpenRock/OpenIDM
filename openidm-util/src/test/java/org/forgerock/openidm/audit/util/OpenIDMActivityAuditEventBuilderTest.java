@@ -17,12 +17,19 @@
 package org.forgerock.openidm.audit.util;
 
 import static org.fest.assertions.api.Assertions.assertThat;
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
 
 import org.forgerock.audit.events.AuditEvent;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.openidm.util.ContextUtil;
+import org.forgerock.services.TransactionId;
+import org.forgerock.services.context.Context;
+import org.forgerock.services.context.RootContext;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.Requests;
-import org.forgerock.json.resource.RootContext;
+import org.forgerock.services.context.TransactionIdContext;
+import org.forgerock.util.generator.IdGenerator;
 import org.testng.annotations.Test;
 
 public class OpenIDMActivityAuditEventBuilderTest {
@@ -41,18 +48,18 @@ public class OpenIDMActivityAuditEventBuilderTest {
     public void testAuditEventBuilder() {
 
         Request request = Requests.newActionRequest("some/resource", "customAction");
-        RootContext context = new RootContext(TEST_CONTEXT_ID);
+        Context context = new TransactionIdContext(new RootContext(TEST_CONTEXT_ID), new TransactionId());
         String[] changedFields = new String[]{"test"};
 
         AuditEvent event = OpenIDMActivityAuditEventBuilder.auditEventBuilder()
-                .transactionIdFromRootContext(context)
+                .transactionIdFromContext(context)
                 .timestamp(System.currentTimeMillis())
                 .eventName(RouterActivityLogger.ACTIVITY_EVENT_NAME)
-                .authentication("fake")
+                .userId("fake")
                 .runAs(TEST_RUN_AS)
-                .resourceOperationFromRequest(request)
-                .before(null)
-                .after(null)
+                .operationFromCrestRequest(request)
+                .before(json(object()))
+                .after(json(object()))
                 .changedFields(changedFields)
                 .revision("6")
                 .message(TEST_MESSAGE)

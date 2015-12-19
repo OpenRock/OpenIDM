@@ -1,20 +1,26 @@
 #!/bin/sh
-# 
+#
 # Copyright 2013 ForgeRock, Inc.
 #
 # The contents of this file are subject to the terms of the Common Development and
-# Distribution License (the License). You may not use this file except in compliance 
+# Distribution License (the License). You may not use this file except in compliance
 # with the License.
 #
-# You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for 
+# You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for
 # the specific language governing permission and limitations under the License.
 #
-# When distributing Covered Software, include this CDDL Header Notice in each file 
-# and include the License file at legal/CDDLv1.0.txt. If applicable, add the 
-# following below the CDDL Header, with the fields enclosed by brackets [] 
-# replaced by your own identifying information: 
+# When distributing Covered Software, include this CDDL Header Notice in each file
+# and include the License file at legal/CDDLv1.0.txt. If applicable, add the
+# following below the CDDL Header, with the fields enclosed by brackets []
+# replaced by your own identifying information:
 # "Portions copyright [year] [name of copyright owner]".
 #
+
+JAVA_VER=$(java -version 2>&1 | sed 's/java version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
+if [ "$JAVA_VER" -lt 17 ]; then
+  echo "Java version 1.7 or higher required";
+  exit 1;
+fi
 
 # clean up left over pid files if necessary
 cleanupPidFile() {
@@ -107,13 +113,20 @@ echo $$ > "$OPENIDM_PID_FILE"
 cd "$PRGDIR"
 
 # start in normal mode
-exec java "$LOGGING_CONFIG" $JAVA_OPTS $OPENIDM_OPTS \
-	-Djava.endorsed.dirs="$JAVA_ENDORSED_DIRS" \
-	-classpath "$CLASSPATH" \
-	-Dopenidm.system.server.root="$OPENIDM_HOME" \
-	-Djava.awt.headless=true \
-	org.forgerock.commons.launcher.Main -c "$OPENIDM_HOME"/bin/launcher.json $CLOPTS
+START_IDM() {
+(java "$LOGGING_CONFIG" $JAVA_OPTS $OPENIDM_OPTS \
+        -Djava.endorsed.dirs="$JAVA_ENDORSED_DIRS" \
+        -classpath "$CLASSPATH" \
+        -Dopenidm.system.server.root="$OPENIDM_HOME" \
+        -Djava.awt.headless=true \
+        org.forgerock.commons.launcher.Main -c "$OPENIDM_HOME"/bin/launcher.json $CLOPTS)
+}
+
+while
+   START_IDM;
+   [ $? -eq 255 ]; #Exit status out of range, exit -1
+do
+   continue;
+done
 
 # org.forgerock.commons.launcher.Main -c bin/launcher.json -w samples/sample1/cache -p samples/sample1 "$@"
-
-cd -

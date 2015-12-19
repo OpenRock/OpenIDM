@@ -1,36 +1,30 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _ */
+/*global define */
 
 define("org/forgerock/openidm/ui/common/resource/ResourceCollectionRelationshipsView", [
+    "jquery",
+    "underscore",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/openidm/ui/common/delegates/ResourceDelegate",
     "org/forgerock/openidm/ui/common/util/ResourceCollectionUtils",
     "org/forgerock/commons/ui/common/util/ModuleLoader"
-], function(AbstractView, constants, resourceDelegate, resourceCollectionUtils, ModuleLoader) {
+], function($, _, AbstractView, constants, resourceDelegate, resourceCollectionUtils, ModuleLoader) {
     var ResourceCollectionRelationshipsView = AbstractView.extend({
             template: "templates/admin/resource/ResourceCollectionRelationshipsViewTemplate.html",
             noBaseTemplate: true,
@@ -46,7 +40,7 @@ define("org/forgerock/openidm/ui/common/resource/ResourceCollectionRelationships
                 this.element = args.element;
                 this.data.prop = args.prop;
                 this.data.schema = args.schema;
-                
+
                 $.when(
                     resourceDelegate.searchResource(
                             args.prop.propName + ' eq "' + args.prop.parentId + '"&_pageSize=100&_sortKeys=' + args.prop.resourceCollection.query.fields[0],
@@ -55,14 +49,14 @@ define("org/forgerock/openidm/ui/common/resource/ResourceCollectionRelationships
                     ModuleLoader.load("d3")
                 ).then(_.bind(function(qry, d3) {
                     var schema = this.data.schema.properties;
-                    
+
                     this.d3 = d3;
                     this.data.headerValues = resourceCollectionUtils.getHeaderValues(this.data.prop.resourceCollection.query.fields, schema);
 
                     this.data.relatedTo = _.map(qry[0].result, _.bind(function(relationship) {
                         return _.pick(relationship, "_id", this.data.prop.resourceCollection.query.fields);
                     }, this));
-                    
+
                     this.parentRender(_.bind(function() {
                         if(this.data.relatedTo.length) {
                             this.parentRender(_.bind(function() {

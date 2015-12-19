@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2013 ForgeRock AS. All Rights Reserved
+ * Copyright 2011-2015 ForgeRock AS.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -24,6 +24,7 @@
 
 package org.forgerock.openidm.shell.impl;
 
+import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
@@ -38,15 +39,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 
-import javax.crypto.spec.SecretKeySpec;
-
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.felix.service.command.CommandSession;
 import org.apache.felix.service.command.Descriptor;
 import org.apache.felix.service.command.Parameter;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.crypto.JsonCryptoException;
-import org.forgerock.json.fluent.JsonValue;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.crypto.factory.CryptoServiceFactory;
@@ -69,6 +68,7 @@ public class LocalCommandScope extends CustomCommandScope {
         Map<String, String> help = new HashMap<String, String>();
         help.put("validate", getLongHeader("validate"));
         help.put("encrypt", getLongHeader("encrypt"));
+        help.put("secureHash", getLongHeader("secureHash"));
         help.put("keytool", getLongHeader("keytool"));
         return help;
     }
@@ -264,6 +264,51 @@ public class LocalCommandScope extends CustomCommandScope {
             session.getConsole().println("-----BEGIN ENCRYPTED VALUE-----");
             session.getConsole().println(wr.toString());
             session.getConsole().println("------END ENCRYPTED VALUE------");
+        } catch (JsonCryptoException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Hashes the input string with a randomly generated salt.
+     *
+     * @param session command session
+     * @param isString whether the input is a string
+     */
+    @Descriptor("Hash the input string.")
+    public void secureHash(CommandSession session,
+            @Parameter(names = { "-j", "--json" }, presentValue = "false", absentValue = "true") boolean isString,
+            @Parameter(names = { "-a", "--algorithm" }, absentValue = "SHA-256") String algorithm) {
+        session.getConsole().append("Enter the ").append(isString ? "String" : "Json").println(" value");
+        secureHash(session, isString, algorithm, loadFromConsole(session));
+    }
+
+    /**
+     * Hashes the input string with a randomly generated salt.
+     *
+     * @param session command session,
+     * @param isString whether the input is a string
+     * @param stringValue the value of the string to hash
+     */
+    @Descriptor("Hash the input string.")
+    public void secureHash(CommandSession session,
+            @Parameter(names = { "-j", "--json" }, presentValue = "false", absentValue = "true") boolean isString,
+            @Parameter(names = { "-a", "--algorithm" }, absentValue = "SHA-256") String algorithm,
+            @Descriptor("source string to hash") String stringValue) {
+        try {
+            CryptoServiceImpl cryptoSvc = (CryptoServiceImpl) CryptoServiceFactory.getInstance();
+            cryptoSvc.activate(null);
+
+            JsonValue value = new JsonValue(isString ? stringValue : mapper.readValue(stringValue, Object.class));
+            JsonValue secure = cryptoSvc.hash(value, algorithm);
+
+            StringWriter wr = new StringWriter();
+            mapper.writerWithDefaultPrettyPrinter().writeValue(wr, secure.getObject());
+            session.getConsole().println("-----BEGIN HASHED VALUE-----");
+            session.getConsole().println(wr.toString());
+            session.getConsole().println("------END HASHED VALUE------");
         } catch (JsonCryptoException e) {
             e.printStackTrace();
         } catch (IOException e) {

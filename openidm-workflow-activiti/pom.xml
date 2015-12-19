@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.forgerock.openidm</groupId>
         <artifactId>openidm-project</artifactId>
-        <version>3.2.0-SNAPSHOT</version>
+        <version>4.1.0-SNAPSHOT</version>
     </parent>
     <artifactId>openidm-workflow-activiti</artifactId>
     <name>OpenIDM Activiti BPMN 2.0 Integration</name>
@@ -60,6 +60,11 @@
         </dependency>
         <dependency>
             <groupId>org.forgerock.openidm</groupId>
+            <artifactId>openidm-repo</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.forgerock.openidm</groupId>
             <artifactId>openidm-router</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -71,12 +76,15 @@
             <groupId>org.forgerock.commons</groupId>
             <artifactId>script-groovy</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.forgerock.commons</groupId>
+            <artifactId>forgerock-util</artifactId>
+        </dependency>
 
 
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jul-to-slf4j</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.activiti</groupId>
@@ -181,6 +189,18 @@
             <groupId>org.osgi</groupId>
             <artifactId>org.osgi.enterprise</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
 
         <!-- Provided Dependencies -->
         <dependency>
@@ -235,21 +255,9 @@
             </activation>
             <dependencies>
                 <dependency>
-                    <groupId>org.codehaus.jackson</groupId>
-                    <artifactId>jackson-core-asl</artifactId>
-                </dependency>
-                <dependency>
-                    <groupId>org.codehaus.jackson</groupId>
-                    <artifactId>jackson-mapper-asl</artifactId>
-                </dependency>
-                <dependency>
                     <groupId>org.restlet.osgi</groupId>
                     <artifactId>org.restlet.ext.servlet</artifactId>
                     <version>2.1.2</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.forgerock.commons</groupId>
-                    <artifactId>json-fluent</artifactId>
                 </dependency>
                 <dependency>
                     <groupId>org.restlet.osgi</groupId>

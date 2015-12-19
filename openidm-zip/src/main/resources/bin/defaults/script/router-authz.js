@@ -1,7 +1,7 @@
-/** 
+/**
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2012 ForgeRock AS. All rights reserved.
+ * Copyright (c) 2011-2015 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -25,7 +25,7 @@
 /*
  * This script is called from the router "onRequest" trigger, to enforce a central
  * set of authorization rules.
- * 
+ *
  * This default implemention simply restricts requests via HTTP to users that are assigned
  * an "openidm-admin" role, and optionally to those that authenticate with TLS mutual
  * authentication (assigned an "openidm-cert" role).
@@ -34,28 +34,7 @@
 /*jslint regexp:false sub:true */
 /*global httpAccessConfig */
 
-
-//reinventing the wheel a bit, here; eventually move to underscore's isEqual method
-function deepCompare(obj1, obj2) {
-    var i,t1 = typeof(obj1), t2 = typeof(obj2);
-    if (t1 !== t2) {
-        return false; // mismatching types indicate a failed match
-    } else if ((t1 === "string" || t1 === "number" || t1 === "boolean")) {
-        return obj1 === obj2; // simple comparisons work in this case
-    } else { // they must both be objects, so traverse them
-        for (i in obj1) {
-            if (!deepCompare(obj1[i], obj2[i])) { // recurse through the object, checking each child property
-                return false;
-            }
-        }
-        for (i in obj2) { // checks for any properties in obj2 which were not in obj1, and so missed above
-            if (typeof(obj1[i]) === "undefined") {
-                return false;
-            }
-        }
-        return true;
-    }
-}
+var _ = require("lib/lodash");
 
 function matchesResourceIdPattern(id, pattern) {
     if (pattern === "*") {
@@ -97,7 +76,7 @@ function containsIgnoreCase(a, o) {
 
 function containsItems(items, configItems) {
     var i;
-    if ((typeof configItems === "string" && configItems === '*') || 
+    if ((typeof configItems === "string" && configItems === '*') ||
         (typeof configItems === "object" && configItems.length === 1 && configItems[0] === '*')) {
         return true;
     }
@@ -111,7 +90,7 @@ function containsItems(items, configItems) {
 }
 
 function containsItem(item, configItems) {
-    if ((typeof configItems === "string" && configItems === '*') || 
+    if ((typeof configItems === "string" && configItems === '*') ||
             (typeof configItems === "object" && configItems.length === 1 && configItems[0] === '*')) {
         return true;
     }
@@ -131,9 +110,9 @@ function contains(a, o) {
 }
 
 function isMyTask() {
-    var taskInstanceId = request.resourceName.split("/")[2],
+    var taskInstanceId = request.resourcePath.split("/")[2],
         taskInstance = openidm.read("workflow/taskinstance/" + taskInstanceId);
-    
+
     return taskInstance.assignee === context.security.authenticationId;
 }
 function join (arr, delim) {
@@ -145,7 +124,7 @@ function join (arr, delim) {
 }
 
 function isUserCandidateForTask(taskInstanceId) {
-    
+
     var userCandidateTasksQueryParams = {
             "_queryId": "filtered-query",
             "taskCandidateUser": context.security.authenticationId
@@ -154,54 +133,50 @@ function isUserCandidateForTask(taskInstanceId) {
         userGroupCandidateTasksQueryParams,
         userGroupCandidateTasks,
         i,roles,role;
-    
+
     for (i = 0; i < userCandidateTasks.length; i++) {
         if (taskInstanceId === userCandidateTasks[i]._id) {
             return true;
         }
     }
-        
+
     roles = "";
-    for (i = 0; i < context.security.authorizationId.roles.length; i++) {
-        role = context.security.authorizationId.roles[i];
+    for (i = 0; i < context.security.authorization.roles.length; i++) {
+        role = context.security.authorization.roles[i];
         if (i === 0) {
             roles = role;
         } else {
             roles = roles + "," + role;
         }
     }
-    
+
     userGroupCandidateTasksQueryParams = {
         "_queryId": "filtered-query",
         "taskCandidateGroup": ((typeof roles === "string") ? roles : join(roles, ","))
-    };    
+    };
     userGroupCandidateTasks = openidm.query("workflow/taskinstance", userGroupCandidateTasksQueryParams).result;
     for (i = 0; i < userGroupCandidateTasks.length; i++) {
         if (taskInstanceId === userGroupCandidateTasks[i]._id) {
             return true;
         }
     }
-    
+
     return false;
 }
 
 function canUpdateTask() {
-    var taskInstanceId = request.resourceName.split("/")[2];
+    var taskInstanceId = request.resourcePath.split("/")[2];
     return isMyTask() || isUserCandidateForTask(taskInstanceId);
 }
 
 function isProcessOnUsersList(processFilter) {
-    var processesForUserQueryParams = {
-            "_queryId": "query-processes-for-user",
-            "userId": context.security.authorizationId.id
-        },
-        processesForUser = openidm.query("endpoint/getprocessesforuser", processesForUserQueryParams),
+    var processesForUser = openidm.read("endpoint/getprocessesforuser").processes,
         isProcessOneOfUserProcesses = false,
         processForUser,
         i;
-    
-    for (i = 0; i < processesForUser.result.length; i++) {
-        processForUser = processesForUser.result[i];
+
+    for (i = 0; i < processesForUser.length; i++) {
+        processForUser = processesForUser[i];
         if (processFilter(processForUser)) {
             isProcessOneOfUserProcesses = true;
         }
@@ -213,25 +188,25 @@ function isProcessOnUsersList(processFilter) {
 function isAllowedToStartProcess() {
     var processDefinitionId = request.content._processDefinitionId;
     var key = request.content._key;
-    return isProcessOnUsersList(function (process) { 
-        return (process._id === processDefinitionId) || (process.key === key); 
+    return isProcessOnUsersList(function (process) {
+        return (process._id === processDefinitionId) || (process.key === key);
     });
 }
 
 function isOneOfMyWorkflows() {
-    var processDefinitionId = request.resourceName.split("/")[2];
+    var processDefinitionId = request.resourcePath.split("/")[2];
     return isProcessOnUsersList(function (process) {return (process._id === processDefinitionId); });
 }
 
 function isQueryOneOf(allowedQueries) {
     if (
-            allowedQueries[request.resourceName] &&
-            contains(allowedQueries[request.resourceName], request.queryId)
+            allowedQueries[request.resourcePath] &&
+            contains(allowedQueries[request.resourcePath], request.queryId)
        )
     {
         return true;
     }
-    
+
     return false;
 }
 
@@ -242,30 +217,119 @@ function checkIfUIIsEnabled(param) {
 }
 
 function ownDataOnly() {
-    var userId = context.security.authorizationId.id,
-        component = context.security.authorizationId.component;
+    var userId = context.security.authorization.id,
+        component = context.security.authorization.component;
 
     // in the case of a literal read on themselves
-    return (request.resourceName === component + "/" + userId);
+    return (request.resourcePath === component + "/" + userId);
 
 }
 
+/**
+ * Look through the whole patchOperation set and return false if any
+ * field in the set refers to something other than those provided in the argument
+ * @param {Array} allowedFields - The list of fields which the patch operations are allowed to target
+ * @returns {Boolean}
+ */
+function restrictPatchToFields(allowedFields) {
+    var patchOps;
+
+    if (request.method === "patch") {
+        patchOps = request.patchOperations;
+    } else if (request.method === "action" && request.action === "patch") {
+        patchOps = request.content;
+    } else {
+        return false;
+    }
+
+    return _.reduce(patchOps, function (result, patchOp) {
+        // removes leading slashses from jsonpointer field specifications,
+        // and only considers the first path item in the jsonpointer path
+        var simpleField = patchOp.field.replace(/^\//, '').split("/")[0];
+        return result && (_.indexOf(allowedFields, simpleField) !== -1);
+    }, true);
+}
+
+/**
+ * Given a managed object name and the global request details, look up the
+ * schema for the object and ensure that each of the changed properties in
+ * the request are marked as "userEditable" : true.
+ * @param {string} objectName - the name of the managed object (ex: "user")
+ * @returns {Boolean}
+ */
+function onlyEditableManagedObjectProperties(objectName) {
+    var managedConfig = openidm.read("config/managed"),
+        managedObjectConfig = _.findWhere(managedConfig.objects, {"name": objectName}),
+        currentObject,
+        JsonPatch = org.forgerock.json.patch.JsonPatch,
+        JsonValue = org.forgerock.json.JsonValue;
+
+    if (!managedObjectConfig || !managedObjectConfig.schema || !managedObjectConfig.schema.properties) {
+        return false;
+    }
+
+    if (request.method === "create") {
+        // Every property provided during the create call must be checked
+        return _.reduce(_.keys(request.content), function (result, propertyName) {
+            return result &&
+                _.isObject(managedObjectConfig.schema.properties[propertyName]) &&
+                managedObjectConfig.schema.properties[propertyName].userEditable === true;
+        }, true);
+    } else if (request.method === "update") {
+        // Only those properties which have changed must be checked
+        currentObject = openidm.read(request.resourcePath);
+        return _.reduce(_.keys(request.content), function (result, propertyName) {
+            return result &&
+                (
+                    // either the value has not changed...
+                    JsonPatch.diff(
+                        JsonValue(request.content[propertyName]),
+                        JsonValue(currentObject[propertyName])
+                    ).asList().size() === 0 ||
+                    // or the user is allowed to edit it
+                    (
+                        _.isObject(managedObjectConfig.schema.properties[propertyName]) &&
+                        managedObjectConfig.schema.properties[propertyName].userEditable === true
+                    )
+                );
+        }, true);
+    } else if (request.method === "patch" || (request.method === "action" && request.action === "patch")) {
+        // Every field being patched must be checked
+        return restrictPatchToFields(
+            // generate an array of all userEditable properties in the schema
+            _.chain(managedObjectConfig.schema.properties)
+             .pairs()
+             .filter(function (pair) {
+                 // pair[1] is the property content
+                 return pair[1].userEditable === true;
+             })
+             .map(function (pair) {
+                 // pair[0] is the property name
+                 return pair[0];
+             })
+             .value()
+        );
+    }
+    return false;
+}
+
+/* DEPRECATED FUNCTION */
 function managedUserRestrictedToAllowedProperties(allowedPropertiesList) {
     var i = 0,requestedRoles = [],params = {},currentUser = {}, operations,
         getTopLevelProp = function (prop) {
             // removes a leading slash and only returns the first part of a string before a possible subsequent slash
             return prop.replace(/^\//, '').match(/^[^\/]+/)[0];
         };
-    
-    if (!request.resourceName.match(/^managed\/user/)) {
+
+    if (!request.resourcePath.match(/^managed\/user/)) {
         return true;
     }
-    
+
     // we could accept a csv list or an array of properties for the allowedPropertiesList arg.
     if (typeof allowedPropertiesList === "string") {
         allowedPropertiesList = allowedPropertiesList.split(',');
     }
-    
+
     if (request.method === "patch" || (request.method === "action" && request.action === "patch")) {
     	if (request.method === "action") {
     		operations = request.content;
@@ -284,14 +348,14 @@ function managedUserRestrictedToAllowedProperties(allowedPropertiesList) {
         if (!request.content) {
             return true;
         }
-        currentUser = openidm.read(request.resourceName);
+        currentUser = openidm.read(request.resourcePath);
         if (!currentUser) { // this would be odd, but just in case
             return false;
         }
         for (i in request.content) {
             // if the new value does not match the current value, then they must be updating it
             // if the field they are attempting to update isn't allowed for them, then reject request.
-            if (!deepCompare(currentUser[i], request.content[i]) && !containsIgnoreCase(allowedPropertiesList,i)) {
+            if (!_.isEqual(currentUser[i], request.content[i]) && !containsIgnoreCase(allowedPropertiesList,i)) {
                 return false;
             }
         }
@@ -322,13 +386,13 @@ function disallowCommandAction() {
 
 function passesAccessConfig(id, roles, method, action) {
     var i,j,config,pattern,excluded,ex;
-    
+
     for (i = 0; i < httpAccessConfig.configs.length; i++) {
         config = httpAccessConfig.configs[i];
         pattern = config.pattern;
         // Check resource ID
         if (matchesResourceIdPattern(id, pattern)) {
-            
+
             // Check excludePatterns
             ex = false;
             if (typeof(config.excludePatterns) !== 'undefined' && config.excludePatterns !== null) {
@@ -363,23 +427,27 @@ function passesAccessConfig(id, roles, method, action) {
     return false;
 }
 
+function isSelfServiceRequest() {
+    return (context.current.name === "selfservice");
+}
+
 function isAJAXRequest() {
     var headers = context.http.headers;
 
     // one of these custom headers must be present for all HTTP-based requests, to prevent CSRF attacks
 
     // X-Requested-With is common from AJAX libraries such as jQuery
-    if (typeof (headers["X-Requested-With"]) !== "undefined" || 
-        typeof (headers["x-requested-with"]) !== "undefined" || 
+    if (typeof (headers["X-Requested-With"]) !== "undefined" ||
+        typeof (headers["x-requested-with"]) !== "undefined" ||
 
-        // Basic auth headers are acceptible for convenience from cURL commands; 
-        // We don't return the request header to prompt the browser to provide basic auth headers, 
+        // Basic auth headers are acceptible for convenience from cURL commands;
+        // We don't return the request header to prompt the browser to provide basic auth headers,
         // so it will only be present if someone explicitly provides them, as in a cURL request.
-        typeof (headers["Authorization"]) !== "undefined" || 
-        typeof (headers["authorization"]) !== "undefined" || 
+        typeof (headers["Authorization"]) !== "undefined" ||
+        typeof (headers["authorization"]) !== "undefined" ||
 
         // The custom authn headers for OpenIDM
-        typeof (headers["X-OpenIDM-Username"]) !== "undefined" || 
+        typeof (headers["X-OpenIDM-Username"]) !== "undefined" ||
         typeof (headers["x-openidm-username"]) !== "undefined") {
 
         return true;
@@ -390,41 +458,33 @@ function isAJAXRequest() {
 function allow() {
     var roles,
         action;
-    
-    if (!context.caller.external) {
-        return true;
-    }
-    
-    roles = context.security.authorizationId.roles;
+
+    roles = context.security.authorization.roles;
     action = "";
     if (request.action) {
         action = request.action;
     }
-    
-    // Check REST requests against the access configuration
-    if (context.caller.external) {
-        // We only need to block non-AJAX requests when the action is not "read"
-        if (request.method !== "read" && !isAJAXRequest()) {
-            return false;
-        }
-        
-        logger.debug("Access Check for HTTP request for resource id: {}, role: {}, method: {}, action: {}", request.resourceName, roles, request.method, action);
 
-        if (passesAccessConfig(request.resourceName, roles, request.method, action)) {
-
-            logger.debug("Request allowed");
-            return true;
-        }
+    // We only need to block non-AJAX requests when the action is not "read"
+    if (context.http !== undefined && request.method !== "read" && !isAJAXRequest()) {
+        return false;
     }
+
+    logger.debug("Access Check for HTTP request for resource id: {}, role: {}, method: {}, action: {}", request.resourcePath, roles, request.method, action);
+
+    return passesAccessConfig(request.resourcePath, roles, request.method, action);
 }
 
 // Load the access configuration script (httpAccessConfig obj)
 load(identityServer.getProjectLocation() + "/script/access.js");
 
 if (!allow()) {
-//    console.log(request);
-    throw { 
+//    console.log(JSON.stringify(request));
+//    console.log(JSON.stringify(context, null, 4));
+    throw {
         "code" : 403,
         "message" : "Access denied"
     };
+} else {
+    logger.debug("Request allowed");
 }

@@ -1,124 +1,171 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global _ define $ window, dimple*/
+/*global define, window */
 
 define("org/forgerock/openidm/ui/common/dashboard/widgets/CPUUsageWidget", [
+    "jquery",
+    "underscore",
+    "dimple",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/Configuration",
-    "org/forgerock/openidm/ui/common/delegates/SystemHealthDelegate",
-    "org/forgerock/commons/ui/common/util/ModuleLoader"
-], function(AbstractView, eventManager, constants, conf, SystemHealthDelegate, ModuleLoader) {
+    "org/forgerock/openidm/ui/common/delegates/SystemHealthDelegate"
+], function($, _, dimple, AbstractView, eventManager, constants, conf, SystemHealthDelegate) {
     var widgetInstance = {},
         Widget = AbstractView.extend({
             noBaseTemplate: true,
             template: "templates/dashboard/widget/DashboardSingleWidgetTemplate.html",
             model: {
                 cpuChart: null,
-                chartX: 20,
-                chartY: 40,
-                chartWidth: 460,
-                chartHeight: 310,
-                legendX: 20,
-                legendY: 20,
-                legendWidth: 90,
-                legendHeight: 200,
+                chartX: 0,
+                chartY: 0,
+                chartWidth: "100%",
+                chartHeight: 180,
                 drawTime: 1000,
                 canvasWidth: "100%",
-                canvasHeight: 390
-            },
-            events: {
-
+                canvasHeight: 190,
+                warningThreshold: "60",
+                warningChartColor: "#f0ad4e",
+                dangerThreshold: "85",
+                dangerChartColor: "#a94442",
+                defaultChartColor: "#519387"
             },
             data: {
 
             },
             render: function(args, callback) {
                 this.element = args.element;
-                this.data.widgetType = args.type;
-                this.model.menu = args.menu;
-
-                ModuleLoader.load("dimple").then(_.bind(function(dimple){
-                    this.cpuUsageWidget(dimple);
-
-
-                    if(callback) {
-                        callback();
-                    }
-                }, this));
+                this.data.widgetTitle = $.t("dashboard.cpuUsage");
+                this.cpuUsageWidget(callback);
             },
-            cpuUsageWidget: function(dimple) {
+            cpuUsageWidget: function(callback) {
+                $(window).unbind("resize.cpuChart");
+
                 this.parentRender(_.bind(function(){
                     this.model.currentData = [];
+
                     SystemHealthDelegate.getOsHealth().then(_.bind(function(widgetData){
+                        this.$el.find(".dashboard-details").show();
 
-                        if(this.model.menu) {
-                            this.model.menu.find(".refresh").show();
-
-                            this.model.menu.find(".refresh").bind("click", _.bind(function(){
-                                this.refreshPoll();
-                            }, this));
-                        }
-
-                        var svg = dimple.newSvg(this.$el[0], this.model.canvasWidth, this.model.canvasHeight),
+                        var svg = dimple.newSvg(this.$el.find(".widget-chart")[0], this.model.canvasWidth, this.model.canvasHeight),
                             pieChart,
                             cpuData = [
                                 {
-                                    "memory" : widgetData.availableProcessors,
+                                    "memory" : widgetData.availableProcessors - widgetData.systemLoadAverage,
                                     "type" : "Free"
                                 },
                                 {
                                     "memory" : widgetData.systemLoadAverage,
                                     "type" : "Used"
                                 }
-                            ];
+                            ],
+                            percent = Math.round((widgetData.systemLoadAverage / widgetData.availableProcessors) * 100),
+                            color = this.model.defaultChartColor,
+                            percentClass = "text-primary";
 
                         this.model.cpuChart =  new dimple.chart(svg, cpuData);
                         this.model.cpuChart.setBounds(this.model.chartX, this.model.chartY, this.model.chartWidth, this.model.chartHeight);
                         this.model.cpuChart.addMeasureAxis("p", "memory");
 
-                        pieChart = this.model.cpuChart.addSeries("type", dimple.plot.pie);
-                        pieChart.addOrderRule("type");
-                        //pieChart.innerRadius = "50%";
+                        if(percent > this.model.dangerThreshold) {
+                            color = this.model.dangerChartColor;
+                            percentClass = "danger";
+                        } else if (percent > this.model.warningThreshold) {
+                            color = this.model.warningChartColor;
+                            percentClass = "warning";
+                        }
 
-                        this.model.cpuChart.addLegend(this.model.legendX, this.model.legendY, this.model.legendWidth, this.model.legendHeight, "left");
+                        this.model.cpuChart.assignColor("Free", "#dddddd", "#f7f7f7");
+                        this.model.cpuChart.assignColor("Used", color, "#f7f7f7");
+                        this.model.cpuChart.assignClass("Used", "used-cpu");
+
+                        pieChart = this.model.cpuChart.addSeries("type", dimple.plot.pie);
+                        pieChart.addOrderRule("type", true);
+                        pieChart.innerRadius = "85%";
+
+                        pieChart.addEventHandler("mouseover", _.noop);
 
                         this.model.cpuChart.draw();
 
-                        window.onresize = _.bind(function () {
-                            if(this.model.cpuChart) {
-                                this.model.cpuChart.draw(0, true);
-                            }
-                        }, this);
+                        //widget-header
+                        this.$el.find(".widget-header").toggleClass("donut-header", true);
+                        this.$el.find(".widget-header").html('<div class="header">' +'USED' +'</div>'
+                            + '<div class="percent ' +percentClass +'">' +percent +'%</div>');
+
+                        this.$el.find(".widget-header").show();
+
+                        if (callback) {
+                            callback();
+                        }
                     }, this));
                 }, this));
             },
 
+            refresh: function() {
+                SystemHealthDelegate.getOsHealth().then(_.bind(function(widgetData) {
+                    var percent = Math.round((widgetData.systemLoadAverage / widgetData.availableProcessors) * 100),
+                        usedCpu = this.$el.find(".used-cpu");
+
+                    this.$el.find(".percent").html(percent +"%");
+                    this.$el.find(".percent").toggleClass("danger", false);
+                    this.$el.find(".percent").toggleClass("warning", false);
+
+                    if(percent > this.model.dangerThreshold) {
+                        usedCpu.attr("fill", this.model.dangerChartColor);
+                        usedCpu.css("fill", this.model.dangerChartColor);
+
+                        this.$el.find(".percent").toggleClass("danger", true);
+                    } else if (percent > this.model.warningThreshold) {
+                        usedCpu.attr("fill", this.model.warningChartColor);
+                        usedCpu.css("fill", this.model.warningChartColor);
+
+                        this.$el.find(".percent").toggleClass("warning", true);
+                    } else {
+                        usedCpu.attr("fill", this.model.defaultChartColor);
+                        usedCpu.css("fill", this.model.defaultChartColor);
+                    }
+
+                    this.model.cpuChart.data = [{
+                        "memory" : widgetData.availableProcessors - widgetData.systemLoadAverage,
+                        "type" : "Free"
+                    },
+                    {
+                        "memory" : widgetData.systemLoadAverage,
+                        "type" : "Used"
+                    }];
+
+                    this.model.cpuChart.draw(1000);
+                }, this));
+            },
+
+            resize: function() {
+                if(this.model.cpuChart) {
+                    this.model.cpuChart.draw(0, true);
+                }
+            },
+
             cpuUsageLoad: function() {
                 SystemHealthDelegate.getOsHealth().then(_.bind(function(widgetData){
+                    //Temp fix for multi core processing exceeding the availableProcessors
+                    if(widgetData.availableProcessors > widgetData.systemLoadAverage) {
+                        widgetData.systemLoadAverage = widgetData.availableProcessors;
+                    }
+
                     if(this.model.cpuChart) {
                         this.model.cpuChart.data = [
                             {
@@ -134,10 +181,6 @@ define("org/forgerock/openidm/ui/common/dashboard/widgets/CPUUsageWidget", [
                         this.model.cpuChart.draw(this.model.drawTime);
                     }
                 }, this));
-            },
-
-            refreshPoll: function() {
-                this.cpuUsageLoad();
             }
         });
 

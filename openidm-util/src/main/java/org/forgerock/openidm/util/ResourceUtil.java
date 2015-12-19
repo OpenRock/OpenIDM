@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2013-2014 ForgeRock AS. All Rights Reserved
+ * Copyright (c) 2013-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -24,23 +24,26 @@
 
 package org.forgerock.openidm.util;
 
+import static org.forgerock.json.JsonValue.*;
+import static org.forgerock.json.resource.ResourceResponse.*;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.forgerock.json.fluent.JsonPointer;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.fluent.JsonValueException;
+import org.forgerock.http.routing.UriRouterContext;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.JsonValueException;
+import org.forgerock.json.patch.JsonPatch;
 import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.ConflictException;
-import org.forgerock.json.resource.Context;
 import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchOperation;
 import org.forgerock.json.resource.Request;
-import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.RouterContext;
+import org.forgerock.services.context.Context;
 
 /**
  * Resource utilities.
@@ -48,7 +51,7 @@ import org.forgerock.json.resource.RouterContext;
 public class ResourceUtil {
 
     /** The name of the field in the resource content which contains the resource ID as a JsonPointer. */
-    public static JsonPointer RESOURCE_FIELD_CONTENT_ID_POINTER = new JsonPointer(Resource.FIELD_CONTENT_ID);
+    public static JsonPointer RESOURCE_FIELD_CONTENT_ID_POINTER = new JsonPointer(FIELD_CONTENT_ID);
 
     /**
      * {@code ResourceUtil} instances should NOT be constructed in standard
@@ -66,16 +69,80 @@ public class ResourceUtil {
      * @param context
      *
      * @return an unmodifiableMap or null if the {@code context} does not
-     *         contains {@link RouterContext}
+     *         contains {@link UriRouterContext}
      */
     public static Map<String, String> getUriTemplateVariables(Context context) {
-        RouterContext routerContext =
-                context.containsContext(RouterContext.class) ? context
-                        .asContext(RouterContext.class) : null;
+        UriRouterContext routerContext =
+                context.containsContext(UriRouterContext.class) ? context
+                        .asContext(UriRouterContext.class) : null;
         if (null != routerContext) {
             return Collections.unmodifiableMap(routerContext.getUriTemplateVariables());
         }
         return null;
+    }
+    
+    public static boolean applyPatchOperation(final PatchOperation operation, final JsonValue newContent) throws ResourceException {
+    	boolean isModified = false;
+    	try {
+            if (operation.isAdd()) {
+                newContent.putPermissive(operation.getField(), operation.getValue()
+                        .getObject());
+            } else if (operation.isRemove()) {
+                if (operation.getValue().isNull()) {
+                    // Remove entire value.
+                    newContent.remove(operation.getField());
+                } else {
+                    // Find matching value(s) and remove (assumes
+                    // reference to array).
+                    final JsonValue value = newContent.get(operation.getField());
+                    if (value != null) {
+                        if (value.isList()) {
+                            final Object valueToBeRemoved =
+                                    operation.getValue().getObject();
+                            final Iterator<Object> iterator = value.asList().iterator();
+                            while (iterator.hasNext()) {
+                                if (valueToBeRemoved.equals(iterator.next())) {
+                                    iterator.remove();
+                                }
+                            }
+                        } else {
+                            // Single valued field.
+                            final Object valueToBeRemoved =
+                                    operation.getValue().getObject();
+                            if (valueToBeRemoved.equals(value.getObject())) {
+                                newContent.remove(operation.getField());
+                            }
+                        }
+                    }
+                }
+            } else if (operation.isReplace()) {
+                newContent.remove(operation.getField());
+                if (!operation.getValue().isNull()) {
+                    newContent.putPermissive(operation.getField(), operation.getValue()
+                            .getObject());
+                }
+            } else if (operation.isIncrement()) {
+                final JsonValue value = newContent.get(operation.getField());
+                final Number amount = operation.getValue().asNumber();
+                if (value == null) {
+                    throw new BadRequestException("The field '" + operation.getField()
+                            + "' does not exist");
+                } else if (value.isList()) {
+                    final List<Object> elements = value.asList();
+                    for (int i = 0; i < elements.size(); i++) {
+                        elements.set(i, increment(operation, elements.get(i), amount));
+                    }
+                } else {
+                    newContent.put(operation.getField(), increment(operation, value
+                            .getObject(), amount));
+                }
+            }
+            isModified = true;
+        } catch (final JsonValueException e) {
+            throw new ConflictException("The field '" + operation.getField()
+                    + "' does not exist");
+        }
+    	return isModified;
     }
 
     public static boolean applyPatchOperations(final List<PatchOperation> operations,
@@ -83,65 +150,7 @@ public class ResourceUtil {
         boolean isModified = false;
         if (null != operations) {
             for (final PatchOperation operation : operations) {
-                try {
-                    if (operation.isAdd()) {
-                        newContent.putPermissive(operation.getField(), operation.getValue()
-                                .getObject());
-                    } else if (operation.isRemove()) {
-                        if (operation.getValue().isNull()) {
-                            // Remove entire value.
-                            newContent.remove(operation.getField());
-                        } else {
-                            // Find matching value(s) and remove (assumes
-                            // reference to array).
-                            final JsonValue value = newContent.get(operation.getField());
-                            if (value != null) {
-                                if (value.isList()) {
-                                    final Object valueToBeRemoved =
-                                            operation.getValue().getObject();
-                                    final Iterator<Object> iterator = value.asList().iterator();
-                                    while (iterator.hasNext()) {
-                                        if (valueToBeRemoved.equals(iterator.next())) {
-                                            iterator.remove();
-                                        }
-                                    }
-                                } else {
-                                    // Single valued field.
-                                    final Object valueToBeRemoved =
-                                            operation.getValue().getObject();
-                                    if (valueToBeRemoved.equals(value.getObject())) {
-                                        newContent.remove(operation.getField());
-                                    }
-                                }
-                            }
-                        }
-                    } else if (operation.isReplace()) {
-                        newContent.remove(operation.getField());
-                        if (!operation.getValue().isNull()) {
-                            newContent.putPermissive(operation.getField(), operation.getValue()
-                                    .getObject());
-                        }
-                    } else if (operation.isIncrement()) {
-                        final JsonValue value = newContent.get(operation.getField());
-                        final Number amount = operation.getValue().asNumber();
-                        if (value == null) {
-                            throw new BadRequestException("The field '" + operation.getField()
-                                    + "' does not exist");
-                        } else if (value.isList()) {
-                            final List<Object> elements = value.asList();
-                            for (int i = 0; i < elements.size(); i++) {
-                                elements.set(i, increment(operation, elements.get(i), amount));
-                            }
-                        } else {
-                            newContent.put(operation.getField(), increment(operation, value
-                                    .getObject(), amount));
-                        }
-                    }
-                    isModified = true;
-                } catch (final JsonValueException e) {
-                    throw new ConflictException("The field '" + operation.getField()
-                            + "' does not exist");
-                }
+                isModified = applyPatchOperation(operation, newContent);
             }
         }
         return isModified;
@@ -163,30 +172,6 @@ public class ResourceUtil {
         }
     }
 
-    /**
-     * Adapts a {@code Throwable} to a {@code ResourceException}. If the
-     * {@code Throwable} is an JSON {@code JsonValueException} then an
-     * appropriate {@code ResourceException} is returned, otherwise an
-     * {@code InternalServerErrorException} is returned.
-     *
-     * @param t
-     *            The {@code Throwable} to be converted.
-     * @return The equivalent resource exception.
-     */
-    public static ResourceException adapt(final Throwable t) {
-        int resourceResultCode;
-        try {
-            throw t;
-        } catch (final ResourceException e) {
-            return e;
-        } catch (final JsonValueException e) {
-            resourceResultCode = ResourceException.BAD_REQUEST;
-        } catch (final Throwable tmp) {
-            resourceResultCode = ResourceException.INTERNAL_ERROR;
-        }
-        return ResourceException.getException(resourceResultCode, t.getMessage(), t);
-    }
-
     public static ResourceException notSupported(final Request request) {
         return new NotSupportedException(ResourceMessages.ERR_OPERATION_NOT_SUPPORTED_EXPECTATION
                 .get(request.getRequestType().name()).toString());
@@ -200,5 +185,23 @@ public class ResourceUtil {
     public static ResourceException notSupportedOnInstance(final Request request) {
         return new NotSupportedException(ResourceMessages.ERR_OPERATION_NOT_SUPPORTED_EXPECTATION
                 .get(request.getRequestType().name()).toString());
+    }
+
+    /**
+     * Compares the old vs new json to see if the contents are equal, ignoring _id and _rev.
+     *
+     * @param oldValue old json to compare.
+     * @param newValue new json to compare against oldValue.
+     * @return true if the two values are equal ignoring the _id and _rev.
+     * @see JsonPatch#diff(JsonValue, JsonValue)
+     */
+    public static boolean isEqual(JsonValue oldValue, JsonValue newValue) {
+        JsonValue tmpOldValue = null == oldValue ? json(object()) : oldValue.copy();
+        JsonValue tmpNewValue = null == newValue ? json(object()) : newValue.copy();
+        tmpOldValue.remove(FIELD_CONTENT_ID);
+        tmpOldValue.remove(FIELD_CONTENT_REVISION);
+        tmpNewValue.remove(FIELD_CONTENT_ID);
+        tmpNewValue.remove(FIELD_CONTENT_REVISION);
+        return JsonPatch.diff(tmpOldValue, tmpNewValue).size() == 0;
     }
 }

@@ -1,30 +1,22 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2013 ForgeRock AS. All Rights Reserved
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2011-2015 ForgeRock AS.
  */
 
 package org.forgerock.openidm.provisioner.openicf.impl;
 
-import static org.fest.assertions.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -40,9 +32,10 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
-import org.codehaus.jackson.map.ObjectMapper;
-import org.forgerock.json.fluent.JsonPointer;
-import org.forgerock.json.fluent.JsonValue;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
+import org.forgerock.openicf.framework.ConnectorFrameworkFactory;
 import org.forgerock.openidm.config.enhanced.JSONEnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.provisioner.openicf.ConnectorReference;
@@ -53,7 +46,6 @@ import org.identityconnectors.framework.api.ConnectorInfo;
 import org.identityconnectors.framework.api.ConnectorKey;
 import org.osgi.service.component.ComponentConstants;
 import org.osgi.service.component.ComponentContext;
-import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
@@ -74,7 +66,7 @@ public class ConnectorInfoProviderServiceTest {
         InputStream inputStream =
                 ConnectorInfoProviderServiceTest.class
                         .getResourceAsStream("/config/provisioner.openicf.connectorinfoprovider.json");
-        Assert.assertNotNull(inputStream);
+        assertThat(inputStream).isNotNull();
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         byte[] temp = new byte[1024];
         int read;
@@ -91,7 +83,7 @@ public class ConnectorInfoProviderServiceTest {
 
         // Set root
         URL root = ConnectorInfoProviderServiceTest.class.getResource("/");
-        Assert.assertNotNull(root);
+        assertThat(root).isNotNull();
         String rootPath = URLDecoder.decode(root.getPath(), "UTF-8");
         System.setProperty(ServerConstants.PROPERTY_SERVER_ROOT, rootPath);
 
@@ -100,6 +92,7 @@ public class ConnectorInfoProviderServiceTest {
         when(context.getProperties()).thenReturn(properties);
         ConnectorInfoProviderService instance = new ConnectorInfoProviderService();
         instance.bindEnhancedConfig(new JSONEnhancedConfig());
+        instance.bindConnectorFrameworkFactory(new ConnectorFrameworkFactory());
         instance.activate(context);
         testableConnectorInfoProvider = instance;
     }
@@ -131,13 +124,18 @@ public class ConnectorInfoProviderServiceTest {
                 new ConnectorReference(new ConnectorKey(
                         "org.forgerock.openicf.connectors.xml-connector", "1.1.0.2",
                         "org.forgerock.openicf.connectors.xml.XMLConnector"));
-        Assert.assertNotNull(testableConnectorInfoProvider.findConnectorInfo(ref),
-                "XML Connector is missing");
+        assertThat(testableConnectorInfoProvider.findConnectorInfo(ref))
+                .isNotNull()
+                .overridingErrorMessage("XML Connector is missing");
 
     }
 
     @Test
     public void testCreateSystemConfiguration() throws URISyntaxException {
+        ConnectorReference connectorReference =
+                new ConnectorReference(new ConnectorKey(
+                        "org.forgerock.openicf.connectors.xml-connector", "1.1.0.2",
+                        "org.forgerock.openicf.connectors.xml.XMLConnector"));
         ConnectorInfo xmlConnectorInfo = null;
         ConnectorKey key =
                 new ConnectorKey("org.forgerock.openicf.connectors.xml-connector", "1.1.0.2",
@@ -148,10 +146,11 @@ public class ConnectorInfoProviderServiceTest {
                 break;
             }
         }
-        Assert.assertNotNull(xmlConnectorInfo);
+
+        assertThat(xmlConnectorInfo).isNotNull();
         APIConfiguration configuration = xmlConnectorInfo.createDefaultAPIConfiguration();
         URL xmlRoot = ConnectorInfoProviderServiceTest.class.getResource("/xml/");
-        Assert.assertNotNull(xmlRoot);
+        assertThat(xmlRoot).isNotNull();
         URI xsdIcfFilePath = xmlRoot.toURI().resolve("resource-schema-1.xsd");
         configuration.getConfigurationProperties().setPropertyValue("xsdIcfFilePath",
                 new File(xsdIcfFilePath));
@@ -167,7 +166,7 @@ public class ConnectorInfoProviderServiceTest {
             ObjectMapper mapper = new ObjectMapper();
             URL root = ConnectorInfoProviderServiceTest.class.getResource("/");
             mapper.writeValue(new File((new URL(root, "XMLConnector_configuration.json")).toURI()),
-                    testableConnectorInfoProvider.createSystemConfiguration(configuration, true));
+                    testableConnectorInfoProvider.createSystemConfiguration(connectorReference, configuration, true));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -186,7 +185,7 @@ public class ConnectorInfoProviderServiceTest {
         InputStream inputStream =
                 ConnectorInfoProviderServiceTest.class
                         .getResourceAsStream("/config/org.forgerock.openidm.provisioner.openicf.impl.OpenICFProvisionerServiceSolarisConnectorTest.json");
-        Assert.assertNotNull(inputStream);
+        assertThat(inputStream).isNotNull();
         Map config = (new ObjectMapper()).readValue(inputStream, Map.class);
 
         List<JsonPointer> result =
@@ -203,7 +202,7 @@ public class ConnectorInfoProviderServiceTest {
         inputStream =
                 ConnectorInfoProviderServiceTest.class
                         .getResourceAsStream("/config/provisioner.openicf-xml.json");
-        Assert.assertNotNull(inputStream);
+        assertThat(inputStream).isNotNull();
         config = (new ObjectMapper()).readValue(inputStream, Map.class);
 
         result =
@@ -216,6 +215,6 @@ public class ConnectorInfoProviderServiceTest {
                         ConnectorInfoProviderService.PID, null,
                         connectorInfoProviderServiceConfiguration);
         assertThat(result).hasSize(1);
-        Assert.assertEquals(result.get(0).toString(), "/remoteConnectorServers/0/key");
+        assertThat(result.get(0).toString()).isEqualTo("/remoteConnectorServers/0/key");
     }
 }

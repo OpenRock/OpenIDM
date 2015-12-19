@@ -1,47 +1,49 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2015 ForgeRock AS. All Rights Reserved
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Portions copyright 2011-2015 ForgeRock AS.
  */
-
 package org.forgerock.openidm.managed;
 
+import static org.forgerock.json.JsonValue.*;
+import static org.forgerock.json.resource.ResourceResponse.FIELD_CONTENT_ID;
+import static org.forgerock.json.resource.Responses.*;
+import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onRead;
+import static org.forgerock.openidm.util.ResourceUtil.isEqual;
+import static org.forgerock.util.promise.Promises.*;
+
+import javax.script.ScriptException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.script.ScriptException;
-
-import org.forgerock.json.fluent.JsonException;
-import org.forgerock.json.fluent.JsonPointer;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.fluent.JsonValueException;
+import org.forgerock.json.JsonException;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.JsonValueException;
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.CollectionResourceProvider;
-import org.forgerock.json.resource.ConnectionFactory;
+import org.forgerock.json.resource.Connection;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.ForbiddenException;
@@ -51,26 +53,32 @@ import org.forgerock.json.resource.PatchOperation;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.PreconditionFailedException;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResult;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.Requests;
-import org.forgerock.json.resource.Resource;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResourceName;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.ServerContext;
+import org.forgerock.json.resource.ResourcePath;
+import org.forgerock.json.resource.ResourceResponse;
+import org.forgerock.json.resource.Responses;
+import org.forgerock.json.resource.SortKey;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.audit.util.ActivityLogger;
 import org.forgerock.openidm.audit.util.RouterActivityLogger;
 import org.forgerock.openidm.audit.util.Status;
 import org.forgerock.openidm.core.IdentityServer;
+import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.crypto.CryptoService;
 import org.forgerock.openidm.patch.JsonValuePatch;
+import org.forgerock.openidm.router.IDMConnectionFactory;
 import org.forgerock.openidm.router.RouteService;
+import org.forgerock.openidm.smartevent.EventEntry;
+import org.forgerock.openidm.smartevent.Name;
+import org.forgerock.openidm.smartevent.Publisher;
 import org.forgerock.openidm.sync.impl.SynchronizationService;
 import org.forgerock.openidm.util.ContextUtil;
+import org.forgerock.openidm.util.RelationshipUtil;
 import org.forgerock.openidm.util.RequestUtil;
 import org.forgerock.script.Script;
 import org.forgerock.script.ScriptEntry;
@@ -78,28 +86,20 @@ import org.forgerock.script.ScriptEvent;
 import org.forgerock.script.ScriptListener;
 import org.forgerock.script.ScriptRegistry;
 import org.forgerock.script.exception.ScriptThrownException;
+import org.forgerock.services.context.Context;
+import org.forgerock.util.Function;
+import org.forgerock.util.Pair;
+import org.forgerock.util.promise.ExceptionHandler;
+import org.forgerock.util.promise.Promise;
+import org.forgerock.util.promise.ResultHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onCreate;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onRead;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onUpdate;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onDelete;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.postCreate;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.postUpdate;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.postDelete;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onValidate;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onRetrieve;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onStore;
-import static org.forgerock.openidm.managed.ManagedObjectSet.ScriptHook.onSync;
-import static org.forgerock.openidm.sync.impl.SynchronizationService.ACTION_PARAM_RESOURCE_CONTAINER;
-import static org.forgerock.openidm.sync.impl.SynchronizationService.ACTION_PARAM_RESOURCE_ID;
 
 /**
  * Provides access to a set of managed objects of a given type: managed/[type]/{id}.
  *
  */
-class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
+class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, ManagedObjectSyncService {
 
     /** Actions supported by this resource provider */
     enum Action {
@@ -152,7 +152,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
     private final CryptoService cryptoService;
 
     /** The connection factory for access to the router */
-    private final ConnectionFactory connectionFactory;
+    private final IDMConnectionFactory connectionFactory;
 
     /** Audit Activity Log helper */
     private final ActivityLogger activityLogger;
@@ -160,20 +160,20 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
     /** Name of the managed object type. */
     private final String name;
 
-    /** the managed object path (e.g. managed/user) as a ResourceName */
-    private final ResourceName managedObjectPath;
+    /** the managed object path (e.g. managed/user) as a ResourcePath */
+    private final ResourcePath managedObjectPath;
 
     /** The schema to use to validate the structure and content of the managed object. */
-    private final JsonValue schema;
+    private final ManagedObjectSchema schema;
 
     /** Map of scripts to execute on specific {@link ScriptHook}s. */
     private final Map<ScriptHook, ScriptEntry> scriptHooks = new EnumMap<ScriptHook, ScriptEntry>(ScriptHook.class);
 
-    /** Properties for which triggers are executed during object set operations. */
-    private final ArrayList<ManagedObjectProperty> properties = new ArrayList<ManagedObjectProperty>();
-
     /** reference to the sync service route; used to decided whether or not to perform a sync action */
     private final AtomicReference<RouteService> syncRoute;
+
+    /** Map of relationship property names and their accompanying sets */
+    private final Map<JsonPointer, RelationshipProvider> relationshipProviders = new HashMap<>();
 
     /** Flag for indicating if policy enforcement is enabled */
     private final boolean enforcePolicies;
@@ -198,7 +198,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      *             invalid.
      */
     public ManagedObjectSet(final ScriptRegistry scriptRegistry, final CryptoService cryptoService,
-            final AtomicReference<RouteService> syncRoute, ConnectionFactory connectionFactory, JsonValue config)
+            final AtomicReference<RouteService> syncRoute, IDMConnectionFactory connectionFactory, JsonValue config)
             throws JsonValueException, ScriptException {
         this.cryptoService = cryptoService;
         this.syncRoute = syncRoute;
@@ -208,20 +208,24 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
         if (name.trim().isEmpty() || name.indexOf('{') > 0 | name.indexOf('}') > 0) {
             throw new JsonValueException(config.get("name"), "Failed to validate the name");
         }
-        this.managedObjectPath = new ResourceName("managed").child(name);
-        // TODO: parse into json-schema object
-        schema = config.get("schema").expect(Map.class);
+        this.managedObjectPath = new ResourcePath("managed").child(name);
+
+        this.schema = new ManagedObjectSchema(config.get("schema").expect(Map.class), scriptRegistry, cryptoService);
+
+        for (JsonPointer relationship : schema.getRelationshipFields()) {
+            final SchemaField field = schema.getField(relationship);
+            relationshipProviders.put(relationship, RelationshipProvider.newProvider(connectionFactory, 
+                    managedObjectPath, field, activityLogger, this));
+        }
+        
         for (ScriptHook hook : ScriptHook.values()) {
             if (config.isDefined(hook.name())) {
                 scriptHooks.put(hook, scriptRegistry.takeScript(config.get(hook.name())));
             }
         }
-        for (JsonValue property : config.get("properties").expect(List.class)) {
-            properties.add(new ManagedObjectProperty(scriptRegistry, cryptoService, property));
-        }
-        enforcePolicies =
-                Boolean.parseBoolean(IdentityServer.getInstance().getProperty(
-                        "openidm.policy.enforcement.enabled", "true"));
+        
+        enforcePolicies = Boolean.parseBoolean(IdentityServer.getInstance()
+                .getProperty("openidm.policy.enforcement.enabled", "true"));
         logger.debug("Instantiated managed object set: {}", name);
     }
 
@@ -232,7 +236,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      *            the local managed object identifier to qualify.
      * @return the fully-qualified managed object identifier.
      */
-    private ResourceName managedId(String resourceId) {
+    private ResourcePath managedId(String resourceId) {
         return resourceId != null
                 ? managedObjectPath.child(resourceId)
                 : managedObjectPath;
@@ -246,12 +250,11 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      * @return the fully-qualified repository object identifier.
      */
     private String repoId(String resourceId) {
-        return ResourceName.valueOf("repo").concat(managedId(resourceId)).toString();
+        return ResourcePath.valueOf("repo").concat(managedId(resourceId)).toString();
     }
 
     /**
-     * Executes a script if it exists, populating an {@code "object"} property
-     * in the root scope.
+     * Executes a script if it exists, populating an {@code "object"} property in the root scope.
      *
      * @param hook
      *            the script-hook to execute
@@ -264,44 +267,50 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      * @throws InternalServerErrorException
      *             if any other exception is encountered.
      */
-    private void execScript(final ServerContext context, ScriptHook hook, JsonValue value, JsonValue additionalProps)
+    private void execScript(final Context context, ScriptHook hook, JsonValue value, JsonValue additionalProps)
             throws ResourceException {
         final ScriptEntry scriptEntry = scriptHooks.get(hook);
-        if (null != scriptEntry && scriptEntry.isActive()) {
-            Script script = scriptEntry.getScript(context);
-            script.put("object", value);
-            if (additionalProps != null && !additionalProps.isNull()) {
-                for (String key : additionalProps.keys()) {
-                    script.put(key, additionalProps.get(key));
+        EventEntry measure = Publisher.start(Name.get("openidm/internal/managed/" + this.getName() + "/execScript/" + hook.name()), null, null);
+
+        try {
+            if (null != scriptEntry && scriptEntry.isActive()) {
+                Script script = scriptEntry.getScript(context);
+                script.put("object", value);
+                if (additionalProps != null && !additionalProps.isNull()) {
+                    for (String key : additionalProps.keys()) {
+                        script.put(key, additionalProps.get(key));
+                    }
+                }
+                try {
+                    script.eval(); // allows direct modification to the object
+                } catch (ScriptThrownException ste) {
+                    // Allow for scripts to set their own exception
+                    throw ste.toResourceException(ResourceException.INTERNAL_ERROR,
+                            hook.name() + " script encountered exception");
+                } catch (ScriptException se) {
+                    String msg = hook.name() + " script encountered exception";
+                    logger.debug(msg, se);
+                    throw new InternalServerErrorException(msg, se);
                 }
             }
-            try {
-                script.eval(); // allows direct modification to the object
-            } catch (ScriptThrownException ste) {
-                // Allow for scripts to set their own exception
-                throw ste.toResourceException(ResourceException.INTERNAL_ERROR,
-                        hook.name() + " script encountered exception");
-            } catch (ScriptException se) {
-                String msg = hook.name() + " script encountered exception";
-                logger.debug(msg, se);
-                throw new InternalServerErrorException(msg, se);
-            }
+        } finally {
+            measure.end();
         }
     }
 
     /**
      * Prepares a map of additional bindings for the script hook invocation.
      *
-     * @param context the current ServerContext
+     * @param context the current Context
      * @param request the Request being processed
      * @param resourceId the resourceId of the object being manipulated
      * @param oldObject the old object value
      * @param newObject the new object value
      * @return a JsonValue map of script bindings
      */
-    private JsonValue prepareScriptBindings(ServerContext context, Request request, String resourceId,
+    private JsonValue prepareScriptBindings(Context context, Request request, String resourceId,
             JsonValue oldObject, JsonValue newObject) {
-        JsonValue scriptBindings = new JsonValue(new HashMap<String, Object>());
+        JsonValue scriptBindings = json(object());
         scriptBindings.put("context", context);
         scriptBindings.put("request", request);
         scriptBindings.put("oldObject", oldObject.getObject());
@@ -312,10 +321,9 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
     }
 
     /**
-     * Executes all of the necessary trigger scripts when an object is retrieved
-     * from the repository.
+     * Executes all of the necessary trigger scripts when an object is retrieved from the repository.
      *
-     * @param context the current ServerContext
+     * @param context the current Context
      * @param request the Request being processed
      * @param resourceId the resourceId of the object being manipulated
      * @param value
@@ -325,26 +333,27 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      * @throws InternalServerErrorException
      *             if any other exception occurs.
      */
-    private void onRetrieve(ServerContext context, Request request, String resourceId, Resource value) throws ResourceException {
-        execScript(context, onRetrieve, value.getContent(),
+    private void onRetrieve(Context context, Request request, String resourceId, ResourceResponse value) throws ResourceException {
+        execScript(context, ScriptHook.onRetrieve, value.getContent(),
                 prepareScriptBindings(context, request, resourceId, new JsonValue(null), new JsonValue(null)));
-        for (ManagedObjectProperty property : properties) {
-            property.onRetrieve(context, value.getContent());
+        for (JsonPointer key : Collections.unmodifiableSet(getSchema().getFields().keySet())) {
+            getSchema().getField(key).onRetrieve(context, value.getContent());
         }
     }
 
-    private void populateVirtualProperties(ServerContext context, JsonValue content) throws ForbiddenException,
+    private void populateVirtualProperties(final Context context, final Request request, final JsonValue content) throws ForbiddenException,
             InternalServerErrorException {
-        for (ManagedObjectProperty property : properties) {
-            if (property.isVirtual()) {
-                property.onRetrieve(context, content);
+        for (JsonPointer key : Collections.unmodifiableSet(getSchema().getFields().keySet())) {
+            SchemaField field = getSchema().getField(key);
+            // Only populate if field is returned by default or explicitly requested
+            if (field.isVirtual() && (field.isReturnedByDefault() || request.getFields().contains(key))) {
+                field.onRetrieve(context, content);
             }
         }
     }
 
     /**
-     * Executes all of the necessary trigger scripts when an object is to be
-     * stored in the repository.
+     * Executes all of the necessary trigger scripts when an object is to be stored in the repository.
      *
      * @param value
      *            the JSON value to be stored in the repository.
@@ -353,16 +362,26 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      * @throws InternalServerErrorException
      *             if any other exception occurs.
      */
-    private void onStore(ServerContext context, JsonValue value) throws ResourceException  {
-        for (ManagedObjectProperty property : properties) {
-            property.onValidate(context, value);
+    private void onStore(Context context, JsonValue value) throws ResourceException  {
+        JsonValue scriptBindings = json(object());
+        scriptBindings.put("context", context);
+        scriptBindings.put("value", value.getObject());
+
+        // Execute all individual onValidate scripts
+        for (JsonPointer key : Collections.unmodifiableSet(getSchema().getFields().keySet())) {
+            getSchema().getField(key).onValidate(context, value);
         }
-        execScript(context, onValidate, value, null);
-        // TODO: schema validation here (w. optimizations)
-        for (ManagedObjectProperty property : properties) {
-            property.onStore(context, value); // includes per-property encryption
+        
+        // Execute the root onValidate script
+        execScript(context, ScriptHook.onValidate, value, scriptBindings);
+
+        // Execute all individual onStore scripts
+        for (JsonPointer key : Collections.unmodifiableSet(getSchema().getFields().keySet())) {
+            getSchema().getField(key).onStore(context, value); // includes per-property encryption
         }
-        execScript(context, onStore, value, null);
+        
+        // Execute the root onStore script
+        execScript(context, ScriptHook.onStore, value, scriptBindings);
     }
 
     /**
@@ -391,10 +410,10 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      * @throws InternalServerErrorException
      *             if decryption failed for any reason
      */
-    private Resource decrypt(final Resource value) throws InternalServerErrorException {
+    private ResourceResponse decrypt(final ResourceResponse value) throws InternalServerErrorException {
         try {
             // makes a copy, which we can modify
-            return new Resource(value.getId(), value.getRevision(),
+            return newResourceResponse(value.getId(), value.getRevision(),
                     null != value.getContent() ? cryptoService.decrypt(value.getContent()) : null);
         } catch (JsonException je) {
             throw new InternalServerErrorException(je);
@@ -432,60 +451,131 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
     /**
      * Update a resource as part of an update or patch request.
      *
-     * @param context the current ServerContext
+     * @param context the current Context
      * @param request the source Request
      * @param resourceId the resource id of the object being modified
      * @param rev the revision of hte object being modified
      * @param oldValue the old value of the object
      * @param newValue the new value of the object
-     * @return the updated resource
+     * @param relationshipFields a set of relationship fields to persist
+     * @return a {@link ResourceResponse} object representing the updated resource
      * @throws ResourceException
      */
-    private Resource update(final ServerContext context, Request request, String resourceId, String rev,
-            Resource oldValue, JsonValue newValue)
+    private ResourceResponse update(final Context context, Request request, String resourceId, String rev,
+    		JsonValue oldValue, JsonValue newValue, Set<JsonPointer> relationshipFields)
             throws ResourceException {
 
-        if (newValue.asMap().equals(oldValue.getContent().asMap())) { // object hasn't changed
-            return new Resource(resourceId, rev, null);
+        JsonValue decryptedNew = decrypt(newValue);
+        JsonValue decryptedOld = decrypt(oldValue);
+        
+        if (isEqual(decryptedOld, decryptedNew)) { // object hasn't changed
+            return newResourceResponse(resourceId, rev, oldValue);
         }
-        // Execute the onUpdate script if configured
-        execScript(context, onUpdate, newValue,
-                prepareScriptBindings(context, request, resourceId, oldValue.getContent(), newValue));
 
-        // Perform pre-property encryption
-        onStore(context, newValue); // performs per-property encryption
+        // Execute the onUpdate script if configured
+        execScript(context, ScriptHook.onUpdate, decryptedNew,
+                prepareScriptBindings(context, request, resourceId, decryptedOld, decryptedNew));
+
+        // Validate relationships before persisting
+        validateRelationshipFields(context, decryptedOld, decryptedNew);
 
         // Populate the virtual properties (so they are updated for sync-ing)
-        populateVirtualProperties(context, newValue);
-        
+        populateVirtualProperties(context, request, decryptedNew);
+
+        // Remove relationships so they don't get persisted in the repository with the managed object details.
+        JsonValue strippedRelationshipFields = stripRelationshipFields(decryptedNew);
+
+        // Perform pre-property encryption
+        onStore(context, decryptedNew); // performs per-property encryption
+
         // Perform update
-        UpdateRequest updateRequest = Requests.newUpdateRequest(repoId(resourceId), newValue);
+        UpdateRequest updateRequest = Requests.newUpdateRequest(repoId(resourceId), decryptedNew);
         updateRequest.setRevision(rev);
-        Resource response = connectionFactory.getConnection().update(context, updateRequest);
+        ResourceResponse response = connectionFactory.getConnection().update(context, updateRequest);
+        JsonValue responseContent = response.getContent();
+
+        // Put relationships back in before we respond
+        responseContent.asMap().putAll(strippedRelationshipFields.asMap());
+
+        // Persists all relationship fields that are present in the new value and updates their values.
+        responseContent.asMap().putAll(persistRelationships(false, context, resourceId, responseContent, relationshipFields)
+                .asMap());
 
         // Execute the postUpdate script if configured
-        execScript(context, postUpdate, response.getContent(),
-                prepareScriptBindings(context, request, resourceId, oldValue.getContent(), response.getContent()));
+        execScript(context, ScriptHook.postUpdate, responseContent,
+                prepareScriptBindings(context, request, resourceId, decryptedOld, responseContent));
 
         performSyncAction(context, request, resourceId, SynchronizationService.SyncServiceAction.notifyUpdate,
-                oldValue.getContent(), response.getContent());
+                decryptedOld, responseContent);
 
         return response;
     }
 
     /**
-     * Applies a patch document to an object, or by finding an object in the
-     * object set itself via query parameters. As this is an action, the patch
-     * document to be applied is in the {@code _entity} parameter.
+     * Persist all relationship fields contained in the JsonValue map to their accompanying
+     * {@link #relationshipProviders}
      *
-     * @param context the current ServerContext
-     * @param request the ActionRequest
-     * @param handler the ResultHandler
+     * @param clearExisting If existing (those not present in the object) should be cleared
+     * @param context The current context
+     * @param resourceId The id of the resource these relationships are associated with
+     * @param json A JsonValue map that contains relationship fields and value(s) to be persisted
+     * @param relationshipFields a set of relationship fields to persist
+     * @return A {@link JsonValue} map containing each relationship field and its persisted value(s)
+     */
+    private JsonValue persistRelationships(final boolean clearExisting, Context context, String resourceId, final JsonValue json,
+            Set<JsonPointer> relationshipFields) throws ResourceException {
+        EventEntry measurement = Publisher.start(Name.get("openidm/internal/managedobjectset/persistRelationships"), json, context);
+
+        try {
+            final List<Promise<JsonValue, ResourceException>> persisted = new ArrayList<>();
+
+            for (final JsonPointer relationshipField : relationshipFields) {
+                // value of the relationship in the managed object
+                final JsonValue relationshipValue = json.expect(Map.class).get(relationshipField);
+
+                // Relationships not present in the request will be null
+                // Relationships present in the request but set to null will be JsonValue(null)
+                if (relationshipValue != null) {
+                    RelationshipProvider provider = relationshipProviders.get(relationshipField);
+                    persisted.add(provider.setRelationshipValueForResource(clearExisting, context, resourceId,
+                            relationshipValue).then(new Function<JsonValue, JsonValue, ResourceException>() {
+                                                        @Override
+                                                        public JsonValue apply(JsonValue jsonValue) throws ResourceException {
+                                                            return json(object(field(relationshipField.leaf(), jsonValue.getObject())));
+                                                        }
+                                                    }
+                    ));
+                }
+            }
+
+            return when(persisted).then(new Function<List<JsonValue>, JsonValue, ResourceException>() {
+                @Override
+                public JsonValue apply(List<JsonValue> jsonValues) throws ResourceException {
+                    final JsonValue joined = json(object());
+
+                    // Join json maps
+                    for (JsonValue value : jsonValues) {
+                        joined.asMap().putAll(value.asMap());
+                    }
+
+                    return joined;
+                }
+            }).getOrThrowUninterruptibly();
+        } finally {
+            measurement.end();
+        }
+    }
+
+    /**
+     * Applies a patch document to an object, or by finding an object in the object set itself via query parameters. As 
+     * this is an action, the patch document to be applied is in the {@code _entity} parameter.
+     *
+     * @param context the current Context
+     * @param request the {@link ActionRequest}
+     * @return a {@link ResourceResponse} representing the patched object.
      * @throws ResourceException
      */
-    private void patchAction(final ServerContext context, final ActionRequest request, final ResultHandler<JsonValue> handler)
-            throws ResourceException {
-
+    private ResourceResponse patchAction(final Context context, final ActionRequest request) throws ResourceException {
         if (!request.getContent().required().isList()) {
             throw new BadRequestException(
                     "The request could not be processed because the provided content is not a JSON array");
@@ -497,207 +587,290 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
                 new JsonValue(request.getAdditionalParameters()).asMap());
 
         final List<PatchOperation> operations = PatchOperation.valueOfList(request.getContent());
+        final List<ResourceResponse> resources = new ArrayList<ResourceResponse>();
 
         connectionFactory.getConnection().query(context, queryRequest,
-                new QueryResultHandler() {
-                    final List<Resource> resources = new ArrayList<Resource>();
-            
+                new QueryResourceHandler() {
                     @Override
-                    public void handleError(final ResourceException error) {
-                        handler.handleError(error);
-                    }
-
-                    @Override
-                    public boolean handleResource(Resource resource) {
+                    public boolean handleResource(ResourceResponse resource) {
                         logger.debug("Patch by query found resource " + resource.getId());
                         resources.add(resource);
                         return true;
                     }
-
-                    @Override
-                    public void handleResult(QueryResult result) {
-                        if (resources.size() > 1) {
-                            handler.handleError(new InternalServerErrorException("Query result must yield one matching object"));
-                        } else if (resources.size() == 1) {
-                            try {
-                                Resource resource = resources.get(0);
-
-                                Resource response = patchResource(context, request, resource, null, operations);
-
-                                handler.handleResult(response.getContent());
-                            } catch (ResourceException e) {
-                                handler.handleError(e);
-                            } catch (Exception e) {
-                                handler.handleError(new InternalServerErrorException(e.getMessage(), e));
-                            }
-                        } else {
-                            handler.handleError(new NotFoundException("Query returned no results"));
-                        }
-                        
-                    }
                 });
+        if (resources.size() == 1) {
+            try {
+            	return patchResource(context, request, resources.get(0), null, operations);
+            } catch (ResourceException e) {
+                throw e;
+            } catch (Exception e) {
+            	throw new InternalServerErrorException(e.getMessage(), e);
+            }
+        } else if (resources.size() > 1) {
+        	throw new InternalServerErrorException("Query result must yield one matching object");
+        } else {
+            throw new NotFoundException("Query returned no results");
+        }
     }
 
     @Override
-    public void createInstance(ServerContext context, CreateRequest request, ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException>  createInstance(Context context, CreateRequest request) {
         String resourceId = request.getNewResourceId();
         JsonValue content = request.getContent();
+        Context managedContext = new ManagedObjectContext(context);
 
-        // Check if the new id is specified in content, and use it if it is
-        if (!content.get(Resource.FIELD_CONTENT_ID).isNull()) {
-            resourceId = content.get(Resource.FIELD_CONTENT_ID).asString();
+        // Check if the new id is specified in content, and use it if it is.
+        if (!content.get(FIELD_CONTENT_ID).isNull()) {
+            resourceId = content.get(FIELD_CONTENT_ID).asString();
         }
         logger.debug("Create name={} id={}", name, resourceId);
 
         try {
             // decrypt any incoming encrypted properties
             JsonValue value = decrypt(content);
-            execScript(context, onCreate, value, null);
-            
+
+            // Execute onCreate script
+            execScript(managedContext, ScriptHook.onCreate, value, 
+                    prepareScriptBindings(managedContext, request, resourceId, new JsonValue(null), content));
+
+            // Validate relationships before persisting
+            validateRelationshipFields(managedContext, json(object()), value);
+
             // Populate the virtual properties (so they are available for sync-ing)
-            populateVirtualProperties(context, value);
-            
+            populateVirtualProperties(managedContext, request, value);
+
+            // Remove relationships so they don't get persisted in the repository with the managed object details.
+            final JsonValue strippedRelationshipFields = stripRelationshipFields(value);
+
             // includes per-property encryption
-            onStore(context, value);
+            onStore(managedContext, value);
 
-            CreateRequest createRequest = Requests.copyOfCreateRequest(request)
-                    .setNewResourceId(resourceId)
-                    .setResourceName(repoId(null))
-                    .setContent(value);
+            // Persist the managed object in the repository
+            CreateRequest createRequest = Requests.newCreateRequest(repoId(null), resourceId, value);
+            ResourceResponse createResponse = connectionFactory.getConnection().create(managedContext, createRequest);
+            content = createResponse.getContent();
+            resourceId = createResponse.getId();
 
-            Resource _new = connectionFactory.getConnection().create(context, createRequest);
-
-            activityLogger.log(context, request, "create", managedId(_new.getId()).toString(),
-                    null, _new.getContent(), Status.SUCCESS);
-
-            // Execute the postCreate script if configured
-            execScript(context, postCreate, _new.getContent(),
-                    prepareScriptBindings(context, request, resourceId, new JsonValue(null), _new.getContent()));
-
-            // Sync any targets after managed object is created
-            performSyncAction(context, request, _new.getId(), SynchronizationService.SyncServiceAction.notifyCreate,
-                    new JsonValue(null), _new.getContent());
-
-            if (ContextUtil.isExternal(context)) {
-                _new = cullPrivateProperties(_new);
-            }
-
-            // TODO Check the relative id
-            handler.handleResult(_new);
-        } catch (ResourceException e) {
-            handler.handleError(e);
-        } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e));
-        }
-    }
-
-    @Override
-    public void readInstance(final ServerContext context, String resourceId, ReadRequest request,
-            ResultHandler<Resource> handler) {
-        logger.debug("Read name={} id={}", name, resourceId);
-        try {
-
-            ReadRequest readRequest = Requests.newReadRequest(repoId(resourceId));
-            Resource resource = connectionFactory.getConnection().read(context, readRequest);
-
-            onRetrieve(context, request, resourceId, resource);
-            execScript(context, onRead, resource.getContent(), null);
-            activityLogger.log(context, request, "read", managedId(resource.getId()).toString(),
-                    null, resource.getContent(), Status.SUCCESS);
-
-            handler.handleResult(ContextUtil.isExternal(context) ? cullPrivateProperties(resource) : resource);
-        } catch (ResourceException e) {
-            handler.handleError(e);
-        } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e));
-        }
-    }
-
-    @Override
-    public void updateInstance(final ServerContext context, final String resourceId, final UpdateRequest request,
-            final ResultHandler<Resource> handler) {
-        logger.debug("update {} ", "name=" + name + " id=" + resourceId + " rev="
-                + request.getRevision());
-
-        try {
-            // decrypt any incoming encrypted properties
-            JsonValue _new = decrypt(request.getContent());
-
-            ReadRequest readRequest = Requests.newReadRequest(repoId(resourceId));
-            for (JsonPointer pointer : request.getFields()) {
-                readRequest.addField(pointer);
-            }
-            Resource resource = connectionFactory.getConnection().read(context, readRequest);
-            Resource _old = decrypt(resource);
-
-            Resource updated = update(context, request, resourceId, request.getRevision(), _old, _new);
-            activityLogger.log(context, request, "update",
-                    managedId(resource.getId()).toString(), resource.getContent(), updated.getContent(),
+            activityLogger.log(managedContext, request, "create", managedId(resourceId).toString(), null, content, 
                     Status.SUCCESS);
 
-            if (ContextUtil.isExternal(context)) {
-                updated = cullPrivateProperties(updated);
+            // Place stripped relationships back in content
+            content.asMap().putAll(strippedRelationshipFields.asMap());
+
+            // Persists all relationship fields and place their persisted values in content
+            content.asMap().putAll(persistRelationships(true, managedContext, resourceId, content,
+                    relationshipProviders.keySet()).asMap());
+
+            // Execute the postCreate script if configured
+            execScript(managedContext, ScriptHook.postCreate, content,
+                    prepareScriptBindings(managedContext, request, resourceId, new JsonValue(null), content));
+
+            // Sync any targets after managed object is created
+            performSyncAction(managedContext, request, resourceId, SynchronizationService.SyncServiceAction.notifyCreate,
+                    new JsonValue(null), content);
+            
+            return prepareResponse(managedContext, createResponse, request.getFields()).asPromise();
+        } catch (ResourceException e) {
+        	return e.asPromise();
+        } catch (Exception e) {
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        }
+    }
+    @Override
+    public Promise<ResourceResponse, ResourceException> readInstance(final Context context, String resourceId, 
+    		ReadRequest request) {
+        logger.debug("Read name={} id={}", name, resourceId);
+        Context managedContext = new ManagedObjectContext(context);
+        try {
+
+            ReadRequest readRequest = Requests.newReadRequest(repoId(resourceId));
+            ResourceResponse readResponse = connectionFactory.getConnection().read(managedContext, readRequest);
+
+            final JsonValue relationships = fetchRelationshipFields(managedContext, resourceId, request.getFields());
+            readResponse.getContent().asMap().putAll(relationships.asMap());
+
+            onRetrieve(managedContext, request, resourceId, readResponse);
+            execScript(managedContext, onRead, readResponse.getContent(), null);
+            activityLogger.log(managedContext, request, "read", managedId(readResponse.getId()).toString(),
+                    null, readResponse.getContent(), Status.SUCCESS);
+            
+            return prepareResponse(managedContext, readResponse, request.getFields()).asPromise();
+        } catch (ResourceException e) {
+        	return e.asPromise();
+        } catch (Exception e) {
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        }
+    }
+
+    /**
+     * Fetch the current relationship(s) for relationship fields set to be returned by default
+     * or specified in the {@link ReadRequest#getFields()}
+     *
+     * @param context The current context
+     * @param resourceId The id of the resource to fetch relationships of
+     * @param requestFields The fields requested in the initial request
+     * @return A {@link JsonValue} map containing all relationship fields and their values
+     * @throws ResourceException 
+     */
+    private JsonValue fetchRelationshipFields(final Context context, final String resourceId,
+            final List<JsonPointer> requestFields)
+            throws ExecutionException, InterruptedException, ResourceException {
+        EventEntry measure = Publisher.start(Name.get("openidm/internal/managed/set/fetchRealtionshipFields"), resourceId, context);
+
+        try {
+            final JsonValue joined = json(object());
+
+            /*
+             * Create set only containing the head of request fields
+             * Allows for a relationship to be fetched when only an expansion is requested.
+             * ie. a field of foo/name will retrieve the foo relationship
+             */
+            final Set<JsonPointer> fieldHeads = new HashSet<>();
+            for (JsonPointer field : requestFields) {
+                // A blank _fields param can yield a single '/' (empty) pointer
+                if (!field.isEmpty()) {
+                    fieldHeads.add(new JsonPointer(field.get(0)));
+                }
             }
 
-            handler.handleResult(updated);
-        } catch (ResourceException e) {
-            handler.handleError(e);
-        } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e));
+            for (Map.Entry<JsonPointer, RelationshipProvider> entry : relationshipProviders.entrySet()) {
+                final JsonPointer field = entry.getKey();
+                final RelationshipProvider provider = entry.getValue();
+
+                if (requestFields.contains(SchemaField.FIELD_ALL_RELATIONSHIPS)
+                        || provider.getSchemaField().isReturnedByDefault()
+                        || fieldHeads.contains(field)) { // only check head of request fields (see above)
+                    try {
+                        joined.put(field, provider.getRelationshipValueForResource(context,
+                                resourceId).getOrThrow().getObject());
+                    } catch (NotFoundException e) {
+                        logger.debug("No {} relationships found for {}", field, resourceId);
+                        joined.put(field, null);
+                    }
+                } else {
+                    // relationship was not requested or set to return by default
+                    logger.debug("Relationship field {} skipped", field);
+                }
+            }
+
+            return joined;
+        } finally {
+            measure.end();
+        }
+    }
+
+    /**
+     * This will traverse the jsonValue and validate that all relationship references are valid.
+     *
+     * @param oldValue previous state of the json.
+     * @param newValue json object that will get its relationship fields validated.
+     * @param context context of the request that is in progress.
+     * @throws ResourceException BadRequestException when the first invalid relationship reference is discovered,
+     * otherwise for other issues.
+     */
+    private void validateRelationshipFields(Context context, JsonValue oldValue, JsonValue newValue)
+            throws ResourceException {
+        for (JsonPointer field : schema.getRelationshipFields()) {
+            if (schema.getField(field).isValidationRequired()) {
+                relationshipProviders.get(field).validateRelationshipField(context,
+                        oldValue.get(field) == null ? json(null) : oldValue.get(field),
+                        newValue.get(field) == null ? json(null) : newValue.get(field));
+            }
         }
     }
 
     @Override
-    public void deleteInstance(final ServerContext context, final String resourceId, DeleteRequest request,
-            ResultHandler<Resource> handler) {
-        logger.debug("Delete {} ", "name=" + name + " id=" + resourceId + " rev="
-                + request.getRevision());
+    public Promise<ResourceResponse, ResourceException>  updateInstance(final Context context, final String resourceId, 
+    		final UpdateRequest request) {
+        logger.debug("update {} ", "name=" + name + " id=" + resourceId + " rev=" + request.getRevision());
+        Context managedContext = new ManagedObjectContext(context);
+
         try {
             ReadRequest readRequest = Requests.newReadRequest(repoId(resourceId));
+            for (JsonPointer pointer : request.getFields()) {
+                if (pointer.equals(new JsonPointer("*"))) {
+                    readRequest.addField("");
+                } else if (!pointer.equals(SchemaField.FIELD_ALL_RELATIONSHIPS)) {
+                    readRequest.addField(pointer);
+                }
+            }
+            ResourceResponse readResponse = connectionFactory.getConnection().read(managedContext, readRequest);
 
-            Resource resource = connectionFactory.getConnection().read(context, readRequest);
-            execScript(context, onDelete, decrypt(resource.getContent()), null);
+            ResourceResponse updatedResponse = update(managedContext, request, resourceId, request.getRevision(),
+            		readResponse.getContent(), request.getContent(), relationshipProviders.keySet());
+            
+            activityLogger.log(managedContext, request, "update", managedId(readResponse.getId()).toString(),
+                    readResponse.getContent(), updatedResponse.getContent(), Status.SUCCESS);
 
-            DeleteRequest deleteRequest = Requests.copyOfDeleteRequest(request);
-            deleteRequest.setResourceName(repoId(resourceId));
-            if (deleteRequest.getRevision() == null) {
+            return prepareResponse(managedContext, updatedResponse, request.getFields()).asPromise();
+        } catch (ResourceException e) {
+        	return e.asPromise();
+        } catch (Exception e) {
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
+        }
+    }
+
+    @Override
+    public Promise<ResourceResponse, ResourceException> deleteInstance(final Context context, final String resourceId, 
+    		final DeleteRequest request) {
+        logger.debug("Delete {} ", "name=" + name + " id=" + resourceId + " rev=" + request.getRevision());
+        Context managedContext = new ManagedObjectContext(context);
+        try {
+            ReadRequest readRequest = Requests.newReadRequest(repoId(resourceId));
+            ResourceResponse resource = connectionFactory.getConnection().read(managedContext, readRequest);
+            
+            // Populate the relationship fields in the read resource
+            final JsonValue relationships = fetchRelationshipFields(managedContext, resourceId, request.getFields());
+            resource.getContent().asMap().putAll(relationships.asMap());
+            
+            execScript(managedContext, ScriptHook.onDelete, decrypt(resource.getContent()), null);
+
+            // Delete the resource
+            DeleteRequest deleteRequest = Requests.newDeleteRequest(repoId(resourceId));
+
+            if (request.getRevision() != null) {
+                deleteRequest.setRevision(request.getRevision());
+            } else {
                 deleteRequest.setRevision(resource.getRevision());
             }
-            Resource deletedResource = connectionFactory.getConnection().delete(context, deleteRequest);
 
-            activityLogger.log(context, request, "delete", managedId(resource.getId()).toString(),
+            connectionFactory.getConnection().delete(managedContext, deleteRequest);
+
+            // Delete any relationships associated with this resource
+            final List<Promise<JsonValue, ResourceException>> deleted = new ArrayList<>();
+            for (RelationshipProvider relationshipProvider : relationshipProviders.values()) {
+                deleted.add(relationshipProvider.clear(managedContext, resourceId));
+            }
+            // Wait for deletions to complete before continuing
+            when(deleted).getOrThrowUninterruptibly();
+
+            activityLogger.log(managedContext, request, "delete", managedId(resource.getId()).toString(),
                     resource.getContent(), null, Status.SUCCESS);
 
             // Execute the postDelete script if configured
-            execScript(context, postDelete, null,
-                    prepareScriptBindings(context, request, resourceId, deletedResource.getContent(), new JsonValue(null)));
+            execScript(managedContext, ScriptHook.postDelete, null, prepareScriptBindings(managedContext, request, resourceId,
+                    resource.getContent(), new JsonValue(null)));
 
             // Perform notifyDelete synchronization
-            performSyncAction(context, request, resourceId, SynchronizationService.SyncServiceAction.notifyDelete,
+            performSyncAction(managedContext, request, resourceId, SynchronizationService.SyncServiceAction.notifyDelete,
                     resource.getContent(), new JsonValue(null));
 
-            // only cull private properties if this is an external call
-            if (ContextUtil.isExternal(context)) {
-                deletedResource = cullPrivateProperties(deletedResource);
-            }
-
-            handler.handleResult(deletedResource);
+            return prepareResponse(managedContext, resource, request.getFields()).asPromise();
         } catch (ResourceException e) {
-            handler.handleError(e);
+        	return e.asPromise();
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e));
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
     @Override
-    public void patchInstance(ServerContext context, String resourceId, PatchRequest request,
-            ResultHandler<Resource> handler) {
+    public Promise<ResourceResponse, ResourceException> patchInstance(Context context, String resourceId, 
+    		PatchRequest request) {
         try {
-            Resource patched = patchResourceById(context, request, resourceId, request.getRevision(), request.getPatchOperations());
-
-            handler.handleResult(patched);
+        	return newResultPromise(patchResourceById(new ManagedObjectContext(context), request, resourceId, 
+        	        request.getRevision(), request.getPatchOperations()));
         } catch (ResourceException e) {
-            handler.handleError(e);
+        	return e.asPromise();
         }
     }
 
@@ -710,20 +883,20 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      * @param revision Expected revision of the resource. Patch will fail if non-null and not matching.
      * @param patchOperations
      *
-     * @return The patched Resource with private properties omitted if called externally.
+     * @return The patched ResourceResponse with private properties omitted if called externally.
      *
      * @throws ResourceException
      */
-    private Resource patchResourceById(ServerContext context, Request request,
-                                       String resourceId, String revision, List<PatchOperation> patchOperations)
+    private ResourceResponse patchResourceById(Context context, Request request, String resourceId, String revision, 
+            List<PatchOperation> patchOperations)
             throws ResourceException {
-        idRequired(request.getResourceName());
-        noSubObjects(request.getResourceName());
+        idRequired(request.getResourcePath());
+        noSubObjects(request.getResourcePath());
 
         // Get the oldest value for diffing in the log
         // JsonValue oldValue = new JsonValue(cryptoService.getRouter().read(repoId(id)));
         ReadRequest readRequest = Requests.newReadRequest(repoId(resourceId));
-        Resource resource = connectionFactory.getConnection().read(context, readRequest);
+        ResourceResponse resource = connectionFactory.getConnection().read(context, readRequest);
 
         return patchResource(context, request, resource, revision, patchOperations);
     }
@@ -737,66 +910,96 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      * @param revision
      * @param patchOperations
      *
-     * @return The patched Resource with private properties omitted if called externally.
+     * @return The patched ResourceResponse with private properties omitted if called externally.
      *
      * @throws ResourceException
      */
-    private Resource patchResource(ServerContext context, Request request,
-                                   Resource resource, String revision, List<PatchOperation> patchOperations)
+    private ResourceResponse patchResource(Context context, Request request, ResourceResponse resource, String revision, 
+            List<PatchOperation> patchOperations)
         throws ResourceException {
 
         // FIXME: There's no way to decrypt a patch document. :-( Luckily, it'll work for now with patch action.
 
         boolean forceUpdate = (revision == null);
         boolean retry = forceUpdate;
-        String _rev = revision;
+        String rev = revision;
 
         do {
-            logger.debug("patch name={} id={}", name, request.getResourceName());
+            logger.debug("patch name={} id={}", name, request.getResourcePath());
             try {
+                // Keep a copy of the oldValue
+                JsonValue oldValue = resource.getContent().copy();
 
-                JsonValue decrypted = decrypt(resource.getContent()); // decrypt any incoming encrypted properties
-
-                // If we haven't defined a rev, we need to get the current rev
+                // If we haven't defined a revision, we need to get the current revision
                 if (revision == null) {
-                    _rev = decrypted.get("_rev").asString();
+                    rev = oldValue.get("_rev").asString();
                 }
+                
+                // Create a Set containing all the patched relationship fields
+                Set<JsonPointer> patchedRelationshipFields = new HashSet<JsonPointer>();
+                for (PatchOperation operation : patchOperations) {
+                    // Getting the first token as we currently only support top-level relationship fields
+                    // This allows us to ignore trailing array index's or '-' characters.
+                    JsonPointer field = new JsonPointer(operation.getField().get(0));
+                    SchemaField schemaField = schema.getField(field);
+                    if (schemaField != null && schemaField.isRelationship()) {
+                        patchedRelationshipFields.add(field);
+                    }
+                }
+                
+                // Merge the relationship fields with the fields specified in the request
+                final Set<JsonPointer> allFields = new HashSet<JsonPointer>(request.getFields());
+                allFields.addAll(patchedRelationshipFields);
+                
+                // Fetch the relationship fields
+                final JsonValue relationships = fetchRelationshipFields(context, resource.getId(), 
+                        new ArrayList<JsonPointer>(allFields));
 
-                JsonValue newValue = decrypted.copy();
+                // Populate the oldValue with the relationship fields
+                oldValue.asMap().putAll(relationships.asMap());
+
+                JsonValue newValue = decrypt(oldValue);
                 boolean modified = JsonValuePatch.apply(newValue, patchOperations);
                 if (!modified) {
-                    return null;
+                    ResourceResponse response = newResourceResponse(resource.getId(), revision, oldValue);
+                    return prepareResponse(context, response, request.getFields());
                 }
 
+                // Check if policies should be enforced
                 if (enforcePolicies) {
+                    // Build up a map of properties to validate (only the patched properties)
+                    JsonValue propertiesToValidate = json(object());
+                    for (PatchOperation operation : patchOperations) {
+                        // Getting the first token as we currently only support top-level relationship fields
+                        // This allows us to ignore trailing array index's or '-' characters.
+                        String field = operation.getField().get(0);
+                        propertiesToValidate.put(field, newValue.get(field));
+                    }
+                    // The action request to validate the policy of all the patched properties
                     ActionRequest policyAction = Requests.newActionRequest(
-                            ResourceName.valueOf("policy").concat(managedId(resource.getId())).toString(), "validateObject");
-                    policyAction.setContent(newValue);
+                            ResourcePath.valueOf("policy").concat(managedId(resource.getId())).toString(), 
+                            "validateProperty").setContent(propertiesToValidate);
                     if (ContextUtil.isExternal(context)) {
-                        // this parameter is used in conjunction with the test in policy.js
-                        // to ensure that the reauth policy is enforced
+                        // this parameter is used in conjunction with the test in policy.js to ensure that the 
+                        // re-authentication policy is enforced.
                         policyAction.setAdditionalParameter("external", "true");
                     }
-
-                    JsonValue result = connectionFactory.getConnection().action(context, policyAction);
+                    JsonValue result = connectionFactory.getConnection().action(context, policyAction).getJsonContent();
                     if (!result.isNull() && !result.get("result").asBoolean()) {
                         logger.debug("Requested patch failed policy validation: {}", result);
                         throw new ForbiddenException("Failed policy validation").setDetail(result);
                     }
                 }
 
-                Resource patchedResource = update(context, request, resource.getId(), _rev, resource, newValue);
+                ResourceResponse patchedResource =
+                        update(context, request, resource.getId(), rev, oldValue, newValue, patchedRelationshipFields);
 
-                activityLogger.log(context, request, "Patch " + patchOperations.toString(),
-                        managedId(patchedResource.getId()).toString(), resource.getContent(), patchedResource.getContent(),
-                        Status.SUCCESS);
+                activityLogger.log(context, request, "", managedId(patchedResource.getId()).toString(),
+                        oldValue, patchedResource.getContent(), Status.SUCCESS);
                 retry = false;
                 logger.debug("Patch successful!");
 
-                if (ContextUtil.isExternal(context)) {
-                    patchedResource = cullPrivateProperties(patchedResource);
-                }
-                return patchedResource;
+                return prepareResponse(context, patchedResource, request.getFields());
             } catch (PreconditionFailedException e) {
                 if (forceUpdate) {
                     logger.debug("Unable to update due to revision conflict. Retrying.");
@@ -806,18 +1009,18 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
                 }
             } catch (ResourceException e) {
                 throw e;
+            } catch (Exception e) {
+                throw new InternalServerErrorException(e.getMessage(), e);
             }
         } while (retry);
         return null;
     }
 
     @Override
-    public void queryCollection(final ServerContext context, final QueryRequest request,
-            final QueryResultHandler handler) {
-        logger.debug("query name={} id={}", name, request.getResourceName());
-
-        QueryRequest repoRequest = Requests.copyOfQueryRequest(request);
-        repoRequest.setResourceName(repoId(null));
+    public Promise<QueryResponse, ResourceException> queryCollection(final Context context, final QueryRequest request,
+            final QueryResourceHandler handler) {
+        logger.debug("query name={} id={}", name, request.getResourcePath());
+        final Context managedContext = new ManagedObjectContext(context);
         
         // The "executeOnRetrieve" parameter is used to indicate if is returning a full managed object
         String executeOnRetrieve = request.getAdditionalParameter("executeOnRetrieve");
@@ -828,86 +1031,119 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
                 : Boolean.parseBoolean(executeOnRetrieve);
 
         final List<Map<String,Object>> results = new ArrayList<Map<String,Object>>();
+        final ResourceException[] ex = new ResourceException[]{null};
         try {
-            connectionFactory.getConnection().query(context, repoRequest, new QueryResultHandler() {
+            // Create new QueryRequest to send to the repository
+            // Does not include any fields specified in the current request
+            QueryRequest repoRequest = Requests.newQueryRequest(repoId(null));
+            repoRequest.setQueryId(request.getQueryId());
+            repoRequest.setQueryFilter(request.getQueryFilter());
+            repoRequest.setQueryExpression(request.getQueryExpression());
+            repoRequest.setPageSize(request.getPageSize());
+            repoRequest.setPagedResultsOffset(request.getPagedResultsOffset());
+            repoRequest.setPagedResultsCookie(request.getPagedResultsCookie());
+            repoRequest.setTotalPagedResultsPolicy(request.getTotalPagedResultsPolicy());
+            repoRequest.addSortKey(request.getSortKeys().toArray(new SortKey[request.getSortKeys().size()]));
+            for (String key : request.getAdditionalParameters().keySet()) {
+                repoRequest.setAdditionalParameter(key, request.getAdditionalParameter(key));
+            }
+        	
+        	QueryResponse queryResponse = connectionFactory.getConnection().query(managedContext, repoRequest,
+            		new QueryResourceHandler() {
                 @Override
-                public void handleError(ResourceException error) {
-                    handler.handleError(error);
-                }
-
-                @Override
-                public boolean handleResource(Resource resource) {
+                public boolean handleResource(ResourceResponse resource) {
+                    ResourceResponse resourceResponse = null;
                     // Check if the onRetrieve script should be run
                     if (onRetrieve) {
                         try {
-                            onRetrieve(context, request, resource.getId(), resource);
+                            onRetrieve(managedContext, request, resource.getId(), resource);
                         } catch (ResourceException e) {
-                            handler.handleError(e);
+                        	ex[0] = e;
                             return false;
                         }
                     }
-                    results.add(resource.getContent().asMap());
-                    if (ContextUtil.isExternal(context)) {
-                        // If it came over a public interface we have to cull each resulting object
-                        return handler.handleResource(cullPrivateProperties(resource));
+                    if (ServerConstants.QUERY_ALL_IDS.equals(request.getQueryId())) {
+                        // Don't populate relationships if this is a query-all-ids query.
+                        resourceResponse = resource;    
+                    } else {
+                        // Populate the relationship fields
+                        try {
+                            JsonValue relationships = fetchRelationshipFields(managedContext, resource.getId(), request.getFields());
+                            resource.getContent().asMap().putAll(relationships.asMap());
+                            resourceResponse = prepareResponse(managedContext, resource, request.getFields());
+                        } catch (ResourceException e) {
+                            ex[0] = e;
+                            return false;
+                        } catch (Exception e) {
+                            ex[0] = new InternalServerErrorException(e.getMessage(), e);
+                            return false;
+                        }
                     }
-                    return handler.handleResource(resource);
-                }
-
-                @Override
-                public void handleResult(QueryResult result) {
-                    handler.handleResult(result);
+                    results.add(resourceResponse.getContent().asMap());
+                    return handler.handleResource(prepareResponse(managedContext, resourceResponse, request.getFields()));
                 }
             });
+        	
+        	if(ex[0] != null) {
+            	return ex[0].asPromise();
+        	}
+        	
+            activityLogger.log(managedContext, request, 
+            		"query: " + request.getQueryId() + ", parameters: " + request.getAdditionalParameters(), 
+            		request.getQueryId(), null, new JsonValue(results), Status.SUCCESS);
+            
+        	return queryResponse.asPromise();
 
-            activityLogger.log(context, request,
-                    "query: " + request.getQueryId() + ", parameters: " + request.getAdditionalParameters(),
-                    request.getQueryId(), null, new JsonValue(results), Status.SUCCESS);
         } catch (ResourceException e) {
-            handler.handleError(e);
+        	return e.asPromise();
+        } catch (Exception e) {
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
     @Override
-    public void actionInstance(ServerContext context, String resourceId, ActionRequest request,
-            ResultHandler<JsonValue> handler) {
+    public Promise<ActionResponse, ResourceException> actionInstance(Context context, String resourceId, 
+    		ActionRequest request) {
+        final Context managedContext = new ManagedObjectContext(context);
 
         try {
-            activityLogger.log(context, request, "Action: " + request.getAction(),
+            activityLogger.log(managedContext, request, "Action: " + request.getAction(),
                     managedId(resourceId).toString(), null, null, Status.SUCCESS);
             switch (request.getActionAsEnum(Action.class)) {
                 case patch:
                     final List<PatchOperation> operations = PatchOperation.valueOfList(request.getContent());
-                    Resource resource = patchResourceById(context, request, resourceId, null, operations);
-                    handler.handleResult(resource.getContent());
-                    break;
+                    ResourceResponse patchResponse = patchResourceById(managedContext, request, resourceId, null, operations);
+                    return newActionResponse(patchResponse.getContent()).asPromise();
                 case triggerSyncCheck:
-                    // Sync changes if required, in particular virtual/calculated attribute changes
+                    // Sync changes if required
+                    // Read in managed object to get updated virtual attributes. The result of the read request will be 
+                    // compared against the last sync'd value stored in the repository (in the updateInstance() request 
+                    // below) to determine an update/sync is required.
+                    final List<JsonPointer> requestFields = request.getFields();
                     final ReadRequest readRequest = Requests.newReadRequest(managedId(resourceId).toString());
-                    logger.debug("Attempt sync of {}", readRequest.getResourceName());
-                    Resource currentResource = connectionFactory.getConnection().read(context, readRequest);
-                    UpdateRequest updateRequest = Requests.newUpdateRequest(readRequest.getResourceName(), currentResource.getContent());
-                    final ResultHandler<JsonValue> resultHandler = handler;
-                    updateInstance(context, resourceId, updateRequest, new ResultHandler<Resource>() {
-                        @Override
-                        public void handleError(ResourceException error) {
-                            resultHandler.handleError(error);
-                        }
-
-                        @Override
-                        public void handleResult(Resource result) {
-                            logger.debug("Sync of {} complete", readRequest.getResourceName());
-                            resultHandler.handleResult(result.getContent());
-                        }
-                    });
-                    break;
+                    if (!requestFields.isEmpty()) {
+                        readRequest.addField(requestFields.toArray(new JsonPointer[requestFields.size()]));
+                    }
+                    logger.debug("Attempt sync of {}", readRequest.getResourcePath());
+                    ResourceResponse currentResource = connectionFactory.getConnection().read(managedContext, readRequest);
+                    UpdateRequest updateRequest = Requests.newUpdateRequest(readRequest.getResourcePath(),
+                    		currentResource.getContent());
+                    if (!requestFields.isEmpty()) {
+                        updateRequest.addField(requestFields.toArray(new JsonPointer[requestFields.size()]));
+                    }
+                    ResourceResponse updateResponse = updateInstance(managedContext, resourceId, updateRequest).get();
+                    logger.debug("Sync of {} complete", readRequest.getResourcePath());
+                    return Responses.newActionResponse(updateResponse.getContent()).asPromise();
                 default:
                     throw new BadRequestException("Action " + request.getAction() + " is not supported.");
             }
         } catch (ResourceException e) {
-            handler.handleError(e);
-        } catch (IllegalArgumentException e) { // from getActionAsEnum
-            handler.handleError(new BadRequestException(e.getMessage(), e));
+        	return e.asPromise();
+        } catch (IllegalArgumentException e) { 
+        	// from getActionAsEnum
+        	return new BadRequestException(e.getMessage(), e).asPromise();
+        } catch (Exception e) {
+        	return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -920,23 +1156,24 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
      * to perform to yield a single object to patch.
      */
     @Override
-    public void actionCollection(ServerContext context, ActionRequest request, ResultHandler<JsonValue> handler) {
-        logger.debug("action name={} id={}", name, request.getResourceName());
+    public Promise<ActionResponse, ResourceException> actionCollection(Context context, ActionRequest request) {
+        logger.debug("action name={} id={}", name, request.getResourcePath());
+        final Context managedContext = new ManagedObjectContext(context);
 
         try {
-            activityLogger.log(context, request, "Action: " + request.getAction(),
-                    request.getResourceName(), null, null, Status.SUCCESS);
+            activityLogger.log(managedContext, request, "Action: " + request.getAction(),
+                    request.getResourcePath(), null, null, Status.SUCCESS);
             switch (request.getActionAsEnum(Action.class)) {
                 case patch:
-                    patchAction(context, request, handler);
-                    break;
+                    return newActionResponse(patchAction(managedContext, request).getContent()).asPromise();
                 default:
                     throw new BadRequestException("Action " + request.getAction() + " is not supported.");
             }
         } catch (ResourceException e) {
-            handler.handleError(e);
-        } catch (IllegalArgumentException e) { // from getActionAsEnum
-            handler.handleError(new BadRequestException(e.getMessage(), e));
+        	return e.asPromise();
+        } catch (IllegalArgumentException e) { 
+        	// from getActionAsEnum
+        	return new BadRequestException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -960,35 +1197,196 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
     public String getTemplate() {
         return name.indexOf('/') == 0 ? name : '/' + name;
     }
+    
 
     /**
-     * Culls properties that are marked private
-     *
-     * @param resource Resource to cull private properties from
-     * @return the supplied Resource with private properties culled
+     * Prepares the response contents by removing the following: any private properties (if the request is from an 
+     * external call), any virtual or relationship properties that are not set to returnByDefault.
+     * 
+     * @param context the current ServerContext
+     * @param resource the Resource to prepare
+     * @param fields a list of fields to return specified in the request
+     * @return the prepared Resource object
+     * @throws ResourceException 
      */
-    private Resource cullPrivateProperties(Resource resource) {
-        for (ManagedObjectProperty property : properties) {
-            if (property.isPrivate()) {
-                resource.getContent().remove(property.getName());
+    private ResourceResponse prepareResponse(Context context, ResourceResponse resource, List<JsonPointer> fields) {
+        Map<JsonPointer, SchemaField> fieldsToRemove = new HashMap<>(schema.getHiddenByDefaultFields());
+        Map<JsonPointer, List<JsonPointer>> resourceExpansionMap = new HashMap<>();
+        if (fields != null && fields.size() > 0) {
+            for (JsonPointer field : new ArrayList<>(fields)) {
+                if (field.equals(SchemaField.FIELD_ALL_RELATIONSHIPS)) {
+                    // Return all relationship fields, so remove them from fieldsToRemove map
+                    for (JsonPointer key : schema.getRelationshipFields()) {
+                        logger.debug("Allowing field {} to be returned, due to *_ref", key);
+                        fieldsToRemove.remove(key);
+                        fields.add(key);
+                    }
+                    fields.remove(field);
+                } else if (!field.equals(new JsonPointer("*")) && !field.equals(new JsonPointer(""))){
+                    if (schema.hasField(field)) {
+                        // Allow the field by removing it from the fieldsToRemove list.
+                        logger.debug("Allowing field {} to be returned", field);
+                        fieldsToRemove.remove(field);
+                    } else if (schema.hasArrayIndexedField(field)) {
+                        // Allow the indexed array field (ex: role/0) by removing it from the fieldsToRemove list.
+                        logger.debug("Allowing field {} to be returned", field.parent());
+                        fieldsToRemove.remove(field.parent());
+                    } else {
+                        // Check for resource expansion and build up map of fields to expand
+                        Pair<JsonPointer, JsonPointer> expansionPair = schema.getResourceExpansionField(field);
+                        if (expansionPair != null) {
+                            JsonPointer relationshipField = expansionPair.getFirst();
+                            // Allow the field by removing it from the fieldsToRemove list (if there)
+                            fieldsToRemove.remove(relationshipField);
+                            // Add the field to the expansion map
+                            if (!resourceExpansionMap.containsKey(relationshipField)) {
+                            	// Initialize the list of fields in the resource expansion map
+                                resourceExpansionMap.put(relationshipField, new ArrayList<JsonPointer>());
+                                // Add the relationship field to the fields list (so it is included in the response)
+                                fields.add(relationshipField);
+                            }
+                            // Remove the expanded field from the list of fields (since it will be included as part of
+                            // the relationship field (after resource expansion) in the response.
+                            fields.remove(field);
+                            resourceExpansionMap.get(relationshipField).add(expansionPair.getSecond());
+                        }
+                    }
+
+                } else if (field.equals(new JsonPointer("*"))) {
+                	fields.remove(field);
+                	fields.add(new JsonPointer(""));
+                }
             }
         }
+
+        // Remove all relationship and virtual fields that are not returned by default, or explicitly listed
+        for (JsonPointer key : fieldsToRemove.keySet()) {
+            logger.debug("Removing field {} from the response object", key);
+            resource.getContent().remove(key);
+        }
+
+        // List of promises representing results of resource expansion
+        List<Promise<ResourceResponse, ResourceException>> promises = new ArrayList<>();
+        // Loop over the relationship fields to expand
+        for (JsonPointer fieldToExpand : resourceExpansionMap.keySet()) {
+            // The schema for the field to expand
+            SchemaField schemaField = schema.getField(fieldToExpand);
+            // The list of fields to include from the expanded resource
+            List<JsonPointer> fieldsList = resourceExpansionMap.get(fieldToExpand);
+            // The value of the relationship field
+            JsonValue fieldValue = resource.getContent().get(fieldToExpand);
+            try {
+                // Perform the resource expansion
+                if (fieldValue != null && !fieldValue.isNull()) {
+                    if (schemaField.isArray()) {
+                        // The field is an array of relationship objects
+                        for (JsonValue value : fieldValue) {
+                            promises.add(expandResource(context, value, fieldsList));
+                        }
+                    } else {
+                        // The field is a relationship object  
+                        promises.add(expandResource(context, fieldValue, fieldsList));
+                    }
+                } else {
+                    logger.debug("Cannot expand a null relationship object");
+                }
+            } catch (ResourceException e) {
+                logger.error("Error expanding resource " + fieldToExpand + " with value " + fieldValue, e);
+            }
+        }
+        
+        try {
+            when(promises).getOrThrowUninterruptibly();
+        } catch (ResourceException e) {
+            // Exceptions are already handled in expandResource, so this should never happen.
+            logger.error("Error performing resource expansion", e);
+        }
+        
+        // only cull private properties if this is an external call
+        if (ContextUtil.isExternal(context)) {
+            for (JsonPointer key : Collections.unmodifiableSet(getSchema().getFields().keySet())) {
+                SchemaField field = getSchema().getField(key);
+                if (field.isPrivate()) {
+                    resource.getContent().remove(field.getName());
+                }
+            }
+        }
+        
+        // Update the list of fields in the response
+        if (fields != null && fields.size() > 0) {
+        	resource.addField(fields.toArray(new JsonPointer[fields.size()]));
+        }
+        
         return resource;
     }
-    
+
     /**
-     * Sends a sync action request to the synchronization service
-     *
-     * @param context the ServerContext of the request
-     * @param request the Request being processed
-     * @param resourceId the additional resourceId parameter telling the synchronization service which object
-     *                   is being synchronized
-     * @param action the {@link org.forgerock.openidm.sync.impl.SynchronizationService.SyncServiceAction}
-     * @param oldValue the previous object value before the change (if applicable, or null if not)
-     * @param newValue the object value to sync
-     * @throws ResourceException in case of a failure that was not handled by the ResultHandler
+     * Expands the provided resource represented by a {@link JsonValue} relationship object.  A read request  will be 
+     * issued for the resource identified by the "_ref" field in the supplied relationship object. A supplied 
+     * {@link List} of fields indicates which fields to read and then merge with the relationship object.
+     *    
+     * @param context the {@link Context} of the request
+     * @param value the value of the relationship object
+     * @param fieldsList the list of fields to read and merge with the relationship object.
+     * @throws ResourceException if an error is encountered.
      */
-    private void performSyncAction(final ServerContext context, final Request request, final String resourceId,
+    private Promise<ResourceResponse, ResourceException> expandResource(Context context, final JsonValue value, 
+            List<JsonPointer> fieldsList) throws ResourceException {
+        if (!value.isNull() && value.get(SchemaField.FIELD_REFERENCE) != null) {
+            final Connection connection = ContextUtil.isExternal(context) 
+                    ? connectionFactory.getExternalConnection()
+                    : connectionFactory.getConnection();
+            // Create and issue a read request on the referenced resource with the specified list of fields
+            ReadRequest request = Requests.newReadRequest(value.get(SchemaField.FIELD_REFERENCE).asString());
+            request.addField(fieldsList.toArray(new JsonPointer[fieldsList.size()]));
+            return connection.readAsync(context, request).thenOnResultOrException(
+                    new ResultHandler<ResourceResponse>() {
+                        @Override
+                        public void handleResult(ResourceResponse resource) {
+                            // Merge the result with the supplied relationship object
+                            value.asMap().putAll(resource.getContent().asMap());
+                        }
+                    }, new ExceptionHandler<ResourceException>() {
+                        @Override
+                        public void handleException(ResourceException exception) {
+                            Map<String, Object> valueMap = value.asMap();
+                            valueMap.put(RelationshipUtil.REFERENCE_ERROR, true);
+                            valueMap.put(RelationshipUtil.REFERENCE_ERROR_MESSAGE, exception.getMessage());
+                        }
+                    });
+        } else {
+            logger.warn("Cannot expand a null relationship object");
+            return newResourceResponse(null, null, null).asPromise();
+        }
+    }
+
+    /**
+     * Removes all relationship fields from the supplied {@link JsonValue} instance of a managed object.  Returns a 
+     * {@link JsonValue} object containing the stripped fields.
+     *
+     * @param value The JsonValue map to strip relationship fields from
+     * @return A {@link JsonValue} containing the stripped fields.
+     */
+    private JsonValue stripRelationshipFields(final JsonValue value) {
+        value.expect(Map.class);
+
+        final JsonValue stripped = json(object());
+
+        for (JsonPointer field : schema.getRelationshipFields()) {
+            final JsonValue fieldValue = value.get(field);
+            final Object strippedValue;
+            if (null != fieldValue) {
+                strippedValue = fieldValue.getObject();
+                stripped.put(field, strippedValue);
+                value.remove(field);
+            }
+        }
+
+        return stripped;
+    }
+
+    @Override
+    public void performSyncAction(final Context context, final Request request, final String resourceId,
             final SynchronizationService.SyncServiceAction action, final JsonValue oldValue, final JsonValue newValue)
         throws ResourceException {
 
@@ -1007,41 +1405,39 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             content.put("oldValue", oldValue.getObject());
             content.put("newValue", newValue.getObject());
             final ActionRequest syncRequest = Requests.newActionRequest("sync", action.name())
-                    .setAdditionalParameter(ACTION_PARAM_RESOURCE_CONTAINER, managedObjectPath.toString())
-                    .setAdditionalParameter(ACTION_PARAM_RESOURCE_ID, resourceId)
+                    .setAdditionalParameter(SynchronizationService.ACTION_PARAM_RESOURCE_CONTAINER, managedObjectPath.toString())
+                    .setAdditionalParameter(SynchronizationService.ACTION_PARAM_RESOURCE_ID, resourceId)
                     .setContent(content);
 
             final ResourceException[] syncScriptError = new ResourceException[] { null };
-            connectionFactory.getConnection().actionAsync(context, syncRequest, new ResultHandler<JsonValue>() {
-                @Override
-                public void handleError(final ResourceException e) {
-                    logger.warn("Failed to sync {} {}:{}", syncRequest.getAction(), name, syncRequest.getResourceName(), e);
-                    execSyncScript(false, e.getDetail());
-                }
-
-                @Override
-                public void handleResult(final JsonValue result) {
-                    logger.debug("Successfully completed sync {} {}:{}", syncRequest.getAction(), name, syncRequest.getResourceName());
-                    execSyncScript(true, result);
-                }
-
-                private void execSyncScript(boolean success, JsonValue syncDetails) {
-                    try {
-                        JsonValue scriptBindings = prepareScriptBindings(context, request, resourceId, oldValue, newValue);
-                        Map<String,Object> syncResults = new HashMap<String,Object>();
-                        syncResults.put("success", success);
-                        syncResults.put("action", action.name());
-                        syncResults.put("syncDetails", syncDetails.getObject());
-                        scriptBindings.put("syncResults", syncResults);
-                        execScript(context, onSync, null, scriptBindings);
-                    } catch (ResourceException re) {
-                        logger.warn("Failed executing onSync script on {} {}:{}",
-                                syncRequest.getAction(), name, syncRequest.getResourceName(), re);
-                        // this needs to passed to the caller's handleError so the client hears about it
-                        syncScriptError[0] = re;
-                    }
-                }
-            });
+            JsonValue details;
+            boolean success = false;
+            try {
+				ActionResponse actionResponse = connectionFactory.getConnection().action(context, syncRequest);
+				success = true;
+				details = actionResponse.getJsonContent();
+			} catch (ResourceException e) {
+				success = false;
+				details = e.getDetail();
+			} catch (Exception e) {
+				success = false;
+				details = new InternalServerErrorException(e.getMessage(), e).getDetail();
+			}
+            
+            try {
+            	// Execute the sync script
+                JsonValue scriptBindings = prepareScriptBindings(context, request, resourceId, oldValue, newValue);
+                Map<String,Object> syncResults = new HashMap<String,Object>();
+                syncResults.put("success", success);
+                syncResults.put("action", action.name());
+                syncResults.put("syncDetails", details.getObject());
+                scriptBindings.put("syncResults", syncResults);
+                execScript(context, ScriptHook.onSync, null, scriptBindings);
+            } catch (ResourceException e) {
+                logger.warn("Failed executing onSync script on {} {}:{}",
+                        syncRequest.getAction(), name, syncRequest.getResourcePath(), e);
+            	throw e;
+            }
             if (syncScriptError[0] != null) {
                 throw syncScriptError[0];
             }
@@ -1049,5 +1445,28 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener {
             logger.error("Failed to sync {} {}:{}", action.name(), name, resourceId, e);
             throw e;
         }
+    }
+
+    /**
+     * Get the {@link ResourcePath} associated with this set.
+     * @return The {@link ResourcePath} associated with this object set.
+     */
+    public ResourcePath getPath() {
+        return managedObjectPath;
+    }
+
+    /**
+     * Get the {@link ManagedObjectSchema} associated with this set.
+     * @return The {@link ManagedObjectSchema} associated with this object set.
+     */
+    public ManagedObjectSchema getSchema() {
+        return schema;
+    }
+
+    /**
+     * Get the current map of {@link RelationshipProvider} for each relationship field.
+     */
+    Map<JsonPointer, RelationshipProvider> getRelationshipProviders() {
+        return relationshipProviders;
     }
 }

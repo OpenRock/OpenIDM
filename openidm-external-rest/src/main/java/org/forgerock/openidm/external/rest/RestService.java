@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2014 ForgeRock AS. All rights reserved.
+ * Copyright 2011-2015 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -33,7 +33,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -41,25 +40,27 @@ import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Service;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.services.context.Context;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
 import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.ReadRequest;
-import org.forgerock.json.resource.Resource;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.ServerContext;
+import org.forgerock.json.resource.Responses;
 import org.forgerock.json.resource.SingletonResourceProvider;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.util.JsonUtil;
+import org.forgerock.util.promise.Promise;
+import org.forgerock.util.promise.Promises;
 import org.osgi.framework.Constants;
 import org.osgi.service.component.ComponentContext;
 import org.restlet.Client;
-import org.restlet.Context;
 import org.restlet.Request;
 import org.restlet.Response;
 import org.restlet.data.CacheDirective;
@@ -138,30 +139,22 @@ public class RestService implements SingletonResourceProvider {
     }
 
     @Override
-    public void patchInstance(ServerContext context, PatchRequest request,
-            ResultHandler<Resource> handler) {
-        final ResourceException e = new NotSupportedException("Patch operations are not supported");
-        handler.handleError(e);
+    public Promise<ResourceResponse, ResourceException> patchInstance(Context context, PatchRequest request) {
+        return new NotSupportedException("Patch operations are not supported").asPromise();
     }
 
     @Override
-    public void readInstance(ServerContext context, ReadRequest request,
-            ResultHandler<Resource> handler) {
-        final ResourceException e = new NotSupportedException("Read operations are not supported");
-        handler.handleError(e);
+    public Promise<ResourceResponse, ResourceException> readInstance(Context context, ReadRequest request) {
+        return new NotSupportedException("Read operations are not supported").asPromise();
     }
 
     @Override
-    public void updateInstance(ServerContext context, UpdateRequest request,
-            ResultHandler<Resource> handler) {
-        final ResourceException e =
-                new NotSupportedException("Update operations are not supported");
-        handler.handleError(e);
+    public Promise<ResourceResponse, ResourceException> updateInstance(Context context, UpdateRequest request) {
+        return new NotSupportedException("Update operations are not supported").asPromise();
     }
 
     @Override
-    public void actionInstance(ServerContext context, ActionRequest request,
-            ResultHandler<JsonValue> handler) {
+    public Promise<ActionResponse, ResourceException> actionInstance(Context context, ActionRequest request) {
         try {
             logger.debug("Action invoked on {} with {}", request.getAction(), request);
 
@@ -170,10 +163,9 @@ public class RestService implements SingletonResourceProvider {
             if (content == null
                     || !content.isMap()
                     || content.asMap().isEmpty()) {
-                handler.handleError(new BadRequestException("Invalid action call on "
-                        + request.getResourceName() + "/" + request.getAction()
-                        + " : missing post body to define what to invoke."));
-                return;
+                throw new BadRequestException("Invalid action call on "
+                        + request.getResourcePath() + "/" + request.getAction()
+                        + " : missing post body to define what to invoke.");
             }
 
             String url = content.get(ARG_URL).required().asString();
@@ -207,13 +199,13 @@ public class RestService implements SingletonResourceProvider {
                         String identifier = auth.get("user").required().asString();
                         String secret = auth.get("password").required().asString();
                         logger.debug("Using basic authentication for {} secret supplied: {}",
-                                identifier, !StringUtils.isBlank(secret));
+                                identifier, secret != null && secret.length() > 0);
                         ChallengeResponse challengeResponse =
                                 new ChallengeResponse(ChallengeScheme.HTTP_BASIC, identifier, secret);
                         cr.setChallengeResponse(challengeResponse);
                     } else if ("bearer".equalsIgnoreCase(type)) {
                         String token = auth.get("token").required().asString();
-                        
+
                         logger.debug("Using bearer authentication");
                         Series<Header> extraHeaders = (Series<Header>) attrs.get("org.restlet.http.headers");
                         if (extraHeaders == null) {
@@ -222,9 +214,8 @@ public class RestService implements SingletonResourceProvider {
                         extraHeaders.set("Authorization", "Bearer " + token);
                         attrs.put("org.restlet.http.headers", extraHeaders);
                     } else {
-                        handler.handleError(new BadRequestException("Invalid auth type \"" + type + "\" on "
-                                + request.getResourceName() + "/" + request.getAction()));
-                        return;
+                        throw new BadRequestException("Invalid auth type \"" + type + "\" on "
+                                + request.getResourcePath() + "/" + request.getAction());
                     }
                 }
 
@@ -247,9 +238,10 @@ public class RestService implements SingletonResourceProvider {
                         // TODO: media type arg?
                         representation = cr.options();
                     } else {
-                        handler.handleError(new BadRequestException("Unknown method " + method));
-                        return;
+                        throw new BadRequestException("Unknown method " + method);
                     }
+                } catch (ResourceException e) {
+                    throw e;
                 } catch (org.restlet.resource.ResourceException e) {
                     int code = e.getStatus().getCode();
                     String text = null;
@@ -268,8 +260,7 @@ public class RestService implements SingletonResourceProvider {
                         detail.put("content", text);
                         exception.setDetail(detail);
                     }
-                    handler.handleError(exception);
-                    return;
+                    throw exception;
                 }
 
                 String text = representation.getText();
@@ -278,13 +269,16 @@ public class RestService implements SingletonResourceProvider {
                 if (detectResultFormat && representation.getMediaType().isCompatible(MediaType.APPLICATION_JSON)) {
                     try {
                         if (text != null && text.trim().length() > 0) {
-                            // TODO Null check
-                            handler.handleResult(JsonUtil.parseStringified(text));
+                            return Promises.newResultPromise(
+                                    Responses.newActionResponse(JsonUtil.parseStringified(text)));
+                        } else {
+                            throw new BadRequestException("Unable to parse url argument " + url);
                         }
+                    } catch (ResourceException e) {
+                        throw e;
                     } catch (Exception ex) {
-                        handler.handleError(new InternalServerErrorException(
-                                "Failure in parsing the response as JSON: " + text
-                                        + " Reported failure: " + ex.getMessage(), ex));
+                        throw new InternalServerErrorException("Failure in parsing the response as JSON: " + text
+                                + " Reported failure: " + ex.getMessage(), ex);
                     }
                 } else {
                     try {
@@ -303,22 +297,26 @@ public class RestService implements SingletonResourceProvider {
                         JsonValue result = new JsonValue(new HashMap<String, Object>());
                         result.put("headers", resultHeaders);
                         result.put("body", text);
-                        handler.handleResult(result);
+                        return Promises.newResultPromise(
+                                Responses.newActionResponse(result));
                     } catch (Exception ex) {
-                        handler.handleError(new InternalServerErrorException("Failure in parsing the response: "
-                                + text + " Reported failure: " + ex.getMessage(), ex));
+                        throw new InternalServerErrorException("Failure in parsing the response: " + text
+                                + " Reported failure: " + ex.getMessage(), ex);
                     }
                 }
-
+            } catch (ResourceException e) {
+                return e.asPromise();
             } catch (java.io.IOException ex) {
-                handler.handleError(new InternalServerErrorException("Failed to invoke " + content, ex));
+                return new InternalServerErrorException("Failed to invoke " + content, ex).asPromise();
             } finally {
                 if (null != cr) {
                     cr.release();
                 }
             }
+        } catch (ResourceException e) {
+            return e.asPromise();
         } catch (Exception e) {
-            handler.handleError(new InternalServerErrorException(e));
+            return new InternalServerErrorException(e.getMessage(), e).asPromise();
         }
     }
 
@@ -673,11 +671,9 @@ public class RestService implements SingletonResourceProvider {
         // TODO use the
         // https://wikis.forgerock.org/confluence/display/json/http-request
         String url = params.get(ARG_URL).required().asString();
-        Context context = new Context();
-
-        context.getParameters().set("maxTotalConnections", "16");
-        context.getParameters().set("maxConnectionsPerHost", "8");
-
+        org.restlet.Context context = new org.restlet.Context();
+        context.getParameters().add("maxTotalConnections", "16");
+        context.getParameters().add("maxConnectionsPerHost", "8");
         ClientResource cr = new ClientResource(context, url);
         JsonValue _authenticate = params.get(ARG_AUTHENTICATE);
 

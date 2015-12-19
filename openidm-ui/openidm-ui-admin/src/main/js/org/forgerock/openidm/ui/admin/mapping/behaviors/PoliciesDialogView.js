@@ -1,30 +1,24 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, require, window */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/mapping/behaviors/PoliciesDialogView", [
+    "jquery",
+    "underscore",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/main/Configuration",
     "org/forgerock/commons/ui/common/util/UIUtils",
@@ -32,8 +26,8 @@ define("org/forgerock/openidm/ui/admin/mapping/behaviors/PoliciesDialogView", [
     "org/forgerock/openidm/ui/admin/mapping/util/LinkQualifierFilterEditor",
     "org/forgerock/openidm/ui/admin/util/WorkflowWidget",
     "bootstrap-dialog"
-
-], function(AbstractView,
+], function($, _,
+            AbstractView,
             conf,
             uiUtils,
             InlineScriptEditor,
@@ -88,15 +82,15 @@ define("org/forgerock/openidm/ui/admin/mapping/behaviors/PoliciesDialogView", [
                 this.model.postAction = this.model.basePolicy.postAction;
             }
 
-            if (_(this.model.action).isObject() && _(this.model.action).has("file") && this.model.action.file === "workflow/triggerWorkflowFromSync.js") {
+            if (_.isObject(this.model.action) && _.has(this.model.action, "file") && this.model.action.file === "workflow/triggerWorkflowFromSync.js") {
                 this.data.defaultWorkflow = true;
-            } else if (_(this.model.action ).isObject() && _(this.model.action ).has("type")) {
+            } else if (_.isObject(this.model.action) && _.has(this.model.action, "type")) {
                 this.data.defaultScript = true;
             } else {
                 this.data.defaultAction = true;
             }
 
-            if (_(this.model.condition).isObject() && _(this.model.condition).has("type")) {
+            if (_.isObject(this.model.condition) && _.has(this.model.action, "type")) {
                 this.data.defaultConditionScript = true;
                 this.data.defaultConditionFilter = false;
             }
@@ -125,7 +119,7 @@ define("org/forgerock/openidm/ui/admin/mapping/behaviors/PoliciesDialogView", [
                             this.$el.find(".nav-tabs").tabdrop();
 
                             // Set viable options stars
-                            _(this.model.basePolicy.options).each(function(action) {
+                            _.each(this.model.basePolicy.options, function(action) {
                                 tempSelector = $("#defaultActionPane select option[value='"+action+"']");
                                 tempSelector.html(tempSelector.text() + " " + this.data.hollowStar);
                             }, this);
@@ -318,6 +312,8 @@ define("org/forgerock/openidm/ui/admin/mapping/behaviors/PoliciesDialogView", [
         sectionControl: function(event) {
             var selected = $(event.target);
             selected.parent().find('.active').removeClass('active');
+
+            selected.toggleClass("active", true);
         }
     });
 

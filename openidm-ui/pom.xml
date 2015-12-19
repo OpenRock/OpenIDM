@@ -27,19 +27,19 @@
     <parent>
         <artifactId>openidm-project</artifactId>
         <groupId>org.forgerock.openidm</groupId>
-        <version>3.2.0-SNAPSHOT</version>
+        <version>4.1.0-SNAPSHOT</version>
     </parent>
 
     <properties>
-        <forgerock-ui.version>2.0.7</forgerock-ui.version>
+        <forgerock-ui.version>11.0.1</forgerock-ui.version>
     </properties>
 
-      <artifactId>openidm-ui</artifactId>
-      <name>OpenIDM UI Parent</name>
-      <packaging>pom</packaging>
-      <modules>
-          <module>openidm-ui-common</module>
-          <module>openidm-ui-admin</module>
-          <module>openidm-ui-enduser</module>
-      </modules>
-  </project>
+    <artifactId>openidm-ui</artifactId>
+    <name>OpenIDM UI Parent</name>
+    <packaging>pom</packaging>
+    <modules>
+        <module>openidm-ui-common</module>
+        <module>openidm-ui-admin</module>
+        <module>openidm-ui-enduser</module>
+    </modules>
+</project>

@@ -26,11 +26,17 @@ package org.forgerock.openidm.maintenance.upgrade;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Date;
 
 import org.apache.commons.io.FileUtils;
+import org.forgerock.util.Function;
+import org.mockito.Matchers;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
@@ -38,10 +44,10 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import static org.fest.assertions.api.Assertions.assertThat;
+import static org.forgerock.openidm.maintenance.upgrade.StaticFileUpdate.NEW_SUFFIX;
+import static org.forgerock.openidm.maintenance.upgrade.StaticFileUpdate.OLD_SUFFIX;
 import static org.mockito.Mockito.*;
 import static org.testng.AssertJUnit.assertFalse;
-import static org.testng.AssertJUnit.assertTrue;
-import static org.forgerock.openidm.maintenance.upgrade.StaticFileUpdate.IDM_SUFFIX;
 
 /**
  * Tests updating static files.
@@ -50,16 +56,17 @@ public class StaticFileUpdateTest {
 
     private static final ProductVersion oldVersion = new ProductVersion("3.2.0", "5000");
     private static final ProductVersion newVersion = new ProductVersion("4.0.0", "6000");
+    private static final long timestamp = new Date().getTime();
 
     private static final byte[] oldBytes = "oldcontent".getBytes();
     private static final byte[] newBytes = "newcontent".getBytes();
 
     private Path getOldVersionPath(Path file) {
-        return Paths.get(file + IDM_SUFFIX + oldVersion.toString());
+        return Paths.get(file + OLD_SUFFIX + timestamp);
     }
 
     private Path getNewVersionPath(Path file) {
-        return Paths.get(file + IDM_SUFFIX + newVersion.toString());
+        return Paths.get(file + NEW_SUFFIX + timestamp);
     }
 
     private Path tempPath;
@@ -89,9 +96,20 @@ public class StaticFileUpdateTest {
 
     private StaticFileUpdate getStaticFileUpdate(FileStateChecker fileStateChecker) throws IOException {
         Archive archive = mock(Archive.class);
-        when(archive.getInputStream(tempFile)).thenReturn(new ByteArrayInputStream(newBytes));
-        StaticFileUpdate update = new StaticFileUpdate(fileStateChecker, tempPath, archive, oldVersion, newVersion);
-        return update;
+        when(archive.getVersion()).thenReturn(newVersion);
+        when(archive.withInputStreamForPath(eq(tempFile), Matchers.<Function<InputStream, Void, IOException>>any()))
+                .then(
+                        new Answer<Void>() {
+                            @Override
+                            @SuppressWarnings("unchecked")
+                            public Void answer(InvocationOnMock invocation) throws Throwable {
+                                // first argument - (Path) invocation.getArguments()[0] - is the Path, unused
+                                Function<InputStream, Void, IOException> function =
+                                        (Function<InputStream, Void, IOException>) invocation.getArguments()[1];
+                                return function.apply(new ByteArrayInputStream(newBytes));
+                            }
+                        });
+        return new StaticFileUpdate(fileStateChecker, tempPath, archive, oldVersion, timestamp);
     }
 
     /**
@@ -128,13 +146,13 @@ public class StaticFileUpdateTest {
      * Test keeping a file with no differences.  This should throw an exception as there are no differences
      * to keep.
      */
-    @Test(expectedExceptions = IOException.class)
+    @Test
     public void testKeepIsUnchanged() throws IOException {
         Files.write(tempFile, oldBytes);
         FileStateChecker fileStateChecker = mock(FileStateChecker.class);
         when(fileStateChecker.getCurrentFileState(tempFile)).thenReturn(FileState.UNCHANGED);
         StaticFileUpdate update = getStaticFileUpdate(fileStateChecker);
-        update.keep(tempFile);
+        assertThat(update.keep(tempFile)).isNull();
     }
 
     /**

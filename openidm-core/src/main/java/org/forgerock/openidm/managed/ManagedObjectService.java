@@ -1,28 +1,22 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2011-2015 ForgeRock AS. All Rights Reserved
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Portions copyright 2011-2015 ForgeRock AS.
  */
-
 package org.forgerock.openidm.managed;
+
+import static org.forgerock.json.resource.Resources.newCollection;
+import static org.forgerock.json.resource.Router.uriTemplate;
 
 import java.util.HashSet;
 import java.util.List;
@@ -43,27 +37,34 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.json.resource.ResourcePath;
+import org.forgerock.services.context.Context;
+import org.forgerock.services.routing.RouteMatcher;
+import org.forgerock.http.routing.RoutingMode;
+import org.forgerock.json.JsonPointer;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
-import org.forgerock.json.resource.ConnectionFactory;
+import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResultHandler;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ReadRequest;
+import org.forgerock.json.resource.Request;
 import org.forgerock.json.resource.RequestHandler;
-import org.forgerock.json.resource.Resource;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.Route;
+import org.forgerock.json.resource.ResourceException;
+import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.Router;
-import org.forgerock.json.resource.ServerContext;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.crypto.CryptoService;
+import org.forgerock.openidm.router.IDMConnectionFactory;
 import org.forgerock.openidm.router.RouteService;
 import org.forgerock.script.ScriptRegistry;
+import org.forgerock.util.promise.Promise;
 import org.osgi.framework.Constants;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.component.ComponentException;
@@ -99,7 +100,12 @@ public class ManagedObjectService implements RequestHandler {
     @Reference(policy = ReferencePolicy.DYNAMIC)
     protected ScriptRegistry scriptRegistry;
 
-    /** Route service. */
+    /**
+     * Route service on "sync" endpoint.  An aspect of CRUDPAQ on managed objects is to synchronize their
+     * attributes with remote system if configured.  As this message is sent over the router, we need to
+     * know if the SynchronizationService is available.  This optional reference is used to indicate that
+     * availability.
+     */
     @Reference(referenceInterface = RouteService.class,
             policy = ReferencePolicy.DYNAMIC,
             bind = "bindSyncRoute",
@@ -108,121 +114,200 @@ public class ManagedObjectService implements RequestHandler {
             target = "(" + ServerConstants.ROUTER_PREFIX + "=/sync*)")
     private final AtomicReference<RouteService> syncRoute = new AtomicReference<RouteService>();
 
-    private void bindSyncRoute(final RouteService service) {
+    @SuppressWarnings("unused")
+	private void bindSyncRoute(final RouteService service) {
         syncRoute.set(service);
     }
 
-    private void unbindSyncRoute(final RouteService service) {
+    @SuppressWarnings("unused")
+	private void unbindSyncRoute(final RouteService service) {
         syncRoute.set(null);
     }
 
     /* The Connection Factory */
-    @Reference(policy = ReferencePolicy.STATIC, target="(service.pid=org.forgerock.openidm.internal)")
-    protected ConnectionFactory connectionFactory;
+    @Reference(policy = ReferencePolicy.STATIC)
+    protected IDMConnectionFactory connectionFactory;
 
     /** Enhanced configuration service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
     private EnhancedConfig enhancedConfig;
 
-    private final ConcurrentMap<String, Route> managedRoutes = new ConcurrentHashMap<String, Route>();
+    private final ConcurrentMap<String, RouteMatcher<Request>> managedRoutes = new ConcurrentHashMap<String, RouteMatcher<Request>>();
 
     private final Router managedRouter = new Router();
 
+    /**
+     * RequestHandler to handle requests for both a {@link ManagedObjectSet} and its nested
+     * {@link RelationshipProvider}s.
+     *
+     * Requests to {@code /} and {@code /{id}} will be directed to the object set.
+     * Requests starting with {@code /{id}/{relationshipField}} will be directed to their relationship provider.
+     */
+    private class ManagedObjectSetRequestHandler implements RequestHandler {
+        final ManagedObjectSet objectSet;
+        final RequestHandler objectSetRequestHandler;
+
+        ManagedObjectSetRequestHandler(final ManagedObjectSet objectSet) {
+            this.objectSet = objectSet;
+            this.objectSetRequestHandler = newCollection(objectSet);
+        }
+
+        private RequestHandler requestHandler(final Request request) {
+            final ResourcePath path = request.getResourcePathObject();
+
+            if (path.size() <= 1) { // Either / or /{id}. Use the objectSet
+                return objectSetRequestHandler;
+            } else { // /{id}/{relationshipField}/... use the relationship provider
+                final RelationshipProvider provider = objectSet.getRelationshipProviders().get(new JsonPointer(path.get(1)));
+
+                if (provider != null) {
+                    return provider.asRequestHandler();
+                } else {
+                    // If we don't have a relationship provider for this endpoint send it back ot the objectset
+                    // to get a proper 404 response.
+                    return objectSetRequestHandler;
+                }
+            }
+        }
+
+        @Override
+        public Promise<ActionResponse, ResourceException> handleAction(Context context, ActionRequest request) {
+            return requestHandler(request).handleAction(context, request);
+        }
+
+        @Override
+        public Promise<ResourceResponse, ResourceException> handleCreate(Context context, CreateRequest request) {
+            return requestHandler(request).handleCreate(context, request);
+        }
+
+        @Override
+        public Promise<ResourceResponse, ResourceException> handleDelete(Context context, DeleteRequest request) {
+            return requestHandler(request).handleDelete(context, request);
+        }
+
+        @Override
+        public Promise<ResourceResponse, ResourceException> handlePatch(Context context, PatchRequest request) {
+            return requestHandler(request).handlePatch(context, request);
+        }
+
+        @Override
+        public Promise<QueryResponse, ResourceException> handleQuery(Context context, QueryRequest request, QueryResourceHandler handler) {
+            return requestHandler(request).handleQuery(context, request, handler);
+        }
+
+        @Override
+        public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
+            return requestHandler(request).handleRead(context, request);
+        }
+
+        @Override
+        public Promise<ResourceResponse, ResourceException> handleUpdate(Context context, UpdateRequest request) {
+            return requestHandler(request).handleUpdate(context, request);
+        }
+    }
+
 
     /**
-     * TODO: Description.
+     * Activates the component
      * 
-     * @param context
-     *            TODO.
+     * @param context the {@link ComponentContext} object for this component.
      */
     @Activate
     protected void activate(ComponentContext context) throws Exception {
         JsonValue configuration = enhancedConfig.getConfigurationAsJson(context);
-        for (JsonValue value : configuration.get("objects").expect(List.class)) {
-            ManagedObjectSet objectSet = new ManagedObjectSet(scriptRegistry, cryptoService, syncRoute, connectionFactory, value);
+        for (JsonValue managedObjectConfig : configuration.get("objects").expect(List.class)) {
+            final ManagedObjectSet objectSet = new ManagedObjectSet(scriptRegistry, cryptoService, syncRoute, connectionFactory, managedObjectConfig);
             if (managedRoutes.containsKey(objectSet.getName())) {
                 throw new ComponentException("Duplicate definition of managed object type: " + objectSet.getName());
             }
-            managedRoutes.put(objectSet.getName(),managedRouter.addRoute(objectSet.getTemplate(), objectSet));
+
+            managedRoutes.put(objectSet.getName(),
+                    managedRouter.addRoute(RoutingMode.STARTS_WITH, uriTemplate(objectSet.getTemplate()),
+                            new ManagedObjectSetRequestHandler(objectSet)));
         }
     }
 
+    /**
+     * Modifies the component
+     * 
+     * @param context the {@link ComponentContext} object for this component.
+     */
     @Modified
     protected void modified(ComponentContext context) throws Exception {
         JsonValue configuration = enhancedConfig.getConfigurationAsJson(context);
 
-        Set<String> tempRoutes = new HashSet<String>();
+        Set<String> routesToKeep = new HashSet<String>();
         for (JsonValue value : configuration.get("objects").expect(List.class)) {
             ManagedObjectSet objectSet = new ManagedObjectSet(scriptRegistry, cryptoService, syncRoute, connectionFactory, value);
-            if (tempRoutes.contains(objectSet.getName())) {
+            if (routesToKeep.contains(objectSet.getName())) {
                 throw new ComponentException("Duplicate definition of managed object type: " + objectSet.getName());
             }
-            Route oldRoute = managedRoutes.get(objectSet.getName());
+            RouteMatcher<Request> oldRoute = managedRoutes.get(objectSet.getName());
             if (null != oldRoute) {
                 managedRouter.removeRoute(oldRoute);
             }
-            managedRoutes.put(objectSet.getName(),managedRouter.addRoute(objectSet.getTemplate(), objectSet));
-            tempRoutes.add(objectSet.getName());
+            managedRoutes.put(objectSet.getName(),
+                    managedRouter.addRoute(RoutingMode.STARTS_WITH, uriTemplate(objectSet.getTemplate()),
+                            new ManagedObjectSetRequestHandler(objectSet)));
+            routesToKeep.add(objectSet.getName());
         }
-        for (Map.Entry<String, Route> entry : managedRoutes.entrySet()){
-           //Use ConcurrentMap to avoid ConcurrentModificationException with this iteration
-            if (tempRoutes.contains(entry.getKey())) {
+        for (Map.Entry<String, RouteMatcher<Request>> entry : managedRoutes.entrySet()){
+            //Use ConcurrentMap to avoid ConcurrentModificationException with this iteration
+            if (routesToKeep.contains(entry.getKey())) {
                 continue;
             }
             managedRouter.removeRoute(managedRoutes.remove(entry.getKey()));
         }
     }
 
+
     /**
-     * TODO: Description.
+     * Deactivates the component
      * 
-     * @param context
-     *            TODO.
+     * @param context the {@link ComponentContext} object for this component.
      */
     @Deactivate
     protected void deactivate(ComponentContext context) {
         managedRouter.removeAllRoutes();
         managedRoutes.clear();
     }
-
+    
     @Override
-    public void handleAction(ServerContext context, ActionRequest request,
-            ResultHandler<JsonValue> handler) {
-        managedRouter.handleAction(context, request, handler);
+    public Promise<ActionResponse, ResourceException> handleAction(final Context context, final ActionRequest request) {
+        return managedRouter.handleAction(context, request);
     }
 
     @Override
-    public void handleCreate(ServerContext context, CreateRequest request,
-            ResultHandler<Resource> handler) {
-        managedRouter.handleCreate(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleCreate(final Context context,
+            final CreateRequest request) {
+        return managedRouter.handleCreate(context, request);
     }
 
     @Override
-    public void handleDelete(ServerContext context, DeleteRequest request,
-            ResultHandler<Resource> handler) {
-        managedRouter.handleDelete(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleDelete(final Context context,
+            final DeleteRequest request) {
+        return managedRouter.handleDelete(context, request);
     }
 
     @Override
-    public void handlePatch(ServerContext context, PatchRequest request,
-            ResultHandler<Resource> handler) {
-        managedRouter.handlePatch(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handlePatch(final Context context, final PatchRequest request) {
+        return managedRouter.handlePatch(context, request);
     }
 
     @Override
-    public void handleQuery(ServerContext context, QueryRequest request, QueryResultHandler handler) {
-        managedRouter.handleQuery(context, request, handler);
+    public Promise<QueryResponse, ResourceException> handleQuery(final Context context, final QueryRequest request,
+            QueryResourceHandler queryResourceHandler) {
+        return managedRouter.handleQuery(context, request, queryResourceHandler);
     }
 
     @Override
-    public void handleRead(ServerContext context, ReadRequest request,
-            ResultHandler<Resource> handler) {
-        managedRouter.handleRead(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleRead(final Context context, final ReadRequest request) {
+        return managedRouter.handleRead(context, request);
     }
 
     @Override
-    public void handleUpdate(ServerContext context, UpdateRequest request,
-            ResultHandler<Resource> handler) {
-        managedRouter.handleUpdate(context, request, handler);
+    public Promise<ResourceResponse, ResourceException> handleUpdate(final Context context,
+            final UpdateRequest request) {
+        return managedRouter.handleUpdate(context, request);
     }
 }

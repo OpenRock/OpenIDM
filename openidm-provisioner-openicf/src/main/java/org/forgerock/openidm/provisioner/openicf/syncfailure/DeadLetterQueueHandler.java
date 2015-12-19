@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2014 ForgeRock, AS.
+ * Copyright 2013-2015 ForgeRock, AS.
  *
  * The contents of this file are subject to the terms of the Common Development and
  * Distribution License (the License). You may not use this file except in compliance with the
@@ -15,13 +15,13 @@
  */
 package org.forgerock.openidm.provisioner.openicf.syncfailure;
 
-import org.forgerock.json.fluent.JsonValue;
+import org.forgerock.services.context.Context;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ConnectionFactory;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ServerContext;
-import org.forgerock.openidm.util.Accessor;
+import org.forgerock.openidm.util.ContextUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,28 +41,24 @@ public class DeadLetterQueueHandler implements SyncFailureHandler {
 
     private final ConnectionFactory connectionFactory;
 
-    /** accessor to the router */
-    private final Accessor<ServerContext> accessor;
-
     /**
      * Construct this live sync failure handler.
      *
      * @param connectionFactory
-     * @param accessor an accessor to the router
      */
-    public DeadLetterQueueHandler(ConnectionFactory connectionFactory, Accessor<ServerContext> accessor) {
+    public DeadLetterQueueHandler(ConnectionFactory connectionFactory) {
         this.connectionFactory = connectionFactory;
-        this.accessor = accessor;
     }
 
     /**
      * Handle sync failure.
      *
+     * @param context the request context associated with the invocation
      * @param syncFailure JsonValue that contains the sync failure data
      * @param failureCause the cause of the sync failure
      * @throws SyncHandlerException when retries are not exceeded
      */
-    public void invoke(Map<String, Object> syncFailure, Exception failureCause)
+    public void invoke(Context context, Map<String, Object> syncFailure, Exception failureCause)
         throws SyncHandlerException {
 
         final String resourceContainer = new StringBuilder("repo/synchronisation/deadLetterQueue/")
@@ -74,8 +70,7 @@ public class DeadLetterQueueHandler implements SyncFailureHandler {
             Map<String,Object> syncDetail = new HashMap<String, Object>(syncFailure);
             syncDetail.put("failureCause", failureCause.toString());
             CreateRequest request = Requests.newCreateRequest(resourceContainer, resourceId, new JsonValue(syncDetail));
-            ServerContext routeContext = accessor.access();
-            connectionFactory.getConnection().create(routeContext, request);
+            connectionFactory.getConnection().create(context, request);
             logger.info("{} saved to dead letter queue", syncFailure.get("uid"));
         } catch (ResourceException e) {
             throw new SyncHandlerException("Failed reading/writing " + resourceContainer + "/" + resourceId, e);

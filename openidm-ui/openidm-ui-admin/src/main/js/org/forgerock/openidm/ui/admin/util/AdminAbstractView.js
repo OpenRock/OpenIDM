@@ -1,45 +1,47 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2014 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2014-2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/util/AdminAbstractView", [
+    "jquery",
+    "underscore",
     "org/forgerock/commons/ui/common/main/AbstractView"
-], function(AbstractView) {
+], function($, _,
+            AbstractView) {
     var AdminAbstractView = AbstractView.extend({
 
-        sectionHideShow: function(event) {
-            var clickedEle = event.target;
+        compareObjects: function(property, obj1, obj2) {
+            function compare(val1, val2) {
+                _.each(val1, function(property, key) {
+                    if (_.isEmpty(property) && !_.isNumber(property) && !_.isBoolean(property)) {
+                        delete val1[key];
+                    }
+                });
 
-            if($(clickedEle).not("legend")){
-                clickedEle = $(clickedEle).closest("legend");
+                _.each(val2, function(property, key) {
+                    if (_.isEmpty(property) && !_.isNumber(property) && !_.isBoolean(property)) {
+                        delete val2[key];
+                    }
+                });
+
+                return _.isEqual(val1, val2);
             }
 
-            $(clickedEle).find("i").toggleClass("fa-plus-square-o");
-            $(clickedEle).find("i").toggleClass("fa-minus-square-o");
-
-            $(clickedEle).parent().find(".group-body").slideToggle("slow");
+            return compare(obj1[property], obj2[property]);
         }
     });
 

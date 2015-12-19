@@ -25,14 +25,13 @@
 package org.forgerock.openidm.servlet.internal;
 
 import org.apache.commons.lang3.StringUtils;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.resource.Context;
+import org.forgerock.services.context.Context;
+import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.SecurityContext;
-import org.forgerock.json.resource.ServerContext;
+import org.forgerock.services.context.SecurityContext;
 import org.forgerock.json.resource.ServiceUnavailableException;
-import org.forgerock.json.resource.servlet.HttpServletContextFactory;
-import org.forgerock.json.resource.servlet.SecurityContextFactory;
+import org.forgerock.json.resource.http.HttpContextFactory;
+import org.forgerock.json.resource.http.SecurityContextFactory;
 import org.forgerock.script.Script;
 import org.forgerock.script.ScriptEntry;
 import org.forgerock.script.engine.Utils;
@@ -41,7 +40,6 @@ import org.forgerock.script.exception.ScriptThrownException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
@@ -50,7 +48,7 @@ import java.util.List;
  * were registered with the {@link ServletComponent}.
  *
  */
-public class IDMSecurityContextFactory implements HttpServletContextFactory {
+public class IDMSecurityContextFactory implements HttpContextFactory {
 
     private final static Logger logger = LoggerFactory.getLogger(IDMSecurityContextFactory.class);
 
@@ -70,10 +68,10 @@ public class IDMSecurityContextFactory implements HttpServletContextFactory {
      * {@inheritDoc}
      */
     @Override
-    public Context createContext(HttpServletRequest request) throws ResourceException {
+    public Context createContext(Context parent, org.forgerock.http.protocol.Request request) throws ResourceException {
 
         final SecurityContextFactory securityContextFactory = SecurityContextFactory.getHttpServletContextFactory();
-        final SecurityContext securityContext = securityContextFactory.createContext(request);
+        final SecurityContext securityContext = securityContextFactory.createContext(parent);
 
         // execute global security context augmentation scripts
         for (ScriptEntry augmentScript : augmentationScripts) {
@@ -91,11 +89,11 @@ public class IDMSecurityContextFactory implements HttpServletContextFactory {
 
     private boolean isSecurityContextPopulated(SecurityContext context) {
         try {
-            final JsonValue authorziationId = new JsonValue(context.getAuthorizationId());
+            final JsonValue authorization = new JsonValue(context.getAuthorization());
             return !StringUtils.isEmpty(context.getAuthenticationId())
-                    && !StringUtils.isEmpty(authorziationId.get(SecurityContext.AUTHZID_ID).asString())
-                    && !StringUtils.isEmpty(authorziationId.get(SecurityContext.AUTHZID_COMPONENT).asString())
-                    && authorziationId.get(SecurityContext.AUTHZID_ROLES).isList();
+                    && !StringUtils.isEmpty(authorization.get(SecurityContext.AUTHZID_ID).asString())
+                    && !StringUtils.isEmpty(authorization.get(SecurityContext.AUTHZID_COMPONENT).asString())
+                    && authorization.get(SecurityContext.AUTHZID_ROLES).isList();
         } catch (NullPointerException e) {
             return false;
         }
@@ -116,8 +114,7 @@ public class IDMSecurityContextFactory implements HttpServletContextFactory {
                     + augmentScript.getName().toString());
         }
 
-        ServerContext context = new ServerContext(securityContext);
-        final Script script = augmentScript.getScript(context);
+        final Script script = augmentScript.getScript(securityContext);
         script.put("security", securityContext);
 
         try {

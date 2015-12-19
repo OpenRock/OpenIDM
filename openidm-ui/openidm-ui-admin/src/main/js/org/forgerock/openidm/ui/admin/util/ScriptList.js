@@ -1,36 +1,33 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/util/ScriptList", [
-    "org/forgerock/commons/ui/common/main/AbstractView",
+    "jquery",
+    "underscore",
+    "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/openidm/ui/admin/util/ScriptDialog",
     "org/forgerock/commons/ui/common/util/UIUtils"
-], function(AbstractView, ScriptDialog, UIUtils) {
+], function($, _,
+            AdminAbstractView,
+            ScriptDialog,
+            UIUtils) {
     var scriptListInstance = {},
-        ScriptList = AbstractView.extend({
+        ScriptList = AdminAbstractView.extend({
             template: "templates/admin/util/ScriptList.html",
             noBaseTemplate: true,
             events: {
@@ -109,7 +106,7 @@ define("org/forgerock/openidm/ui/admin/util/ScriptList", [
             },
 
             removeScript: function(event) {
-                UIUtils.jqConfirm($.t("templates.scriptEditor.deleteMsg"), _.bind(function() {
+                UIUtils.confirmDialog($.t("templates.scriptEditor.deleteMsg"), "danger", _.bind(function() {
                     var selectedEvent = this.$el.find(event.currentTarget).closest(".event-hook").attr("data-script-type"),
                         index = _.indexOf(this.data.addedEvents, selectedEvent);
 
@@ -122,7 +119,7 @@ define("org/forgerock/openidm/ui/admin/util/ScriptList", [
                     }
 
                     this.reRender();
-                },this), "290px");
+                },this));
             },
 
             editScriptHook: function(event) {
@@ -175,4 +172,3 @@ define("org/forgerock/openidm/ui/admin/util/ScriptList", [
 
     return scriptListInstance;
 });
-

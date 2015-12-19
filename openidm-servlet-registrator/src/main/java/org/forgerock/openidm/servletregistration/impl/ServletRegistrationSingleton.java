@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2012-2013 ForgeRock AS. All Rights Reserved
+ * Copyright 2012-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -51,8 +51,8 @@ import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.fluent.JsonValueException;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.JsonValueException;
 import org.forgerock.openidm.servletregistration.RegisteredFilter;
 import org.forgerock.openidm.servletregistration.ServletRegistration;
 import org.forgerock.openidm.servletregistration.ServletFilterRegistrator;
@@ -200,10 +200,7 @@ public class ServletRegistrationSingleton implements ServletRegistration {
 
         // Filter init params, a string to string map
         JsonValue rawInitParams = config.get("initParams");
-        Map<String, String> initParams = null;
-        if (!rawInitParams.isNull()) {
-            initParams = new HashMap<String, String>();
-        }
+        Map<String, String> initParams = new HashMap<>();
         for (String initParamKey : rawInitParams.keys()) {
             initParams.put(initParamKey, rawInitParams.get(initParamKey).asString());
         }
@@ -290,8 +287,12 @@ public class ServletRegistrationSingleton implements ServletRegistration {
                         }
                     }
                 }
-                Object val = m.invoke(filter, args);
-                return val;
+                // need to compare proxy objects equality to the first argument,
+                // otherwise it would compare the filter to the first argument
+                if (m.getName().equals("equals") && args != null && args.length == 1) {
+                    return proxy == args[0];
+                }
+                return m.invoke(filter, args);
             } catch (InvocationTargetException e) {
                 logger.debug("Filter invocation InvocationTargetException", e.getTargetException());
                 throw e.getTargetException();

@@ -1,30 +1,24 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js */
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/mapping/properties/LinkQualifiersView", [
+    "jquery",
+    "underscore",
     "org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView",
     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate",
     "org/forgerock/commons/ui/common/util/Constants",
@@ -32,7 +26,8 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/LinkQualifiersView", [
     "org/forgerock/openidm/ui/admin/util/InlineScriptEditor",
     "org/forgerock/openidm/ui/admin/delegates/ScriptDelegate",
     "org/forgerock/openidm/ui/admin/util/LinkQualifierUtils"
-], function(MappingAdminAbstractView,
+], function($, _,
+            MappingAdminAbstractView,
             ConfigDelegate,
             Constants,
             EventManager,
@@ -91,6 +86,10 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/LinkQualifiersView", [
                     this.populateScriptLinkQualifier(linkQualifiers);
                 }
 
+                if(scriptData && scriptData.globals && scriptData.globals.returnAll) {
+                    delete scriptData.globals.returnAll;
+                }
+
                 this.linkQualifierScript = inlineScriptEditor.generateScriptEditor({
                         "element": this.$el.find("#scriptLinkQualifierBody"),
                         "eventName": "linkQualifierScript",
@@ -107,6 +106,12 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/LinkQualifiersView", [
 
                 $("#linkQualifierPanel").on('shown.bs.collapse', _.bind(function () {
                     this.linkQualifierScript.refresh();
+                }, this));
+
+                this.$el.find("#linkQualifierTabs a").on("shown.bs.tab", _.bind(function (e) {
+                    if($(e.target).attr("id") === "scriptQualifierTab") {
+                        this.linkQualifierScript.refresh();
+                    }
                 }, this));
             });
         },
@@ -127,8 +132,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/LinkQualifiersView", [
         },
 
         sectionControl: function(event) {
-            var selected = $(event.target),
-                currentTab = selected.prop("id");
+            var selected = $(event.target);
 
             selected.parent().find('.active').removeClass('active');
 
@@ -242,7 +246,12 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/LinkQualifiersView", [
                         this.showErrorMessage(result.responseJSON.message);
                     }, this));
             } else {
-                this.showErrorMessage($.t("templates.mapping.validLinkQualifierScript"));
+                this.$el.find("#staticLinkQualifierList").empty();
+                this.$el.find("#staticLinkQualifierList").append('<button type="button" class="removeLinkQualifier btn btn-primary">'
+                    + '<span class="linkQualifier">default</span>'
+                    + '</button>');
+
+                this.saveDeclarative();
             }
         },
 

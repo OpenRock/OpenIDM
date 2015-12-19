@@ -1,36 +1,31 @@
 /**
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * The contents of this file are subject to the terms of the Common Development and
+ * Distribution License (the License). You may not use this file except in compliance with the
+ * License.
  *
- * Copyright (c) 2015 ForgeRock AS. All rights reserved.
+ * You can obtain a copy of the License at legal/CDDLv1.0.txt. See the License for the
+ * specific language governing permission and limitations under the License.
  *
- * The contents of this file are subject to the terms
- * of the Common Development and Distribution License
- * (the License). You may not use this file except in
- * compliance with the License.
+ * When distributing Covered Software, include this CDDL Header Notice in each file and include
+ * the License file at legal/CDDLv1.0.txt. If applicable, add the following below the CDDL
+ * Header, with the fields enclosed by brackets [] replaced by your own identifying
+ * information: "Portions copyright [year] [name of copyright owner]".
  *
- * You can obtain a copy of the License at
- * http://forgerock.org/license/CDDLv1.0.html
- * See the License for the specific language governing
- * permission and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL
- * Header Notice in each file and include the License file
- * at http://forgerock.org/license/CDDLv1.0.html
- * If applicable, add the following below the CDDL Header,
- * with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
+ * Copyright 2015 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars*/
+/*global define */
 
 define("org/forgerock/openidm/ui/admin/mapping/behaviors/SingleRecordReconciliationGridView", [
+    "jquery",
+    "underscore",
     "org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView",
     "org/forgerock/openidm/ui/admin/delegates/ReconDelegate",
     "org/forgerock/openidm/ui/common/delegates/SearchDelegate",
     "org/forgerock/commons/ui/common/main/Configuration",
     "org/forgerock/commons/ui/common/components/Messages"
-], function (MappingAdminAbstractView,
+], function ($, _,
+             MappingAdminAbstractView,
              reconDelegate,
              searchDelegate,
              conf,
@@ -58,7 +53,7 @@ define("org/forgerock/openidm/ui/admin/mapping/behaviors/SingleRecordReconciliat
             this.data.mappingName = this.getMappingName();
 
             this.data.showChangedPropertyMessage = false;
-            
+
             this.loadData();
         },
 
@@ -66,18 +61,24 @@ define("org/forgerock/openidm/ui/admin/mapping/behaviors/SingleRecordReconciliat
             var reconId = newReconId || this.data.recon._id,
                 doLoad = _.bind(function() {
                     this.parentRender(_.bind(function () {
-                        this.$el.find(".changed").tooltip({ position: { my: "left+5px bottom+15px", at: "left+5px bottom+15px"}});
+                        this.$el.find(".changed").popover({
+                            trigger:'hover',
+                            placement:'top',
+                            container: 'body',
+                            html: 'true',
+                            title: ''
+                        });
                     }, this));
                 }, this),
                 targetProm = $.Deferred();
-            
+
             if (conf.globalData.testSyncSource && this.data.mapping.properties.length){
                 this.data.sampleSource_txt = conf.globalData.testSyncSource[this.data.mapping.properties[0].source];
                 this.$el.parent().find(".sampleSourceAction").show();
-                
+
                 reconDelegate.getLastAuditForObjectId(reconId, "sourceObjectId", this.data.mapping.source + "/" + conf.globalData.testSyncSource._id).then(_.bind(function(audit) {
                     var targetObjectId;
-                    
+
                     if (audit.result.length) {
                         targetObjectId = audit.result[0].targetObjectId;
                         if (newReconId) {
@@ -93,7 +94,7 @@ define("org/forgerock/openidm/ui/admin/mapping/behaviors/SingleRecordReconciliat
                                 }
                             }
                         }
-                        
+
                         if (targetObjectId && targetObjectId.replace(this.data.mapping.target + "/", "") !== "null") {
                             searchDelegate.searchResults(this.data.mapping.target,["_id"],targetObjectId.replace(this.data.mapping.target + "/", ""),"eq").then(function(qry){
                                 if(qry.length){
@@ -106,24 +107,24 @@ define("org/forgerock/openidm/ui/admin/mapping/behaviors/SingleRecordReconciliat
                     } else {
                         targetProm.resolve(false);
                     }
-                    
+
                     targetProm.then(_.bind(function(target) {
                         this.data.showSampleSource = true;
-                        
+
                         this.data.propMap = _.map($.extend({},true,this.data.mapping.properties), _.bind(function(p, i) {
                             var targetBefore = "",
                                 targetValue = target[p.target] || "",
                                 changed = false;
-                            
+
                             if (newReconId) {
                                 targetBefore = this.data.propMap[i].targetValue;
-                                
+
                                 if (targetBefore !== targetValue) {
                                     changed = true;
                                     this.data.showChangedPropertyMessage = true;
                                 }
                             }
-                            
+
                             return {
                                 source : p.source,
                                 sourceValue : conf.globalData.testSyncSource[p.source],
@@ -133,7 +134,7 @@ define("org/forgerock/openidm/ui/admin/mapping/behaviors/SingleRecordReconciliat
                                 changed: changed
                             };
                         }, this));
-                        
+
                         doLoad();
                     }, this));
                 }, this));
@@ -144,7 +145,7 @@ define("org/forgerock/openidm/ui/admin/mapping/behaviors/SingleRecordReconciliat
                 doLoad();
             }
         }
-    }); 
-    
+    });
+
     return new SingleRecordReconciliationGridView();
 });

@@ -16,106 +16,68 @@
 
 package org.forgerock.openidm.audit.events.handlers.impl;
 
+import static org.forgerock.json.resource.Responses.newResourceResponse;
+
+import org.forgerock.audit.events.EventTopicsMetaData;
 import org.forgerock.audit.events.handlers.AuditEventHandlerBase;
-import org.forgerock.audit.util.ResourceExceptionsUtil;
-import org.forgerock.json.fluent.JsonValue;
-import org.forgerock.json.resource.ActionRequest;
-import org.forgerock.json.resource.CreateRequest;
+import org.forgerock.json.JsonValue;
+import org.forgerock.json.resource.NotSupportedException;
 import org.forgerock.json.resource.QueryRequest;
-import org.forgerock.json.resource.QueryResultHandler;
-import org.forgerock.json.resource.ReadRequest;
-import org.forgerock.json.resource.Resource;
+import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.QueryResponse;
 import org.forgerock.json.resource.ResourceException;
-import org.forgerock.json.resource.ResultHandler;
-import org.forgerock.json.resource.ServerContext;
+import org.forgerock.json.resource.ResourceResponse;
+import org.forgerock.services.context.Context;
+import org.forgerock.util.promise.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Handles AuditEvents by just calling the result Handler.
  */
-public class PassThroughAuditEventHandler extends AuditEventHandlerBase<PassThroughAuditEventHandlerConfiguration> {
+public class PassThroughAuditEventHandler extends AuditEventHandlerBase {
 
     private static final Logger logger = LoggerFactory.getLogger(PassThroughAuditEventHandlerConfiguration.class);
 
     /** A message logged when a new entry is added. */
-    private String message;
+    private final String message;
 
-    /** {@inheritDoc} */
-    @Override
-    public void configure(PassThroughAuditEventHandlerConfiguration config) throws ResourceException {
-        this.message = config.getMessage();
+    public PassThroughAuditEventHandler(
+            final PassThroughAuditEventHandlerConfiguration configuration,
+            final EventTopicsMetaData eventTopicsMetaData) {
+        super(configuration.getName(), eventTopicsMetaData , configuration.getTopics(), configuration.isEnabled());
+        this.message = configuration.getMessage();
     }
 
-    /** {@inheritDoc} */
     @Override
-    public void close() throws ResourceException {
-        // nothing to do
+    public void startup() throws ResourceException {
+        // do nothing
     }
 
-    /**
-     * Perform an action on the audit log.
-     * {@inheritDoc}
-     */
     @Override
-    public void actionCollection(
-            final ServerContext context,
-            final ActionRequest request,
-            final ResultHandler<JsonValue> handler) {
-        handler.handleError(ResourceExceptionsUtil.notSupported(request));
+    public void shutdown() throws ResourceException {
+        // do nothing
     }
 
-    /**
-     * Perform an action on the audit log entry.
-     * {@inheritDoc}
-     */
     @Override
-    public void actionInstance(
-            final ServerContext context,
-            final String resourceId,
-            final ActionRequest request,
-            final ResultHandler<JsonValue> handler) {
-        handler.handleError(ResourceExceptionsUtil.notSupported(request));
-    }
-
-    /**
-     * Create a audit log entry.
-     * {@inheritDoc}
-     */
-    @Override
-    public void createInstance(
-            final ServerContext context,
-            final CreateRequest request,
-            final ResultHandler<Resource> handler) {
-        logger.info("Added an entry. Message: " + message);
-        handler.handleResult(new Resource(request.getContent().get(Resource.FIELD_CONTENT_ID).asString(),
+    public Promise<ResourceResponse, ResourceException> publishEvent(final Context context,
+            final String auditEventTopic, final JsonValue auditEventContent) {
+        return newResourceResponse(
+                auditEventContent.get(ResourceResponse.FIELD_CONTENT_ID).asString(),
                 null,
-                new JsonValue(request.getContent())));
+                auditEventContent).asPromise();
     }
 
-    /**
-     * Perform a query on the audit log.
-     * {@inheritDoc}
-     */
     @Override
-    public void queryCollection(
-            final ServerContext context,
-            final QueryRequest request,
-            final QueryResultHandler handler) {
-        handler.handleError(ResourceExceptionsUtil.notSupported(request));
+    public Promise<ResourceResponse, ResourceException> readEvent(final Context context, final String auditEventTopic,
+            final String auditEventId) {
+        return new NotSupportedException().asPromise();
     }
 
-    /**
-     * Read from the audit log.
-     * {@inheritDoc}
-     */
     @Override
-    public void readInstance(
-            final ServerContext context,
-            final String resourceId,
-            final ReadRequest request,
-            final ResultHandler<Resource> handler) {
-        handler.handleError(ResourceExceptionsUtil.notSupported(request));
+    public Promise<QueryResponse, ResourceException> queryEvents(final Context context, final String auditEventTopic,
+            final QueryRequest queryRequest, final QueryResourceHandler queryResourceHandler) {
+        return new NotSupportedException().asPromise();
     }
 
 }

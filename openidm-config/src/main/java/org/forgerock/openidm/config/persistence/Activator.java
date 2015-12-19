@@ -1,7 +1,7 @@
-/*
+/**
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright © 2011 ForgeRock AS. All rights reserved.
+ * Copyright 2011-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -20,6 +20,7 @@
  * with the fields enclosed by brackets [] replaced by
  * your own identifying information:
  * "Portions Copyrighted [year] [name of copyright owner]"
+ *
  */
 package org.forgerock.openidm.config.persistence;
 
@@ -28,6 +29,7 @@ import java.util.Hashtable;
 import org.apache.felix.cm.PersistenceManager;
 import org.apache.felix.fileinstall.ArtifactInstaller;
 import org.forgerock.openidm.config.installer.JSONConfigInstaller;
+import org.forgerock.openidm.config.paxweb.PaxWeb;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.logging.OsgiLogHandler;
 import org.osgi.framework.BundleActivator;
@@ -72,6 +74,10 @@ public class Activator implements BundleActivator {
         context.registerService(new String[] {ArtifactInstaller.class.getName(), ConfigurationListener.class.getName()}, 
                  installer, installerProp);
         logger.debug("JSON configuration installer service registered");
+
+        // Configure pax web properties
+        PaxWeb.configurePaxWebProperties();
+
         logger.info("OpenIDM is starting from {}", IdentityServer.getInstance().getServerRoot());
     }
 

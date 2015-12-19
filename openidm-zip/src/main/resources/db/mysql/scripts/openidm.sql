@@ -45,7 +45,8 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`genericobjectproperties` (
   `proptype` VARCHAR(32) NULL ,
   `propvalue` VARCHAR(2000) NULL ,
   INDEX `fk_genericobjectproperties_genericobjects` (`genericobjects_id` ASC) ,
-  INDEX `idx_genericobjectproperties_prop` (`propkey` ASC, `propvalue`(255) ASC) ,
+  INDEX `idx_genericobjectproperties_propkey` (`propkey` ASC) ,
+  INDEX `idx_genericobjectproperties_propvalue` (`propvalue`(255) ASC) ,
   CONSTRAINT `fk_genericobjectproperties_genericobjects`
     FOREIGN KEY (`genericobjects_id` )
     REFERENCES `openidm`.`genericobjects` (`id` )
@@ -83,7 +84,8 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`managedobjectproperties` (
   `proptype` VARCHAR(32) NULL ,
   `propvalue` VARCHAR(2000) NULL ,
   INDEX `fk_managedobjectproperties_managedobjects` (`managedobjects_id` ASC) ,
-  INDEX `idx_managedobjectproperties_prop` (`propkey` ASC, `propvalue`(255) ASC) ,
+  INDEX `idx_managedobjectproperties_propkey` (`propkey` ASC) ,
+  INDEX `idx_managedobjectproperties_propvalue` (`propvalue`(255) ASC) ,
   CONSTRAINT `fk_managedobjectproperties_managedobjects`
     FOREIGN KEY (`managedobjects_id` )
     REFERENCES `openidm`.`managedobjects` (`id` )
@@ -121,7 +123,8 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`configobjectproperties` (
   `proptype` VARCHAR(255) NULL ,
   `propvalue` VARCHAR(2000) NULL ,
   INDEX `fk_configobjectproperties_configobjects` (`configobjects_id` ASC) ,
-  INDEX `idx_configobjectproperties_prop` (`propkey` ASC, `propvalue`(255) ASC) ,
+  INDEX `idx_configobjectproperties_propkey` (`propkey` ASC) ,
+  INDEX `idx_configobjectproperties_propvalue` (`propvalue`(255) ASC) ,
   CONSTRAINT `fk_configobjectproperties_configobjects`
     FOREIGN KEY (`configobjects_id` )
     REFERENCES `openidm`.`configobjects` (`id` )
@@ -129,6 +132,44 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`configobjectproperties` (
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
+
+-- -----------------------------------------------------
+-- Table `openidm`.`relationships`
+-- -----------------------------------------------------
+CREATE  TABLE IF NOT EXISTS `openidm`.`relationships` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT ,
+  `objecttypes_id` BIGINT UNSIGNED NOT NULL ,
+  `objectid` VARCHAR(255) NOT NULL ,
+  `rev` VARCHAR(38) NOT NULL ,
+  `fullobject` MEDIUMTEXT NULL ,
+  PRIMARY KEY (`id`) ,
+  INDEX `fk_relationships_objecttypes` (`objecttypes_id` ASC) ,
+  UNIQUE INDEX `idx_relationships_object` (`objecttypes_id` ASC, `objectid` ASC) ,
+  CONSTRAINT `fk_relationships_objecttypes`
+  FOREIGN KEY (`objecttypes_id` )
+  REFERENCES `openidm`.`objecttypes` (`id` )
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+  ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `openidm`.`relationshipproperties`
+-- -----------------------------------------------------
+CREATE  TABLE IF NOT EXISTS `openidm`.`relationshipproperties` (
+  `relationships_id` BIGINT UNSIGNED NOT NULL ,
+  `propkey` VARCHAR(255) NOT NULL ,
+  `proptype` VARCHAR(255) NULL ,
+  `propvalue` VARCHAR(2000) NULL ,
+  INDEX `fk_relationshipproperties_relationships` (`relationships_id` ASC) ,
+  INDEX `idx_relationshipproperties_propkey` (`propkey` ASC) ,
+  INDEX `idx_relationshipproperties_propvalue` (`propvalue`(255) ASC) ,
+  CONSTRAINT `fk_relationshipproperties_relationships`
+  FOREIGN KEY (`relationships_id` )
+  REFERENCES `openidm`.`relationships` (`id` )
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+  ENGINE = InnoDB;
 
 -- -----------------------------------------------------
 -- Table `openidm`.`links`
@@ -169,29 +210,50 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
+-- Table `openidm`.`auditauthentication`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `openidm`.`auditauthentication` (
+  `objectid` VARCHAR(56) NOT NULL ,
+  `transactionid` VARCHAR(255) NOT NULL ,
+  `activitydate` VARCHAR(29) NOT NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
+  `userid` VARCHAR(255) NULL ,
+  `eventname` VARCHAR(50) NULL ,
+  `result` VARCHAR(255) NULL ,
+  `principals` TEXT ,
+  `context` TEXT ,
+  `entries` TEXT ,
+  `trackingids` TEXT,
+  PRIMARY KEY (`objectid`)
+)
+  ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
 -- Table `openidm`.`auditrecon`
 -- -----------------------------------------------------
 CREATE  TABLE IF NOT EXISTS `openidm`.`auditrecon` (
-  `objectid` VARCHAR(38) NOT NULL ,
-  `entrytype` VARCHAR(7) NULL ,
-  `rootactionid` VARCHAR(255) NULL ,
-  `reconid` VARCHAR(36) NULL ,
-  `reconaction` VARCHAR(36) NULL ,
-  `reconciling` VARCHAR(12) NULL ,
-  `sourceobjectid` VARCHAR(511) NULL ,
-  `targetobjectid` VARCHAR(511) NULL ,
-  `ambiguoustargetobjectids` MEDIUMTEXT NULL ,
-  `activitydate` VARCHAR(29) NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
-  `situation` VARCHAR(24) NULL ,
+  `objectid` VARCHAR(56) NOT NULL ,
+  `transactionid` VARCHAR(255) NOT NULL ,
+  `activitydate` VARCHAR(29) NOT NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
+  `eventname` VARCHAR(50) NULL ,
+  `userid` VARCHAR(255) NULL ,
+  `trackingids` MEDIUMTEXT ,
   `activity` VARCHAR(24) NULL ,
-  `status` VARCHAR(7) NULL ,
-  `message` TEXT NULL ,
-  `actionid` VARCHAR(255) NULL ,
   `exceptiondetail` TEXT NULL ,
-  `mapping` VARCHAR(511) NULL ,
   `linkqualifier` VARCHAR(255) NULL ,
+  `mapping` VARCHAR(511) NULL ,
+  `message` TEXT NULL ,
   `messagedetail` MEDIUMTEXT NULL ,
-  PRIMARY KEY (`objectid`),
+  `situation` VARCHAR(24) NULL ,
+  `sourceobjectid` VARCHAR(511) NULL ,
+  `status` VARCHAR(20) NULL ,
+  `targetobjectid` VARCHAR(511) NULL ,
+  `reconciling` VARCHAR(12) NULL ,
+  `ambiguoustargetobjectids` MEDIUMTEXT NULL ,
+  `reconaction` VARCHAR(36) NULL ,
+  `entrytype` VARCHAR(7) NULL ,
+  `reconid` VARCHAR(56) NULL ,
+  PRIMARY KEY (`objectid`) ,
   INDEX `idx_auditrecon_reconid` (`reconid` ASC),
   INDEX `idx_auditrecon_targetobjectid` (`targetobjectid`(28) ASC),
   INDEX `idx_auditrecon_sourceobjectid` (`sourceobjectid`(28) ASC),
@@ -207,46 +269,105 @@ ENGINE = InnoDB;
 -- Table `openidm`.`auditsync`
 -- -----------------------------------------------------
 CREATE  TABLE IF NOT EXISTS `openidm`.`auditsync` (
-  `objectid` VARCHAR(38) NOT NULL ,
-  `rootactionid` VARCHAR(255) NULL ,
-  `sourceobjectid` VARCHAR(511) NULL ,
-  `targetobjectid` VARCHAR(511) NULL ,
-  `activitydate` VARCHAR(29) NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
+  `objectid` VARCHAR(56) NOT NULL ,
+  `transactionid` VARCHAR(255) NOT NULL ,
+  `activitydate` VARCHAR(29) NOT NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
+  `eventname` VARCHAR(50) NULL ,
+  `userid` VARCHAR(255) NULL ,
+  `trackingids` MEDIUMTEXT ,
   `activity` VARCHAR(24) NULL ,
-  `situation` VARCHAR(24) NULL ,
-  `status` VARCHAR(7) NULL ,
-  `message` TEXT NULL ,
-  `actionid` VARCHAR(255) NULL ,
   `exceptiondetail` TEXT NULL ,
-  `mapping` VARCHAR(511) NULL ,
   `linkqualifier` VARCHAR(255) NULL ,
+  `mapping` VARCHAR(511) NULL ,
+  `message` TEXT NULL ,
   `messagedetail` MEDIUMTEXT NULL ,
-  PRIMARY KEY (`objectid`) )
+  `situation` VARCHAR(24) NULL ,
+  `sourceobjectid` VARCHAR(511) NULL ,
+  `status` VARCHAR(20) NULL ,
+  `targetobjectid` VARCHAR(511) NULL ,
+  PRIMARY KEY (`objectid`)
+)
 ENGINE = InnoDB;
 
+
+-- -----------------------------------------------------
+-- Table `openidm`.`auditconfig`
+-- -----------------------------------------------------
+CREATE  TABLE IF NOT EXISTS `openidm`.`auditconfig` (
+  `objectid` VARCHAR(56) NOT NULL ,
+  `activitydate` VARCHAR(29) NOT NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
+  `eventname` VARCHAR(255) NULL ,
+  `transactionid` VARCHAR(255) NOT NULL ,
+  `userid` VARCHAR(255) NULL ,
+  `trackingids` MEDIUMTEXT,
+  `runas` VARCHAR(255) NULL ,
+  `configobjectid` VARCHAR(255) NULL ,
+  `operation` VARCHAR(255) NULL ,
+  `beforeObject` MEDIUMTEXT NULL ,
+  `afterObject` MEDIUMTEXT NULL ,
+  `changedfields` VARCHAR(255) NULL ,
+  `rev` VARCHAR(255) NULL,
+  PRIMARY KEY (`objectid`) ,
+  INDEX `idx_auditconfig_transactionid` (`transactionid` ASC)
+)
+  ENGINE = InnoDB;
 
 -- -----------------------------------------------------
 -- Table `openidm`.`auditactivity`
 -- -----------------------------------------------------
 CREATE  TABLE IF NOT EXISTS `openidm`.`auditactivity` (
-  `objectid` VARCHAR(38) NOT NULL ,
-  `rootactionid` VARCHAR(255) NULL ,
-  `parentactionid` VARCHAR(255) NULL ,
-  `activityid` VARCHAR(255) NULL ,
-  `activitydate` VARCHAR(29) NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
-  `activity` VARCHAR(24) NULL ,
-  `message` TEXT NULL ,
-  `subjectid` VARCHAR(511) NULL ,
-  `subjectrev` VARCHAR(255) NULL ,
-  `requester` TEXT NULL ,
-  `approver` TEXT NULL ,
+  `objectid` VARCHAR(56) NOT NULL ,
+  `activitydate` VARCHAR(29) NOT NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
+  `eventname` VARCHAR(255) NULL ,
+  `transactionid` VARCHAR(255) NOT NULL ,
+  `userid` VARCHAR(255) NULL ,
+  `trackingids` MEDIUMTEXT,
+  `runas` VARCHAR(255) NULL ,
+  `activityobjectid` VARCHAR(255) NULL ,
+  `operation` VARCHAR(255) NULL ,
   `subjectbefore` MEDIUMTEXT NULL ,
   `subjectafter` MEDIUMTEXT NULL ,
-  `status` VARCHAR(7) NULL ,
   `changedfields` VARCHAR(255) NULL ,
+  `subjectrev` VARCHAR(255) NULL ,
   `passwordchanged` VARCHAR(5) NULL ,
+  `message` TEXT NULL,
+  `status` VARCHAR(20) ,
   PRIMARY KEY (`objectid`) ,
-  INDEX `idx_auditactivity_rootactionid` (`rootactionid` ASC) )
+  INDEX `idx_auditactivity_transactionid` (`transactionid` ASC)
+)
+ENGINE = InnoDB;
+
+-- -----------------------------------------------------
+-- Table `openidm`.`auditaccess`
+-- -----------------------------------------------------
+CREATE  TABLE IF NOT EXISTS `openidm`.`auditaccess` (
+  `objectid` VARCHAR(56) NOT NULL ,
+  `activitydate` VARCHAR(29) NOT NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
+  `eventname` VARCHAR(255) ,
+  `transactionid` VARCHAR(255) NOT NULL ,
+  `userid` VARCHAR(255) ,
+  `trackingids` TEXT,
+  `server_ip` VARCHAR(40) ,
+  `server_port` VARCHAR(5) ,
+  `client_ip` VARCHAR(40) ,
+  `client_port` VARCHAR(5) ,
+  `request_protocol` VARCHAR(255) NULL ,
+  `request_operation` VARCHAR(255) NULL ,
+  `request_detail` TEXT NULL ,
+  `http_request_secure` VARCHAR(255) NULL ,
+  `http_request_method` VARCHAR(255) NULL ,
+  `http_request_path` VARCHAR(255) NULL ,
+  `http_request_queryparameters` TEXT NULL ,
+  `http_request_headers` TEXT NULL ,
+  `http_request_cookies` TEXT NULL ,
+  `http_response_headers` TEXT NULL ,
+  `response_status` VARCHAR(255) NULL ,
+  `response_statuscode` VARCHAR(255) NULL ,
+  `response_elapsedtime` VARCHAR(255) NULL ,
+  `response_elapsedtimeunits` VARCHAR(255) NULL ,
+  `roles` TEXT NULL ,
+  PRIMARY KEY (`objectid`),
+  INDEX `idx_auditaccess_status` (`response_status` ASC))
 ENGINE = InnoDB;
 
 
@@ -254,7 +375,7 @@ ENGINE = InnoDB;
 -- Table `openidm`.`internaluser`
 -- -----------------------------------------------------
 CREATE  TABLE IF NOT EXISTS `openidm`.`internaluser` (
-  `objectid` VARCHAR(254) NOT NULL ,
+  `objectid` VARCHAR(255) NOT NULL ,
   `rev` VARCHAR(38) NOT NULL ,
   `pwd` VARCHAR(510) NULL ,
   `roles` VARCHAR(1024) NULL ,
@@ -263,20 +384,13 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `openidm`.`auditaccess`
+-- Table `openidm`.`internalrole`
 -- -----------------------------------------------------
-CREATE  TABLE IF NOT EXISTS `openidm`.`auditaccess` (
-  `objectid` VARCHAR(38) NOT NULL ,
-  `activitydate` VARCHAR(29) NULL COMMENT 'Date format: 2011-09-09T14:58:17.654+02:00' ,
-  `activity` VARCHAR(24) NULL ,
-  `ip` VARCHAR(40) NULL ,
-  `principal` TEXT NULL ,
-  `roles` VARCHAR(1024) NULL ,
-  `status` VARCHAR(7) NULL ,
-  `userid` VARCHAR(24) NULL ,
-  PRIMARY KEY (`objectid`),
-  INDEX `idx_auditaccess_status` (`status` ASC),
-  INDEX `idx_auditaccess_principal` (`principal`(28) ASC) )
+CREATE  TABLE IF NOT EXISTS `openidm`.`internalrole` (
+  `objectid` VARCHAR(255) NOT NULL ,
+  `rev` VARCHAR(38) NOT NULL ,
+  `description` VARCHAR(510) NULL ,
+  PRIMARY KEY (`objectid`) )
 ENGINE = InnoDB;
 
 
@@ -309,7 +423,8 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`schedulerobjectproperties` (
   `proptype` VARCHAR(32) NULL ,
   `propvalue` VARCHAR(2000) NULL ,
   INDEX `fk_schedulerobjectproperties_schedulerobjects` (`schedulerobjects_id` ASC) ,
-  INDEX `idx_schedulerobjectproperties_prop` (`propkey` ASC, `propvalue`(255) ASC) ,
+  INDEX `idx_schedulerobjectproperties_propkey` (`propkey` ASC) ,
+  INDEX `idx_schedulerobjectproperties_propvalue` (`propvalue`(255) ASC) ,
   CONSTRAINT `fk_schedulerobjectproperties_schedulerobjects`
     FOREIGN KEY (`schedulerobjects_id` )
     REFERENCES `openidm`.`schedulerobjects` (`id` )
@@ -363,7 +478,8 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`clusterobjectproperties` (
   `propkey` VARCHAR(255) NOT NULL ,
   `proptype` VARCHAR(32) NULL ,
   `propvalue` VARCHAR(2000) NULL ,
-  INDEX `idx_clusterobjectproperties_prop` (`propkey` ASC, `propvalue`(255) ASC) ,
+  INDEX `idx_clusterobjectproperties_propkey` (`propkey` ASC) ,
+  INDEX `idx_clusterobjectproperties_propvalue` (`propvalue`(255) ASC) ,
   INDEX `fk_clusterobjectproperties_clusterobjects` (`clusterobjects_id` ASC) ,
   CONSTRAINT `fk_clusterobjectproperties_clusterobjects`
     FOREIGN KEY (`clusterobjects_id` )
@@ -372,26 +488,43 @@ CREATE  TABLE IF NOT EXISTS `openidm`.`clusterobjectproperties` (
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
+-- -----------------------------------------------------
+-- Table `openidm`.`updateobjects`
+-- -----------------------------------------------------
+CREATE  TABLE IF NOT EXISTS `openidm`.`updateobjects` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT ,
+  `objecttypes_id` BIGINT UNSIGNED NOT NULL ,
+  `objectid` VARCHAR(255) NOT NULL ,
+  `rev` VARCHAR(38) NOT NULL ,
+  `fullobject` MEDIUMTEXT NULL ,
+  PRIMARY KEY (`id`) ,
+  INDEX `fk_updateobjects_objecttypes` (`objecttypes_id` ASC) ,
+  UNIQUE INDEX `idx_updateobjects_object` (`objecttypes_id` ASC, `objectid` ASC) ,
+  CONSTRAINT `fk_updateobjects_objecttypes`
+    FOREIGN KEY (`objecttypes_id` )
+    REFERENCES `openidm`.`objecttypes` (`id` )
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+  ENGINE = InnoDB;
 
 
-delimiter //
-
-create procedure `openidm`.`getAllFromTable` (t_schema varchar(255), t_name varchar(255), order_by varchar(255), order_dir varchar(255), num_rows bigint, skip bigint, acceptable_order_by varchar(512))
-begin
-    set @num_rows = num_rows;
-    set @skip = skip;
-    select find_in_set(order_by, acceptable_order_by) into @order_by_ok;
-    select find_in_set(order_dir, 'asc,desc') into @order_dir_ok;
-    IF @order_by_ok != 0 && @order_dir_ok != 0 THEN
-        set @query = concat('select * from ', t_schema, '.', t_name ,' order by ', order_by ,' ', order_dir ,' limit ? offset ?');
-        prepare stmt from @query;
-        execute stmt using @num_rows, @skip;
-    END IF;
-end //
-
-delimiter ;
-
-
+-- -----------------------------------------------------
+-- Table `openidm`.`updateobjectproperties`
+-- -----------------------------------------------------
+CREATE  TABLE IF NOT EXISTS `openidm`.`updateobjectproperties` (
+  `updateobjects_id` BIGINT UNSIGNED NOT NULL ,
+  `propkey` VARCHAR(255) NOT NULL ,
+  `proptype` VARCHAR(255) NULL ,
+  `propvalue` VARCHAR(2000) NULL ,
+  INDEX `fk_updateobjectproperties_updateobjects` (`updateobjects_id` ASC) ,
+  INDEX `idx_updateobjectproperties_propkey` (`propkey` ASC) ,
+  INDEX `idx_updateobjectproperties_propvalue` (`propvalue`(255) ASC) ,
+  CONSTRAINT `fk_updateobjectproperties_updateobjects`
+    FOREIGN KEY (`updateobjects_id` )
+    REFERENCES `openidm`.`updateobjects` (`id` )
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+  ENGINE = InnoDB;
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
@@ -402,8 +535,17 @@ SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 -- -----------------------------------------------------
 START TRANSACTION;
 USE `openidm`;
-INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`) VALUES ('openidm-admin', '0', 'openidm-admin', '["openidm-admin","openidm-authorized"]');
-INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`) VALUES ('anonymous', '0', 'anonymous', '["openidm-reg"]');
+INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`) VALUES ('openidm-admin', '0', 'openidm-admin', '[ { "_ref" : "repo/internal/role/openidm-admin" }, { "_ref" : "repo/internal/role/openidm-authorized" } ]');
+INSERT INTO `openidm`.`internaluser` (`objectid`, `rev`, `pwd`, `roles`) VALUES ('anonymous', '0', 'anonymous', '[ { "_ref" : "repo/internal/role/openidm-reg" } ]');
+
+INSERT INTO openidm.internalrole (objectid, rev, description)
+VALUES
+('openidm-authorized', '0', 'Basic minimum user'),
+('openidm-admin', '0', 'Administrative access'),
+('openidm-cert', '0', 'Authenticated via certificate'),
+('openidm-tasks-manager', '0', 'Allowed to reassign workflow tasks'),
+('openidm-reg', '0', 'Anonymous access');
+
 
 COMMIT;
 
