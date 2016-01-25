@@ -34,7 +34,6 @@ Here is the walk-through to demonstrate the sample:
 After starting this sample, open the OpenIDM Admin UI in your browser: https://localhost:8443/admin
 
 Login with the default credentials : openidm-admin / openidm-admin
- - You will be prompted to change your password upon login. It is a good idea to do so, but not required.
 
 There are several actions to take in the Admin UI:
 1) Configure the connection to your email server. This is used to send the password-reset email at the end of the exercise.
@@ -55,10 +54,10 @@ There are several actions to take in the Admin UI:
    - Navigate to Manage->Role. Note that there should be two records created - "employee" and "manager"
    - Navigate to Manage->User. Note that there should be two records created - "manager1" and "user1"
    - Click on "user1". Note that the "Manager" field shows "manager1" for this user
-   - Click on the "OpenIDM Roles" tab. Note that user1 has two roles - "managed/role/employee" and "openidm-authorized"
+   - Click on the "Authorization Roles" tab. Note that user1 has two roles - "managed/role/employee" and "openidm-authorized"
    - Click on "Back to User List"
    - Click on "manager1". Note that the "Manager" field is empty
-   - Click on the "OpenIDM Roles" tab. Note that manager1 has two roles - "managed/role/manager" and "openidm-authorized"
+   - Click on the "Authorization Roles" tab. Note that manager1 has two roles - "managed/role/manager" and "openidm-authorized"
 
 4) Note the workflows available to initiate
    - Navigate to Manage->Processes->Definitions
@@ -79,7 +78,7 @@ Open the Self-Service UI in your browser - https://localhost:8443/
    - Note that user1 does not provide the password for this user. This is to ensure that only the actual contractor can login with this account
    - Click "Start" to initiate the process
 
-Log out of the Self-Service UI as user1
+Log out of the Self-Service UI
 Log in again, now using manager1 / Welcome1
 
 7) Approve workflow task

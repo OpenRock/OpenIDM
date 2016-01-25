@@ -53,40 +53,9 @@ public class H2TableHandler extends GenericTableHandler {
         String mainTable = dbSchemaName == null ? mainTableName : dbSchemaName + "." + mainTableName;
         String propertyTable = dbSchemaName == null ? propTableName : dbSchemaName + "." + propTableName;
 
+        result.put(QueryDefinition.DELETEQUERYSTR, "DELETE FROM " + mainTable + " WHERE (SELECT objtype.objecttype FROM " + typeTable + " objtype WHERE " + mainTable + ".objecttypes_id = objtype.id) = ? AND " + mainTable + ".objectid = ? AND " + mainTable + ".rev = ?");
         result.put(QueryDefinition.PROPDELETEQUERYSTR, "DELETE FROM " + propertyTable + " WHERE " + mainTableName + "_id IN (SELECT obj.id FROM " + mainTable + " obj INNER JOIN " + typeTable + " objtype ON obj.objecttypes_id = objtype.id WHERE objtype.objecttype = ? AND obj.objectid = ?)");
         return result;
     }
 
-    /**
-     * @inheritDoc
-     */
-    @Override
-    public String renderQueryFilter(QueryFilter<JsonPointer> filter, Map<String, Object> replacementTokens, Map<String, Object> params) {
-        final int offsetParam = Integer.parseInt((String) params.get(PAGED_RESULTS_OFFSET));
-        final int pageSizeParam = Integer.parseInt((String) params.get(PAGE_SIZE));
-
-        // "SELECT obj.* FROM mainTable obj..."
-        SQLBuilder builder = new SQLBuilder() {
-            @Override
-            public String toSQL() {
-                return "SELECT " + getColumns().toSQL()
-                        + getFromClause().toSQL()
-                        + getJoinClause().toSQL()
-                        + getWhereClause().toSQL()
-                        + getOrderByClause().toSQL()
-                        + " LIMIT " + pageSizeParam
-                        + " OFFSET " + offsetParam;
-            }
-        };
-        builder.addColumn("SELECT obj.fullobject")
-                .from("${_dbSchema}.${_mainTable} obj")
-                .where(filter.accept(new GenericSQLQueryFilterVisitor(SEARCHABLE_LENGTH, builder), replacementTokens));
-
-        // JsonValue-cheat to avoid an unchecked cast
-        final List<SortKey> sortKeys = new JsonValue(params).get(SORT_KEYS).asList(SortKey.class);
-        // Check for sort keys and build up order-by syntax
-        prepareSortKeyStatements(builder, sortKeys, replacementTokens);
-
-        return builder.toSQL();
-    }
 }

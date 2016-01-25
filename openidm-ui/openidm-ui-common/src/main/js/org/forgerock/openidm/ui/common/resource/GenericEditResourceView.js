@@ -210,6 +210,8 @@ define("org/forgerock/openidm/ui/common/resource/GenericEditResourceView", [
                 this.editor.on('change', _.bind(function() {
                     this.showPendingChanges();
                 }, this));
+                
+                this.$el.find(".json-editor-btn-collapse").prop("disabled", true);
             }, this));
             
             if (this.data.isSystemResource) {
@@ -568,6 +570,7 @@ define("org/forgerock/openidm/ui/common/resource/GenericEditResourceView", [
                     if (!_this.data.newObject) {
                         tabHeader.attr("id", "tabHeader_" + opts.contentId);
                         tabHeader.find("a").attr("href","#" + opts.contentId).text(opts.headerText);
+                        tabHeader.show();
 
                         tabContent.attr("id",opts.contentId);
                         tabContent.find("." + opts.contentClass).attr("id", opts.viewId);
