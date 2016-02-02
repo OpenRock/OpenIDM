@@ -70,6 +70,9 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             "click #clearChanges": "clearChanges",
             "click #missingRequiredPropertiesButton": "addRequiredProperties"
         },
+        partials: [
+          "partials/mapping/properties/_testPartial.html"
+        ],
         model: {
             availableObjects: {},
             mappingProperties: null
@@ -257,7 +260,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
 
                 evalCounter++;
             }, this);
-
+// <-- this is the big ugly thing that should be abstracted to a partial
             attributesGrid = new Backgrid.Grid({
                 className: "table backgrid",
                 emptyText: $.t("templates.mapping.noMappingAttributes"),
@@ -269,19 +272,22 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         editable: false,
                         cell: Backgrid.Cell.extend({
                             render: function () {
-                                var previewElement = $('<i class="dragToSort fa fa-arrows pull-left"></i> <div class="property-container-parent"><div class="property-container"></div></div>');
+                                // var previewElement = $('<i class="dragToSort fa fa-arrows pull-left"></i> <div class="property-container-parent"><div class="property-container"></div></div>');
+                                //
+                                // if(this.model.attributes.attribute.source) {
+                                //     previewElement.find(".property-container").append('<div class="title">' + this.model.attributes.attribute.source + '</div>');
+                                // } else {
+                                //     previewElement.find(".property-container").append('<div class="title"></div>');
+                                // }
+                                //
+                                // if (this.model.attributes.sample !== null) {
+                                //     previewElement.find(".property-container").append('<div class="text-muted">(' + this.model.attributes.sample + ')</div>');
+                                // }
 
-                                if(this.model.attributes.attribute.source) {
-                                    previewElement.find(".property-container").append('<div class="title">' + this.model.attributes.attribute.source + '</div>');
-                                } else {
-                                    previewElement.find(".property-container").append('<div class="title"></div>');
-                                }
 
-                                if (this.model.attributes.sample !== null) {
-                                    previewElement.find(".property-container").append('<div class="text-muted">(' + this.model.attributes.sample + ')</div>');
-                                }
+                                // this.$el.html(previewElement.text());
 
-                                this.$el.html(previewElement.text());
+                                this.$el.html($(Handlebars.compile("{{> mapping/properties/_testPartial}}")({"attributes": this.model.attributes})))
                                 this.delegateEvents();
 
                                 return this;
