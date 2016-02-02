@@ -71,7 +71,8 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             "click #missingRequiredPropertiesButton": "addRequiredProperties"
         },
         partials: [
-          "partials/mapping/properties/_SourcePartial.html"
+          "partials/mapping/properties/_SourcePartial.html",
+          "partials/mapping/properties/_IconPartial.html"
         ],
         model: {
             availableObjects: {},
@@ -260,7 +261,6 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
 
                 evalCounter++;
             }, this);
-// <-- this is the big ugly thing that should be abstracted to a partial
             attributesGrid = new Backgrid.Grid({
                 className: "table backgrid",
                 emptyText: $.t("templates.mapping.noMappingAttributes"),
@@ -287,43 +287,33 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         cell: Backgrid.Cell.extend({
                             className: "properties-icon-container-parent",
                             render: function () {
-                                var iconElement = $('<div class="properties-icon-container"></div>'),
-                                    conditionIcon = "",
-                                    transformIcon = "";
+                              var locals = {},
+                                attribute = this.model.attributes.attribute;
 
-                                if(this.model.attributes.attribute.condition) {
-                                    if(_.isObject(this.model.attributes.attribute.condition)) {
-                                        if(this.model.attributes.attribute.condition.source) {
-                                            conditionIcon = this.model.attributes.attribute.condition.source;
-                                        } else {
-                                            conditionIcon = "File: " + this.model.attributes.attribute.condition.file;
-                                        }
-                                    } else {
-                                        conditionIcon = this.model.attributes.attribute.condition;
-                                    }
-
-                                    iconElement.append('<span class="badge properties-badge" rel="tooltip" data-toggle="popover" data-placement="top" title=""><i class="fa fa-filter"></i>'
-                                        +'<div style="display:none;" class="tooltip-details">' + $.t("templates.mapping.conditionalUpon") +'<pre class="text-muted code-tooltip">' +conditionIcon +'</pre></div></span>');
+                                if(attribute.condition) {
+                                  if(_.isObject(attribute.condition)) {
+                                    locals.conditionIcon = attribute.condition.source ?
+                                      attribute.condition.source :
+                                      "File: " + attribute.condition.file;
+                                  } else {
+                                      locals.conditionIcon = attribute.condition;
+                                  }
                                 }
 
-                                if(this.model.attributes.attribute.transform) {
-                                    if(_.isObject(this.model.attributes.attribute.transform)) {
-                                        if(this.model.attributes.attribute.transform.source) {
-                                            transformIcon = this.model.attributes.attribute.transform.source;
-                                        } else {
-                                            transformIcon = "File: " + this.model.attributes.attribute.transform.file;
-                                        }
-                                    } else {
-                                        transformIcon = this.model.attributes.attribute.transform;
-                                    }
-
-                                    iconElement.append('<span class="badge properties-badge" rel="tooltip" data-toggle="popover" data-placement="top" title=""><i class="fa fa-wrench"></i>'
-                                        +'<div style="display:none;" class="tooltip-details">' +$.t("templates.mapping.transformationScriptApplied") +'<pre class="text-muted code-tooltip">' +transformIcon +'</pre></div></span>');
+                                if(attribute.transform) {
+                                  if(_.isObject(attribute.transform)) {
+                                    locals.transformIcon = attribute.transform.source ?
+                                      attribute.transform.source :
+                                      "File: " + attribute.transform.file;
+                                  } else {
+                                      locals.transformIcon = attribute.transform;
+                                  }
                                 }
 
-                                this.$el.html(iconElement);
+                                this.$el.html(
+                                  $(Handlebars.compile("{{> mapping/properties/_IconPartial}}")({"locals": locals}))
+                                )
                                 this.delegateEvents();
-
                                 return this;
                             }
                         })
