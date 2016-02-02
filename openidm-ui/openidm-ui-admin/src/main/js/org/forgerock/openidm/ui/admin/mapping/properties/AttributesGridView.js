@@ -71,7 +71,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             "click #missingRequiredPropertiesButton": "addRequiredProperties"
         },
         partials: [
-          "partials/mapping/properties/_testPartial.html"
+          "partials/mapping/properties/_SourcePartial.html"
         ],
         model: {
             availableObjects: {},
@@ -272,24 +272,10 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         editable: false,
                         cell: Backgrid.Cell.extend({
                             render: function () {
-                                // var previewElement = $('<i class="dragToSort fa fa-arrows pull-left"></i> <div class="property-container-parent"><div class="property-container"></div></div>');
-                                //
-                                // if(this.model.attributes.attribute.source) {
-                                //     previewElement.find(".property-container").append('<div class="title">' + this.model.attributes.attribute.source + '</div>');
-                                // } else {
-                                //     previewElement.find(".property-container").append('<div class="title"></div>');
-                                // }
-                                //
-                                // if (this.model.attributes.sample !== null) {
-                                //     previewElement.find(".property-container").append('<div class="text-muted">(' + this.model.attributes.sample + ')</div>');
-                                // }
-
-
-                                // this.$el.html(previewElement.text());
-
-                                this.$el.html($(Handlebars.compile("{{> mapping/properties/_testPartial}}")({"attributes": this.model.attributes})))
+                                this.$el.html(
+                                  $(Handlebars.compile("{{> mapping/properties/_SourcePartial}}")({"attributes": this.model.attributes}))
+                                )
                                 this.delegateEvents();
-
                                 return this;
                             }
                         })
