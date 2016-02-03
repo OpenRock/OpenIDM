@@ -330,34 +330,31 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         sortable: false,
                         editable: false,
                         cell: Backgrid.Cell.extend({
-                            render: function () {
-                              var locals = {},
-                                attributes = this.model.attributes;
+                          render: function () {
+                            var locals = {},
+                              attributes = this.model.attributes;
 
-                                if(attributes.attribute.target) locals.title = attributes.attribute.target;
+                              if(attributes.attribute.target) locals.title = attributes.attribute.target;
 
-                                if(attributes.evalResult && attributes.evalResult.conditionResults && !attributes.evalResult.conditionResults.result) {
-                                } else {
-                                    if (attributes.sample !== null) {
-                                        if(attributes.evalResult && attributes.evalResult.transformResults) {
-                                            locals.text = attributes.evalResult.transformResults;
-                                        } else {
-                                            locals.text = attributes.sample;
-                                        }
-                                    } else if (attributes.attribute["default"]) {
-                                        locals.text = attributes.attribute["default"];
-                                    }
+                              if(!attributes.evalResult || !attributes.evalResult.conditionResults || attributes.evalResult.conditionResults.result) {
+                                if (attributes.sample !== null) {
+                                  locals.text = attributes.evalResult.transformResults ?
+                                    attributes.evalResult.transformResults :
+                                    attributes.sample;
+                                } else if (attributes.attribute["default"]) {
+                                    locals.text = attributes.attribute["default"];
                                 }
+                              }
 
-                                this.$el.html(
-                                  $(Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals}))
-                                )
+                              this.$el.html(
+                                $(Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals}))
+                              )
 
-                                this.delegateEvents();
+                              this.delegateEvents();
 
-                                return this;
-                            }
-                        })
+                              return this;
+                          }
+                      })
                     },
                     {
                         name: "",
