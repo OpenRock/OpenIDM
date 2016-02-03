@@ -272,17 +272,18 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         editable: false,
                         cell: Backgrid.Cell.extend({
                             render: function () {
-                              var attributes = this.model.attributes, locals = {
-                                title: attributes.attribute.source,
-                                textMuted: attributes.sample,
-                                isSource: true
-                              };
+                              var attributes = this.model.attributes,
+                                locals = {
+                                  title: attributes.attribute.source,
+                                  textMuted: attributes.sample,
+                                  isSource: true
+                                };
 
-                                this.$el.html(
-                                  $(Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals}))
-                                );
-                                this.delegateEvents();
-                                return this;
+                              this.$el.html(
+                                $(Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals}))
+                              );
+                              this.delegateEvents();
+                              return this;
                             }
                         })
                     },
@@ -296,31 +297,31 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                               var locals = {},
                                 attribute = this.model.attributes.attribute;
 
-                                if(attribute.condition) {
-                                  if(_.isObject(attribute.condition)) {
-                                    locals.conditionIcon = attribute.condition.source ?
-                                      attribute.condition.source :
-                                      "File: " + attribute.condition.file;
-                                  } else {
-                                      locals.conditionIcon = attribute.condition;
-                                  }
+                              if(attribute.condition) {
+                                if(_.isObject(attribute.condition)) {
+                                  locals.conditionIcon = attribute.condition.source ?
+                                    attribute.condition.source :
+                                    "File: " + attribute.condition.file;
+                                } else {
+                                    locals.conditionIcon = attribute.condition;
                                 }
+                              }
 
-                                if(attribute.transform) {
-                                  if(_.isObject(attribute.transform)) {
-                                    locals.transformIcon = attribute.transform.source ?
-                                      attribute.transform.source :
-                                      "File: " + attribute.transform.file;
-                                  } else {
-                                      locals.transformIcon = attribute.transform;
-                                  }
+                              if(attribute.transform) {
+                                if(_.isObject(attribute.transform)) {
+                                  locals.transformIcon = attribute.transform.source ?
+                                    attribute.transform.source :
+                                    "File: " + attribute.transform.file;
+                                } else {
+                                    locals.transformIcon = attribute.transform;
                                 }
+                              }
 
-                                this.$el.html(
-                                  $(Handlebars.compile("{{> mapping/properties/_IconContainerPartial}}")({"locals": locals}))
-                                );
-                                this.delegateEvents();
-                                return this;
+                              this.$el.html(
+                                $(Handlebars.compile("{{> mapping/properties/_IconContainerPartial}}")({"locals": locals}))
+                              );
+                              this.delegateEvents();
+                              return this;
                             }
                         })
                     },
@@ -333,25 +334,25 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                             var locals = {},
                               attributes = this.model.attributes;
 
-                              if(attributes.attribute.target) { locals.title = attributes.attribute.target; }
+                            if(attributes.attribute.target) { locals.title = attributes.attribute.target; }
 
-                              if(!attributes.evalResult || !attributes.evalResult.conditionResults || attributes.evalResult.conditionResults.result) {
-                                if (attributes.sample !== null) {
-                                  locals.text = attributes.evalResult.transformResults ?
-                                    attributes.evalResult.transformResults :
-                                    attributes.sample;
-                                } else if (attributes.attribute["default"]) {
-                                    locals.text = attributes.attribute["default"];
-                                }
+                            if(!attributes.evalResult || !attributes.evalResult.conditionResults || attributes.evalResult.conditionResults.result) {
+                              if (attributes.sample !== null) {
+                                locals.text = attributes.evalResult.transformResults ?
+                                  attributes.evalResult.transformResults :
+                                  attributes.sample;
+                              } else if (attributes.attribute["default"]) {
+                                  locals.text = attributes.attribute["default"];
                               }
+                            }
 
-                              this.$el.html(
-                                $(Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals}))
-                              );
+                            this.$el.html(
+                              $(Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals}))
+                            );
 
-                              this.delegateEvents();
+                            this.delegateEvents();
 
-                              return this;
+                            return this;
                           }
                       })
                     },
