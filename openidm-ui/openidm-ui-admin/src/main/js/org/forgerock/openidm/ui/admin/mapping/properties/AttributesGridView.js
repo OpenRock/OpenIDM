@@ -272,8 +272,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         editable: false,
                         cell: Backgrid.Cell.extend({
                             render: function () {
-                              var attributes = this.model.attributes;
-                              var locals = {
+                              var attributes = this.model.attributes, locals = {
                                 title: attributes.attribute.source,
                                 textMuted: attributes.sample,
                                 isSource: true
@@ -281,7 +280,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
 
                                 this.$el.html(
                                   $(Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals}))
-                                )
+                                );
                                 this.delegateEvents();
                                 return this;
                             }
@@ -319,7 +318,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
 
                                 this.$el.html(
                                   $(Handlebars.compile("{{> mapping/properties/_IconContainerPartial}}")({"locals": locals}))
-                                )
+                                );
                                 this.delegateEvents();
                                 return this;
                             }
@@ -334,7 +333,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                             var locals = {},
                               attributes = this.model.attributes;
 
-                              if(attributes.attribute.target) locals.title = attributes.attribute.target;
+                              if(attributes.attribute.target) { locals.title = attributes.attribute.target; }
 
                               if(!attributes.evalResult || !attributes.evalResult.conditionResults || attributes.evalResult.conditionResults.result) {
                                 if (attributes.sample !== null) {
@@ -348,7 +347,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
 
                               this.$el.html(
                                 $(Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals}))
-                              )
+                              );
 
                               this.delegateEvents();
 
