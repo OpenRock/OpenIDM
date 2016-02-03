@@ -71,8 +71,8 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             "click #missingRequiredPropertiesButton": "addRequiredProperties"
         },
         partials: [
-          "partials/mapping/properties/_SourcePartial.html",
-          "partials/mapping/properties/_IconPartial.html"
+          "partials/mapping/properties/_IconContainerPartial.html",
+          "partials/mapping/properties/_PropertyContainerPartial.html"
         ],
         model: {
             availableObjects: {},
@@ -272,8 +272,15 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         editable: false,
                         cell: Backgrid.Cell.extend({
                             render: function () {
+                              var attributes = this.model.attributes;
+                              var locals = {
+                                title: attributes.attribute.source,
+                                textMuted: attributes.sample,
+                                isSource: true
+                              };
+
                                 this.$el.html(
-                                  $(Handlebars.compile("{{> mapping/properties/_SourcePartial}}")({"attributes": this.model.attributes}))
+                                  $(Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals}))
                                 )
                                 this.delegateEvents();
                                 return this;
@@ -311,7 +318,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                                 }
 
                                 this.$el.html(
-                                  $(Handlebars.compile("{{> mapping/properties/_IconPartial}}")({"locals": locals}))
+                                  $(Handlebars.compile("{{> mapping/properties/_IconContainerPartial}}")({"locals": locals}))
                                 )
                                 this.delegateEvents();
                                 return this;
@@ -324,30 +331,28 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         editable: false,
                         cell: Backgrid.Cell.extend({
                             render: function () {
-                                var previewElement = $('<div class="property-container-parent"><div class="property-container"></div></div>');
+                              var locals = {},
+                                attributes = this.model.attributes;
 
-                                if(this.model.attributes.attribute.target) {
-                                    previewElement.find(".property-container").append('<div class="title">' + this.model.attributes.attribute.target + '</div>');
+                                if(attributes.attribute.target) locals.title = attributes.attribute.target;
+
+                                if(attributes.evalResult && attributes.evalResult.conditionResults && !attributes.evalResult.conditionResults.result) {
                                 } else {
-                                    previewElement.find(".property-container").append('<div class="title"></div>');
-                                }
-
-
-                                if(this.model.attributes.evalResult && this.model.attributes.evalResult.conditionResults && !this.model.attributes.evalResult.conditionResults.result) {
-                                    previewElement.find(".property-container").append('<div class="text-muted"></div>');
-                                } else {
-                                    if (this.model.attributes.sample !== null) {
-                                        if(this.model.attributes.evalResult && this.model.attributes.evalResult.transformResults) {
-                                            previewElement.find(".property-container").append('<div class="text-muted">(' + this.model.attributes.evalResult.transformResults + ')</div>');
+                                    if (attributes.sample !== null) {
+                                        if(attributes.evalResult && attributes.evalResult.transformResults) {
+                                            locals.text = attributes.evalResult.transformResults;
                                         } else {
-                                            previewElement.find(".property-container").append('<div class="text-muted">(' + this.model.attributes.sample + ')</div>');
+                                            locals.text = attributes.sample;
                                         }
-                                    } else if (this.model.attributes.attribute["default"]) {
-                                        previewElement.find(".property-container").append('<div class="text-muted">(' + this.model.attributes.attribute["default"] + ')</div>');
+                                    } else if (attributes.attribute["default"]) {
+                                        locals.text = attributes.attribute["default"];
                                     }
                                 }
 
-                                this.$el.html(previewElement.text());
+                                this.$el.html(
+                                  $(Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals}))
+                                )
+
                                 this.delegateEvents();
 
                                 return this;
