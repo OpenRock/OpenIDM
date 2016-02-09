@@ -2177,7 +2177,7 @@
                     }
                 },
                 "buffering": {
-                    "help": "Configuration for buffering events and sending in batches (increases write-throughput)"
+                    "help": "Configuration for buffering events and sending in batches (increases write-throughput)",
                     "enabled": {
                         "help": "Fixed maximum number of events that can be buffered (default: 10000)"
                     },
