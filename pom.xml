@@ -219,7 +219,7 @@
         <commons.forgerock-bom.version>4.1.1</commons.forgerock-bom.version>
 
         <!-- TODO remove before merge -->
-        <forgerock-audit.version>4.1.2-SNAPSHOT</forgerock-audit.version>
+        <forgerock-audit.version>4.2.0</forgerock-audit.version>
 
         <!-- Commons versions -->
         <commons.forgerock-script.version>3.0.2</commons.forgerock-script.version>
