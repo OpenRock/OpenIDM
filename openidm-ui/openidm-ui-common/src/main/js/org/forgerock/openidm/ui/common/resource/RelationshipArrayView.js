@@ -45,7 +45,7 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
         messagesManager,
         AbstractCollection,
         resourceCollectionUtils,
-        resourceCollectionSearchDialog,
+        ResourceCollectionSearchDialog,
         uiUtils,
         d3) {
     var RelationshipArrayView = AbstractView.extend({
@@ -405,7 +405,7 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
                 };
             }
 
-            resourceCollectionSearchDialog.render(opts);
+            new ResourceCollectionSearchDialog().render(opts);
         },
         loadChart: function(models) {
             this.$el.find("#relationshipGraphBody-" + this.data.prop.propName).empty();
