@@ -132,7 +132,8 @@ define("org/forgerock/openidm/ui/admin/settings/EmailConfigView", [
             this.data.password = $(e.currentTarget).val();
         },
 
-        save: function() {
+        save: function(e) {
+            e.preventDefault();
             var formData = form2js("emailConfigForm",".", true);
 
             _.extend(this.data.config, formData);
