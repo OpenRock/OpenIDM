@@ -333,7 +333,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
            };
     }
 
-    @BeforeClass
+    @BeforeClass(enabled = false)
     public void setUp() throws Exception {
         // Start OpenICF Connector Server
         String openicfServerPort =
@@ -448,7 +448,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
         connection = Resources.newInternalConnection(router);
     }
 
-    @AfterClass
+    @AfterClass@BeforeClass(enabled = false)
     public void tearDown() throws Exception {
         for (Pair<OpenICFProvisionerService, ComponentContext> pair : systems) {
             pair.getLeft().deactivate(pair.getRight());
@@ -457,17 +457,17 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
         connectorServer.stop();
     }
 
-    @Test(dataProvider = "dp")
+    @Test(dataProvider = "dp", enabled = false)
     public void testReadInstance(String systemName) throws Exception {
 
     }
 
-    @Test(dataProvider = "dp")
+    @Test(dataProvider = "dp", enabled = false)
     public void testActionInstance(String systemName) throws Exception {
 
     }
 
-    @Test
+    @Test(enabled = false)
     public void testPatchInstance() throws Exception {
         String name = "john";
         String resourceContainer = "/system/XML/account/";
@@ -507,7 +507,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
         assertThat(patchResult.get("gender").asString()).isEqualTo("m");
     }
 
-    @Test(dataProvider = "dp")
+    @Test(dataProvider = "dp", enabled = false)
     public void testUpdateInstance(String systemName) throws Exception {
 
     }
@@ -551,7 +551,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
         }
     }
 
-    @Test(dataProvider = "groovy-only", enabled = true)
+    @Test(dataProvider = "groovy-only", enabled = false)
     public void testSync(String systemName) throws Exception {
             JsonValue stage = new JsonValue(new LinkedHashMap<String, Object>());
             stage.put("connectorData", ConnectorUtil.convertFromSyncToken(new SyncToken(0)));
@@ -633,7 +633,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
 
-    @Test(dataProvider = "groovy-only", enabled = true)
+    @Test(dataProvider = "groovy-only", enabled = false)
     public void testPagedSearch(String systemName) throws Exception {
 
         for (int i = 0; i < 100; i++) {
@@ -681,7 +681,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
         Assert.assertEquals(resultSet.size(), 100);
     }
 
-    @Test(dataProvider = "dp", enabled = true)
+    @Test(dataProvider = "dp", enabled = false)
     public void testHelloWorldAction(String systemName) throws Exception {
         if ("Test".equals(systemName)) {
 
@@ -725,21 +725,21 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
     // AlreadyExistsException -> ConflictException
-    @Test(dataProvider = "groovy-only", expectedExceptions = ConflictException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = ConflictException.class, enabled = false)
     public void testConflictException(String systemName) throws Exception {
         CreateRequest createRequest = Requests.newCreateRequest("system/" + systemName + "/__TEST__", getTestConnectorObject("TEST1"));
         connection.create(new SecurityContext(new RootContext(), "system", null ), createRequest);
     }
 
     // ConnectorIOException -> ServiceUnavailableException - Will work when new groovy script is updated
-    @Test(dataProvider = "groovy-only", expectedExceptions = ServiceUnavailableException.class , enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = ServiceUnavailableException.class , enabled = false)
     public void testServiceUnavailableExceptionFromConnectorIOException(String systemName) throws Exception {
         DeleteRequest deleteRequest = Requests.newDeleteRequest("system/" + systemName + "/__TEST__/TESTEX_CIO");
         connection.delete((new SecurityContext(new RootContext(), "system", null)), deleteRequest);
     }
 
     // OperationTimeoutException -> ServiceUnavailableException
-    @Test(dataProvider = "groovy-only", expectedExceptions = ServiceUnavailableException.class , enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = ServiceUnavailableException.class , enabled = false)
     public void testServiceUnavailableExceptionFromOperationTimeoutException(String systemName) throws Exception {
         DeleteRequest deleteRequest = Requests.newDeleteRequest("system/" + systemName + "/__TEST__/TESTEX_OT");
         connection.delete((new SecurityContext(new RootContext(), "system", null )), deleteRequest);
@@ -747,56 +747,56 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
     // RetryableException -> ServiceUnavailableException
-    @Test(dataProvider = "groovy-only", expectedExceptions = ServiceUnavailableException.class , enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = ServiceUnavailableException.class , enabled = false)
     public void testServiceUnavailableExceptionFromRetryableException(String systemName) throws Exception {
         CreateRequest createRequest = Requests.newCreateRequest("system/" + systemName + "/__TEST__", getTestConnectorObject("TEST4"));
         connection.create(new SecurityContext(new RootContext(), "system", null), createRequest);
     }
 
     // ConfigurationException -> InternalServerErrorException
-    @Test(dataProvider = "groovy-only", expectedExceptions = InternalServerErrorException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = InternalServerErrorException.class, enabled = false)
     public void testInternalServerErrorExceptionFromConfigurationException(String systemName) throws Exception {
         DeleteRequest deleteRequest = Requests.newDeleteRequest("system/" + systemName + "/__TEST__/TESTEX_CE");
         connection.delete(new RootContext(), deleteRequest);
     }
 
     // ConnectionBrokenException -> ServiceUnavailableException
-    @Test(dataProvider = "groovy-only", expectedExceptions = ServiceUnavailableException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = ServiceUnavailableException.class, enabled = false)
     public void testServiceUnavailableExceptionFromConnectionBrokenException(String systemName) throws Exception {
         DeleteRequest deleteRequest = Requests.newDeleteRequest("system/" + systemName + "/__TEST__/TESTEX_CB");
         connection.delete(new RootContext(), deleteRequest);
     }
 
     // ConnectionFailedException -> ServiceUnavailableException
-    @Test(dataProvider = "groovy-only", expectedExceptions = ServiceUnavailableException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = ServiceUnavailableException.class, enabled = false)
     public void testServiceUnavailableExceptionFromConnectionFailedException(String systemName) throws Exception {
         DeleteRequest deleteRequest = Requests.newDeleteRequest("system/" + systemName + "/__TEST__/TESTEX_CF");
         connection.delete(new RootContext(), deleteRequest);
     }
 
     // ConnectorException -> InternalServerErrorException
-    @Test(dataProvider = "groovy-only", expectedExceptions = InternalServerErrorException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = InternalServerErrorException.class, enabled = false)
     public void testInternalServerErrorExceptionFromConnectorException(String systemName) throws Exception {
         DeleteRequest deleteRequest = Requests.newDeleteRequest("system/" + systemName + "/__TEST__/TESTEX_C");
         connection.delete(new RootContext(), deleteRequest);
     }
 
     // NullPointerException -> InternalServerErrorException
-    @Test(dataProvider = "groovy-only", expectedExceptions = InternalServerErrorException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = InternalServerErrorException.class, enabled = false)
     public void testInternalServerErrorExceptionFromNullPointerException(String systemName) throws Exception {
         DeleteRequest deleteRequest = Requests.newDeleteRequest("system/" + systemName + "/__TEST__/TESTEX_NPE");
         connection.delete(new RootContext(), deleteRequest);
     }
 
     // IllegalArgumentException -> InternalServerErrorException
-    @Test(dataProvider = "groovy-only", expectedExceptions = InternalServerErrorException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = InternalServerErrorException.class, enabled = false)
     public void testInternalServerErrorExceptionFromIllegalArgumentException(String systemName) throws Exception {
         CreateRequest createRequest = Requests.newCreateRequest("system/" + systemName + "/__TEST__", getTestConnectorObject("TEST3"));
         connection.create(new SecurityContext(new RootContext(), "system", null), createRequest);
     }
 
     // ConnectorSecurityException -> InternalServerErrorException
-    @Test(dataProvider = "groovy-only", expectedExceptions = InternalServerErrorException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = InternalServerErrorException.class, enabled = false)
     public void testInternalServerErrorExceptionFromConnectorSecurityException(String systemName) throws Exception {
         ActionRequest actionRequest = Requests.newActionRequest("system/" + systemName + "/__TEST__", "authenticate");
         actionRequest.setAdditionalParameter("username", "TEST1");
@@ -805,7 +805,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
     // InvalidCredentialException - >  PermanentException (UNAUTHORIZED_ERROR_CODE)
-    @Test(dataProvider = "groovy-only", expectedExceptions = PermanentException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = PermanentException.class, enabled = false)
     public void testPermanentExceptionFromInvalidCredentialException(String systemName) throws Exception {
         ActionRequest actionRequest = Requests.newActionRequest("system/" + systemName + "/__TEST__", "authenticate");
         actionRequest.setAdditionalParameter("username", "TEST2");
@@ -814,7 +814,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
     // InvalidPasswordException -> PermanentException (UNAUTHORIZED_ERROR_CODE)
-    @Test(dataProvider = "groovy-only", expectedExceptions = PermanentException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = PermanentException.class, enabled = false)
     public void testPermanentExceptionFromInvalidPasswordException(String systemName) throws Exception {
         ActionRequest actionRequest = Requests.newActionRequest("system/" + systemName + "/__TEST__", "authenticate");
         actionRequest.setAdditionalParameter("username", "TEST3");
@@ -823,7 +823,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
     // PermissionDeniedException -> ForbiddenException
-    @Test(dataProvider = "groovy-only", expectedExceptions = ForbiddenException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = ForbiddenException.class, enabled = false)
     public void testForbiddenExceptionPermissionDeniedException(String systemName) throws Exception {
         ActionRequest actionRequest = Requests.newActionRequest("system/" + systemName + "/__TEST__", "authenticate");
         actionRequest.setAdditionalParameter("username", "TEST4");
@@ -832,7 +832,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
     // PasswordExpiredException -> ForbiddenException
-    @Test(dataProvider = "groovy-only", expectedExceptions = ForbiddenException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = ForbiddenException.class, enabled = false)
     public void testForbiddenExceptionFromPasswordExpiredException(String systemName) throws Exception {
         ActionRequest actionRequest = Requests.newActionRequest("system/" + systemName + "/__TEST__", "authenticate");
         actionRequest.setAdditionalParameter("username", "TEST5");
@@ -841,7 +841,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
     // UnknownUidException -> NotFoundException
-    @Test(dataProvider = "groovy-only", expectedExceptions = NotFoundException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = NotFoundException.class, enabled = false)
     public void testNotFoundExceptionFromUnknownException(String systemName) throws Exception {
         ActionRequest actionRequest = Requests.newActionRequest("system/" + systemName + "/__SAMPLE__", "authenticate");
         actionRequest.setAdditionalParameter("username", "Unknown-UID");
@@ -850,7 +850,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
     // UnsupportedOperationException -> NotFoundException
-    @Test(dataProvider = "groovy-only", expectedExceptions = NotFoundException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = NotFoundException.class, enabled = false)
     public void testNotFoundExceptionFromUnsupportedOperationException(String systemName) throws Exception {
         ActionRequest actionRequest = Requests.newActionRequest("system/" + systemName + "/Unsupported-Object", "authenticate");
         actionRequest.setAdditionalParameter("username", "TEST6");
@@ -859,14 +859,14 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
     // InvalidAttributeValueException - > BadRequestException
-    @Test(dataProvider = "groovy-only", expectedExceptions = BadRequestException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = BadRequestException.class, enabled = false)
     public void testBadRequestException(String systemName) throws Exception {
         CreateRequest createRequest = Requests.newCreateRequest("system/" + systemName + "/__TEST__", getTestConnectorObject("TEST2"));
         connection.create(new SecurityContext(new RootContext(), "system", null), createRequest);
     }
 
     // PreconditionFailedException ->  org.forgerock.json.resource.PreconditionFailedException
-    @Test(dataProvider = "groovy-only", expectedExceptions = PreconditionFailedException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = PreconditionFailedException.class, enabled = false)
     public void testPreconditionFailedException(String systemName) throws Exception {
         final String resourceId = "TEST4";
         UpdateRequest updateRequest = Requests.newUpdateRequest("system/" + systemName + "/__TEST__/",
@@ -876,7 +876,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
     // PreconditionRequiredException ->  org.forgerock.json.resource.PreconditionRequiredException
-    @Test(dataProvider = "groovy-only", expectedExceptions = PreconditionRequiredException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = PreconditionRequiredException.class, enabled = false)
     public void testPreconditionRequiredException(String systemName) throws Exception {
         final String resourceId = "TEST5";
         UpdateRequest updateRequest = Requests.newUpdateRequest("system/" + systemName + "/__TEST__/",
@@ -886,7 +886,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
     }
 
     // ResourceException ->  org.forgerock.json.resource.ResourceException
-    @Test(dataProvider = "groovy-only", expectedExceptions = ResourceException.class, enabled = true)
+    @Test(dataProvider = "groovy-only", expectedExceptions = ResourceException.class, enabled = false)
     public void testResourceException(String systemName) throws Exception {
         final String resourceId = "TEST6";
         JsonValue user = getTestConnectorObject(resourceId);
@@ -897,7 +897,7 @@ public class OpenICFProvisionerServiceTest extends ConnectorFacadeFactory implem
         connection.update(new SecurityContext(new RootContext(), "system", null ), updateRequest);
     }
 
-    @Test(dataProvider = "groovy-only", enabled = true)
+    @Test(dataProvider = "groovy-only", enabled = false)
     public void testSyncWithAllObjectClass(String systemName) throws Exception {
 
         JsonValue stage = new JsonValue(new LinkedHashMap<String, Object>());

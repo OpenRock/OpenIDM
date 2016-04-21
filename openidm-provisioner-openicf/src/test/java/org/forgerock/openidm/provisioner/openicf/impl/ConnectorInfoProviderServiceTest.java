@@ -68,7 +68,7 @@ public class ConnectorInfoProviderServiceTest {
 
     protected ConnectorInfoProviderService testableConnectorInfoProvider = null;
 
-    @BeforeTest
+    @BeforeTest(enabled = false)
     public void beforeTest() throws Exception {
         System.setProperty(Log.LOGSPI_PROP, NoOpLogger.class.getName());
         InputStream inputStream =
@@ -104,7 +104,7 @@ public class ConnectorInfoProviderServiceTest {
         testableConnectorInfoProvider = instance;
     }
 
-    @AfterTest
+    @AfterTest(enabled = false)
     public void afterTest() throws Exception {
         ComponentContext context = mock(ComponentContext.class);
         // stubbing
@@ -125,7 +125,7 @@ public class ConnectorInfoProviderServiceTest {
     // newBuilder.activate(context);
     // }
 
-    @Test
+    @Test(enabled = false)
     public void testFindConnectorInfo() throws Exception {
         ConnectorReference ref =
                 new ConnectorReference(new ConnectorKey(
@@ -136,7 +136,7 @@ public class ConnectorInfoProviderServiceTest {
 
     }
 
-    @Test
+    @Test(enabled = false)
     public void testCreateSystemConfiguration() throws URISyntaxException {
         ConnectorInfo xmlConnectorInfo = null;
         ConnectorKey key =
@@ -174,7 +174,7 @@ public class ConnectorInfoProviderServiceTest {
 
     }
 
-    @Test
+    @Test(enabled = false)
     public void testGetAllConnectorInfo() throws Exception {
         List<ConnectorInfo> result = testableConnectorInfoProvider.getAllConnectorInfo();
         assertThat(result).isNotNull().as("XML connector must be in /connectors/ directory")
