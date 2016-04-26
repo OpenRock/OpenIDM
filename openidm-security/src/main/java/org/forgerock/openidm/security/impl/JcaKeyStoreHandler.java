@@ -24,8 +24,6 @@
 
 package org.forgerock.openidm.security.impl;
 
-import org.forgerock.openidm.security.KeyStoreHandler;
-
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -36,31 +34,39 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 
+import org.forgerock.openidm.security.KeyStoreHandler;
+
 /**
  * A NAME does ...
  */
 public class JcaKeyStoreHandler implements KeyStoreHandler {
 
+    private static final String NONE = "none";
+
     private String location;
     private String password;
     private String type;
     private KeyStore store;
+    private boolean isPkcs11;
 
     public JcaKeyStoreHandler(String type, String location, String password) throws Exception {
         this.location = location;
         this.password = password;
         this.type = type;
+        this.isPkcs11 = isPkcs11();
         init();
     }
 
     void init() throws IOException, KeyStoreException, CertificateException,
             NoSuchAlgorithmException {
-        InputStream in = new FileInputStream(location);
-        try {
+        if (isPkcs11) {
             store = KeyStore.getInstance(type);
-            store.load(in, password.toCharArray());
-        } finally {
-            in.close();
+            store.load(null, password.toCharArray());
+        } else {
+            try(InputStream in = new FileInputStream(location)){
+                store = KeyStore.getInstance(type);
+                store.load(in, password.toCharArray());
+            }
         }
     }
 
@@ -77,11 +83,12 @@ public class JcaKeyStoreHandler implements KeyStoreHandler {
 
     @Override
     public void store() throws Exception {
-        OutputStream out = new FileOutputStream(location);
-        try {
-            store.store(out, password.toCharArray());
-        } finally {
-            out.close();
+        if (isPkcs11) {
+            store.store(null, password.toCharArray());
+        } else {
+            try(OutputStream out = new FileOutputStream(location)){
+                store.store(out, password.toCharArray());
+            }
         }
     }
 
@@ -97,5 +104,13 @@ public class JcaKeyStoreHandler implements KeyStoreHandler {
 
     public String getType() {
         return type;
+    }
+
+    private boolean isPkcs11() {
+        final String[] parts = location.split("/");
+        if (parts != null) {
+            return NONE.equalsIgnoreCase(parts[parts.length-1]);
+        }
+        return false;
     }
 }

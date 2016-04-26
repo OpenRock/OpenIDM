@@ -24,8 +24,10 @@
 
 package org.forgerock.openidm.crypto.impl;
 
+import java.security.Security;
 import java.util.Hashtable;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.forgerock.openidm.crypto.CryptoService;
 import org.forgerock.openidm.crypto.factory.CryptoServiceFactory;
 import org.forgerock.openidm.crypto.factory.CryptoUpdateService;
@@ -48,6 +50,8 @@ public class Activator implements BundleActivator {
 
     public void start(BundleContext context) throws Exception {
         logger.debug("Crypto bundle starting");
+
+        Security.addProvider(new BouncyCastleProvider());
 
         // Force fragment to resolve
         ensureJettyFragmentResolved(context);

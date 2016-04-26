@@ -140,6 +140,13 @@ public class Param {
     }
 
     /**
+     * @return OpenIDM keystore provider
+     */
+    public static String getTruststoreProvider() {
+        return JettyPropertyUtil.getProperty("openidm.truststore.provider", false);
+    }
+
+    /**
      * Returns the keystore password in either clear text or obfuscated.
      *
      * @param   obfuscated if the password should be obfuscated.

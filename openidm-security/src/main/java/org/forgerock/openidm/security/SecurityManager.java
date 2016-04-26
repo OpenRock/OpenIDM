@@ -24,8 +24,8 @@
 
 package org.forgerock.openidm.security;
 
+import java.security.KeyStore;
 import java.security.Security;
-
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -76,6 +76,8 @@ import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import sun.security.pkcs11.SunPKCS11;
+
 /**
  * A Security Manager Service which handles operations on the java security
  * keystore and truststore files.
@@ -87,17 +89,21 @@ import org.slf4j.LoggerFactory;
     @Property(name = Constants.SERVICE_VENDOR, value = ServerConstants.SERVER_VENDOR_NAME),
     @Property(name = Constants.SERVICE_DESCRIPTION, value = "Security Management Service"),
     @Property(name = ServerConstants.ROUTER_PREFIX, value = "/security/*") })
+@SuppressWarnings({"unused", "StatementWithEmptyBody"})
 public class SecurityManager implements RequestHandler, KeyStoreManager {
 
-    public static final String PID = "org.forgerock.openidm.security";
+    static final String PID = "org.forgerock.openidm.security";
 
     /**
      * Setup logging for the {@link SecurityManager}.
      */
     private final static Logger logger = LoggerFactory.getLogger(SecurityManager.class);
-    
+    private static final String OPENIDM_KEYSTORE_TYPE = "openidm.keystore.type";
+    private static final String PKCS11_CONFIG = "openidm.security.pkcs11.config";
+    private static final String PKCS11 = "pkcs11";
+
     @Reference
-    protected RepositoryService repoService;
+    private RepositoryService repoService;
 
     @Reference
     private CryptoUpdateService cryptoUpdateService;
@@ -108,10 +114,21 @@ public class SecurityManager implements RequestHandler, KeyStoreManager {
     private KeyStoreHandler keyStoreHandler = null;
 
     @Activate
-    void activate(ComponentContext compContext) throws Exception {
+    void activate(@SuppressWarnings("unused") ComponentContext compContext) throws Exception {
         logger.debug("Activating Security Management Service {}", compContext);
         // Add the Bouncy Castle provider
-        Security.addProvider(new BouncyCastleProvider());
+        final String keystoreType =
+                IdentityServer.getInstance().getProperty(OPENIDM_KEYSTORE_TYPE, KeyStore.getDefaultType());
+        if (PKCS11.equals(keystoreType.toLowerCase())) {
+            final String config = IdentityServer.getInstance().getProperty(PKCS11_CONFIG);
+            if (config != null) {
+                Security.addProvider(new SunPKCS11(config));
+            } else {
+                throw new RuntimeException("No pkcs11 config provided in the boot.properties");
+            }
+        } else {
+            Security.addProvider(new BouncyCastleProvider());
+        }
         
         String keyStoreType = Param.getKeystoreType();
         String keyStoreLocation = Param.getKeystoreLocation();
@@ -154,8 +171,10 @@ public class SecurityManager implements RequestHandler, KeyStoreManager {
         String propValue = Param.getProperty("openidm.https.keystore.cert.alias");
         String privateKeyAlias = (propValue == null) ? "openidm-localhost" : propValue;
 
+        final boolean isPkcs11 = PKCS11.equalsIgnoreCase(keystoreType);
+
         try {
-            if (instanceType.equals(ClusterUtils.TYPE_CLUSTERED_ADDITIONAL)) {
+            if (instanceType.equals(ClusterUtils.TYPE_CLUSTERED_ADDITIONAL) && !isPkcs11) {
                 // Load keystore and truststore from the repository
                 keystoreProvider.loadStoreFromRepo();
                 truststoreProvider.loadStoreFromRepo();
@@ -178,7 +197,7 @@ public class SecurityManager implements RequestHandler, KeyStoreManager {
                     reload();
 
                     Config.updateConfig(null);
-                } else if (!defaultPrivateKeyEntryExists && defaultTruststoreEntryExists) {
+                } else if (!defaultPrivateKeyEntryExists) {
                     // no default keystore entry, but truststore has default entry
                     // this should only happen if the enduser is manually editing the keystore/truststore
                     logger.error("Keystore and truststore out of sync. The keystore doesn't contain the default "
@@ -186,7 +205,7 @@ public class SecurityManager implements RequestHandler, KeyStoreManager {
                     throw new InternalServerErrorException("Keystore and truststore out of sync. The keystore "
                             + "doesn't contain the default entry, but the truststore does.");
 
-                } else if (defaultPrivateKeyEntryExists && !defaultTruststoreEntryExists) {
+                } else if (!defaultTruststoreEntryExists) {
                     // default keystore entry exists, but truststore default entry does not exist
                     // this should only happen if the enduser is manually editing the keystore/truststore
                     logger.error("Keystore and truststore out of sync. The keystore contains the default entry, but "
@@ -199,7 +218,7 @@ public class SecurityManager implements RequestHandler, KeyStoreManager {
                 }
 
                 // If this is the first/primary node in a cluster, then save the keystore and truststore to the repository
-                if (instanceType.equals(ClusterUtils.TYPE_CLUSTERED_FIRST)) {
+                if (instanceType.equals(ClusterUtils.TYPE_CLUSTERED_FIRST) && !isPkcs11) {
                     keystoreProvider.saveStoreToRepo();
                     truststoreProvider.saveStoreToRepo();
                 }
