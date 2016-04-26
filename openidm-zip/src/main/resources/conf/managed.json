@@ -4,7 +4,11 @@
             "name" : "user",
             "onCreate" : {
                 "type" : "text/javascript",
-                "file" : "ui/onCreate-user-set-default-fields.js"
+                "source" : "require('ui/onCreateUser').setDefaultFields(object);require('roles/conditionalRoles').updateConditionalGrantsForUser(object, 'roles');"
+            },
+            "onUpdate" : {
+                "type" : "text/javascript",
+                "source" : "require('roles/conditionalRoles').updateConditionalGrantsForUser(object, 'roles');"
             },
             "onDelete" : {
                 "type" : "text/javascript",
@@ -36,6 +40,7 @@
                     "reports",
                     "effectiveRoles",
                     "effectiveAssignments",
+                    "lastSync",
                     "kbaInfo"
                 ],
                 "properties" : {
@@ -199,6 +204,10 @@
                                     "properties" : {
                                         "_id" : {
                                             "type" : "string"
+                                        },
+                                        "_grantType" : {
+                                            "type" : "string",
+                                            "label" : "Grant Type"
                                         }
                                     }
                                 }
@@ -206,7 +215,7 @@
                             "resourceCollection" : [
                                 {
                                     "path" : "managed/role",
-                                    "label": "Role",
+                                    "label" : "Role",
                                     "query" : {
                                         "queryFilter" : "true",
                                         "fields" : [
@@ -248,7 +257,7 @@
                             "resourceCollection" : [
                                 {
                                     "path" : "repo/internal/role",
-                                    "label": "Internal Role",
+                                    "label" : "Internal Role",
                                     "query" : {
                                         "queryFilter" : "true",
                                         "fields" : [
@@ -262,7 +271,7 @@
                                 },
                                 {
                                     "path" : "managed/role",
-                                    "label": "Role",
+                                    "label" : "Role",
                                     "query" : {
                                         "queryFilter" : "true",
                                         "fields" : [
@@ -328,8 +337,7 @@
                         "isVirtual" : true,
                         "onRetrieve" : {
                             "type" : "text/javascript",
-                            "file" : "roles/effectiveRoles.js",
-                            "rolesPropName" : "roles"
+                             "source" : "require('roles/effectiveRoles').calculateEffectiveRoles(object, 'roles');"
                         },
                         "items" : {
                             "type" : "object"
@@ -433,6 +441,21 @@
                             }
                         ],
                         "userEditable" : false
+                    },
+                    "lastSync" : {
+                        "type" : "object",
+                        "scope" : "private",
+                        "viewable" : false,
+                        "searchable" : false,
+                        "properties" : {
+                            "effectiveAssignments" : {
+                                "type" : "array",
+                                "items" : "object"
+                            },
+                            "timestamp" : {
+                                "type" : "string"
+                            }
+                        }
                     }
                 },
                 "type" : "object",
@@ -453,6 +476,26 @@
             "onSync" : {
                 "type" : "text/javascript",
                 "source" : "require('roles/onSync-roles').syncUsersOfRoles(resourceName, oldObject, newObject, ['members']);"
+            },
+            "onCreate" : {
+                "type" : "text/javascript",
+                "source" : "require('roles/conditionalRoles').roleCreate(object);"
+            },
+            "onUpdate" : {
+                "type" : "text/javascript",
+                "source" : "require('roles/conditionalRoles').roleUpdate(oldObject, object);"
+            },
+            "postCreate" : {
+                "type" : "text/javascript",
+                "file" : "roles/postOperation-roles.js"
+            },
+            "postUpdate" : {
+                "type" : "text/javascript",
+                "file" : "roles/postOperation-roles.js"
+            },
+            "postDelete" : {
+                "type" : "text/javascript",
+                "file" : "roles/postOperation-roles.js"
             },
             "schema" : {
                 "$schema" : "http://forgerock.org/json-schema#",
@@ -501,6 +544,10 @@
                                     "properties" : {
                                         "_id" : {
                                             "type" : "string"
+                                        },
+                                        "_grantType" : {
+                                            "type" : "string",
+                                            "label" : "Grant Type"
                                         }
                                     }
                                 }
@@ -607,6 +654,31 @@
                                 }
                             ]
                         }
+                    },
+                    "condition" : {
+                        "description" : "A conditional filter for this role",
+                        "title" : "Condition",
+                        "viewable" : false,
+                        "searchable" : false,
+                        "type" : "string"
+                    },
+                    "temporalConstraints" : {
+                        "description" : "An array of temporal constraints for a role",
+                        "title" : "Temporal Constraints",
+                        "viewable" : false,
+                        "returnByDefault" : true,
+                        "type" : "array",
+                        "items" : {
+                            "type" : "object",
+                            "properties" : {
+                                "duration" : {
+                                    "type" : "string"
+                                }
+                            },
+                            "required" : [
+                                "duration"
+                            ]
+                        }
                     }
                 },
                 "required" : [
@@ -618,7 +690,9 @@
                     "name",
                     "description",
                     "assignments",
-                    "members"
+                    "members",
+                    "condition",
+                    "temporalConstraints"
                 ]
             }
         },

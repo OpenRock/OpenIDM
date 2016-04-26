@@ -39,6 +39,7 @@ import org.forgerock.json.JsonException;
 import org.forgerock.json.JsonPointer;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.JsonValueException;
+import org.forgerock.json.patch.JsonPatch;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
@@ -76,6 +77,7 @@ import org.forgerock.openidm.router.RouteService;
 import org.forgerock.openidm.smartevent.EventEntry;
 import org.forgerock.openidm.smartevent.Name;
 import org.forgerock.openidm.smartevent.Publisher;
+import org.forgerock.openidm.sync.SyncContext;
 import org.forgerock.openidm.sync.impl.SynchronizationService;
 import org.forgerock.openidm.util.ContextUtil;
 import org.forgerock.openidm.util.RelationshipUtil;
@@ -99,7 +101,7 @@ import org.slf4j.LoggerFactory;
  * Provides access to a set of managed objects of a given type: managed/[type]/{id}.
  *
  */
-class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, ManagedObjectSyncService {
+class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, ManagedObjectSetService {
 
     /** Actions supported by this resource provider */
     enum Action {
@@ -297,6 +299,13 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
             measure.end();
         }
     }
+    
+    public void executePostUpdate(Context context, Request request, String resourceId, JsonValue oldValue, 
+            JsonValue newValue) throws ResourceException {
+        // Execute the postUpdate script if configured
+        execScript(context, ScriptHook.postUpdate, newValue,
+                prepareScriptBindings(context, request, resourceId, oldValue, newValue));
+    };
 
     /**
      * Prepares a map of additional bindings for the script hook invocation.
@@ -476,6 +485,9 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
         execScript(context, ScriptHook.onUpdate, decryptedNew,
                 prepareScriptBindings(context, request, resourceId, decryptedOld, decryptedNew));
 
+        // determine if any onUpdate script manipulated a relationship field, and update the relationshipFields Set accordingly
+        updateRelationshipFields(relationshipFields, decryptedOld, decryptedNew);
+
         // Validate relationships before persisting
         validateRelationshipFields(context, decryptedOld, decryptedNew);
 
@@ -498,17 +510,45 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
         responseContent.asMap().putAll(strippedRelationshipFields.asMap());
 
         // Persists all relationship fields that are present in the new value and updates their values.
-        responseContent.asMap().putAll(persistRelationships(false, context, resourceId, responseContent, relationshipFields)
+        responseContent.asMap().putAll(persistRelationships(false, context, resourceId, oldValue, responseContent, relationshipFields)
                 .asMap());
 
         // Execute the postUpdate script if configured
-        execScript(context, ScriptHook.postUpdate, responseContent,
-                prepareScriptBindings(context, request, resourceId, decryptedOld, responseContent));
+        executePostUpdate(context, request, resourceId, decryptedOld, responseContent);
 
         performSyncAction(context, request, resourceId, SynchronizationService.SyncServiceAction.notifyUpdate,
                 decryptedOld, responseContent);
 
-        return response;
+        ResourceResponse readResponse =
+                connectionFactory.getConnection().read(context, Requests.newReadRequest(repoId(resourceId)));
+        readResponse.getContent().asMap().putAll(strippedRelationshipFields.asMap());
+
+        return readResponse;
+    }
+
+    /**
+     * It is possible that a script updates a relationship field in one of the updated objects. If this is the case,
+     * the relationshipFields set must be updated with this field name, so that the corresponding relationships can
+     * be persisted. So if the relationshipFields does not contain a relationship field, and a difference between the
+     * oldObject and newObject includes this field, then this field must be added to the relationshipFields collection.
+     * @param relationshipFields the set of relationship fields that should be updated
+     * @param oldObject the managed object prior to the script onUpdate invocation
+     * @param newObject the managed object following script onUpdate invocation
+     */
+    private void updateRelationshipFields(Set<JsonPointer> relationshipFields, JsonValue oldObject, JsonValue newObject) {
+        final Set<JsonPointer> systemRelationships = relationshipProviders.keySet();
+        if (!relationshipFields.containsAll(systemRelationships)) {
+            final JsonValue diff = JsonPatch.diff(oldObject, newObject);
+            for (Map<String, Object> diffOp : diff.asList(Map.class)) {
+                //not descriminating on type of diff - replace/add/remove
+                JsonPointer pathPointer = new JsonPointer((String) diffOp.get(JsonPatch.PATH_PTR.leaf()));
+                if (systemRelationships.contains(pathPointer) && !relationshipFields.contains(pathPointer)) {
+                    relationshipFields.add(pathPointer);
+                    logger.info("In updateRelationshipFields, adding onUpdate-script-modified relationship to " +
+                            "processed relationship set: {}", pathPointer);
+                }
+            }
+        }
     }
 
     /**
@@ -518,12 +558,13 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
      * @param clearExisting If existing (those not present in the object) should be cleared
      * @param context The current context
      * @param resourceId The id of the resource these relationships are associated with
+     * @param oldValue A JsonValue map of the old value
      * @param json A JsonValue map that contains relationship fields and value(s) to be persisted
      * @param relationshipFields a set of relationship fields to persist
      * @return A {@link JsonValue} map containing each relationship field and its persisted value(s)
      */
-    private JsonValue persistRelationships(final boolean clearExisting, Context context, String resourceId, final JsonValue json,
-            Set<JsonPointer> relationshipFields) throws ResourceException {
+    private JsonValue persistRelationships(final boolean clearExisting, Context context, String resourceId,
+            final JsonValue oldValue, final JsonValue json, Set<JsonPointer> relationshipFields) throws ResourceException {
         EventEntry measurement = Publisher.start(Name.get("openidm/internal/managedobjectset/persistRelationships"), json, context);
 
         try {
@@ -531,8 +572,15 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
 
             for (final JsonPointer relationshipField : relationshipFields) {
                 // value of the relationship in the managed object
-                final JsonValue relationshipValue = json.expect(Map.class).get(relationshipField);
-
+                JsonValue relationshipValue = json.expect(Map.class).get(relationshipField);
+                if (relationshipValue == null) {
+                    // If the relationship existed in the old value it means that it has been removed
+                    // in the new object so we will remove the relationships
+                    relationshipValue =
+                            (oldValue.isNotNull() && oldValue.expect(Map.class).get(relationshipField) != null)
+                                ? json(null)
+                                : null;
+                }
                 // Relationships not present in the request will be null
                 // Relationships present in the request but set to null will be JsonValue(null)
                 if (relationshipValue != null) {
@@ -658,7 +706,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
             content.asMap().putAll(strippedRelationshipFields.asMap());
 
             // Persists all relationship fields and place their persisted values in content
-            content.asMap().putAll(persistRelationships(true, managedContext, resourceId, content,
+            content.asMap().putAll(persistRelationships(true, managedContext, resourceId, json(null), content,
                     relationshipProviders.keySet()).asMap());
 
             // Execute the postCreate script if configured
@@ -668,8 +716,11 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
             // Sync any targets after managed object is created
             performSyncAction(managedContext, request, resourceId, SynchronizationService.SyncServiceAction.notifyCreate,
                     new JsonValue(null), content);
+
+            ResourceResponse readResponse =
+                    connectionFactory.getConnection().read(managedContext, Requests.newReadRequest(repoId(resourceId)));
             
-            return prepareResponse(managedContext, createResponse, request.getFields()).asPromise();
+            return prepareResponse(managedContext, readResponse, request.getFields()).asPromise();
         } catch (ResourceException e) {
         	return e.asPromise();
         } catch (Exception e) {
@@ -780,7 +831,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
     }
 
     @Override
-    public Promise<ResourceResponse, ResourceException>  updateInstance(final Context context, final String resourceId, 
+    public Promise<ResourceResponse, ResourceException>  updateInstance(final Context context, final String resourceId,
     		final UpdateRequest request) {
         logger.debug("update {} ", "name=" + name + " id=" + resourceId + " rev=" + request.getRevision());
         Context managedContext = new ManagedObjectContext(context);
@@ -788,7 +839,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
         try {
             ReadRequest readRequest = Requests.newReadRequest(repoId(resourceId));
             for (JsonPointer pointer : request.getFields()) {
-                if (pointer.equals(new JsonPointer("*"))) {
+                if (pointer.equals(SchemaField.FIELD_ALL)) {
                     readRequest.addField("");
                 } else if (!pointer.equals(SchemaField.FIELD_ALL_RELATIONSHIPS)) {
                     readRequest.addField(pointer);
@@ -973,7 +1024,9 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
                         // Getting the first token as we currently only support top-level relationship fields
                         // This allows us to ignore trailing array index's or '-' characters.
                         String field = operation.getField().get(0);
-                        propertiesToValidate.put(field, newValue.get(field));
+                        if (newValue.keys().contains(field)) {
+                            propertiesToValidate.put(field, newValue.get(field));
+                        }
                     }
                     // The action request to validate the policy of all the patched properties
                     ActionRequest policyAction = Requests.newActionRequest(
@@ -1225,7 +1278,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
                         fields.add(key);
                     }
                     fields.remove(field);
-                } else if (!field.equals(new JsonPointer("*")) && !field.equals(new JsonPointer(""))){
+                } else if (!field.equals(SchemaField.FIELD_ALL) && !field.equals(SchemaField.FIELD_EMPTY)){
                     if (schema.hasField(field)) {
                         // Allow the field by removing it from the fieldsToRemove list.
                         logger.debug("Allowing field {} to be returned", field);
@@ -1255,9 +1308,9 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
                         }
                     }
 
-                } else if (field.equals(new JsonPointer("*"))) {
+                } else if (field.equals(SchemaField.FIELD_ALL)) {
                 	fields.remove(field);
-                	fields.add(new JsonPointer(""));
+                	fields.add(SchemaField.FIELD_EMPTY);
                 }
             }
         }
@@ -1402,6 +1455,12 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
             logger.warn("Sync service was not available.");
             return;
         }
+        if (context.containsContext(SyncContext.class)
+                && !context.asContext(SyncContext.class).isSyncEnabled()) {
+            // Do not try to sync if sync has been disabled
+            logger.debug("Sync has been disabled. {} ", context.asContext(SyncContext.class));
+            return;
+        }
 
         try {
             JsonValue content = new JsonValue(new LinkedHashMap<String, Object>(2));
@@ -1412,7 +1471,6 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
                     .setAdditionalParameter(SynchronizationService.ACTION_PARAM_RESOURCE_ID, resourceId)
                     .setContent(content);
 
-            final ResourceException[] syncScriptError = new ResourceException[] { null };
             JsonValue details;
             boolean success = false;
             try {
@@ -1429,8 +1487,12 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
             
             try {
             	// Execute the sync script
-                JsonValue scriptBindings = prepareScriptBindings(context, request, resourceId, oldValue, newValue);
-                Map<String,Object> syncResults = new HashMap<String,Object>();
+                ResourceResponse readResponse = newValue.isNotNull()
+                        ? connectionFactory.getConnection().read(context, Requests.newReadRequest(repoId(resourceId)))
+                        : newResourceResponse(null, null, json(null));
+                JsonValue scriptBindings = prepareScriptBindings(context, request, resourceId, oldValue,
+                        readResponse.getContent());
+                Map<String,Object> syncResults = new HashMap<>();
                 syncResults.put("success", success);
                 syncResults.put("action", action.name());
                 syncResults.put("syncDetails", details.getObject());
@@ -1440,9 +1502,6 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
                 logger.warn("Failed executing onSync script on {} {}:{}",
                         syncRequest.getAction(), name, syncRequest.getResourcePath(), e);
             	throw e;
-            }
-            if (syncScriptError[0] != null) {
-                throw syncScriptError[0];
             }
         } catch (NotFoundException e) {
             logger.error("Failed to sync {} {}:{}", action.name(), name, resourceId, e);

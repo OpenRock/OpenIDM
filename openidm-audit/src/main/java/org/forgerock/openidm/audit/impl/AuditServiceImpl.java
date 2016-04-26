@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -23,21 +23,10 @@
  */
 package org.forgerock.openidm.audit.impl;
 
-import static org.forgerock.json.JsonValue.field;
-import static org.forgerock.json.JsonValue.json;
-import static org.forgerock.json.JsonValue.object;
-import static org.forgerock.json.resource.Responses.newActionResponse;
-import static org.forgerock.json.resource.Responses.newResourceResponse;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.AS_SINGLE_FIELD_VALUES_FILTER;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.NEVER_FILTER;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.TYPE_ACTIVITY;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.TYPE_CONFIG;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newActionFilter;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newAndCompositeFilter;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newEventTypeFilter;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newOrCompositeFilter;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newReconActionFilter;
-import static org.forgerock.openidm.audit.impl.AuditLogFilters.newScriptedFilter;
+import static org.forgerock.http.handler.HttpClientHandler.OPTION_LOADER;
+import static org.forgerock.json.JsonValue.*;
+import static org.forgerock.json.resource.Responses.*;
+import static org.forgerock.openidm.audit.impl.AuditLogFilters.*;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -60,14 +49,20 @@ import org.forgerock.audit.AuditServiceBuilder;
 import org.forgerock.audit.AuditServiceConfiguration;
 import org.forgerock.audit.AuditServiceProxy;
 import org.forgerock.audit.AuditingContext;
-import org.forgerock.audit.DependencyProviderBase;
+import org.forgerock.audit.DependencyProvider;
 import org.forgerock.audit.events.EventTopicsMetaData;
 import org.forgerock.audit.events.EventTopicsMetaDataBuilder;
+import org.forgerock.audit.events.handlers.EventHandlerConfiguration;
 import org.forgerock.audit.json.AuditJsonConfig;
 import org.forgerock.audit.providers.DefaultKeyStoreHandlerProvider;
 import org.forgerock.audit.providers.KeyStoreHandlerProvider;
 import org.forgerock.audit.secure.JcaKeyStoreHandler;
 import org.forgerock.audit.secure.KeyStoreHandler;
+import org.forgerock.http.Client;
+import org.forgerock.http.HttpApplicationException;
+import org.forgerock.http.apache.sync.SyncHttpClientProvider;
+import org.forgerock.http.handler.HttpClientHandler;
+import org.forgerock.http.spi.Loader;
 import org.forgerock.json.JsonPointer;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.patch.JsonPatch;
@@ -88,7 +83,6 @@ import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.json.resource.ServiceUnavailableException;
 import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.audit.AuditService;
-import org.forgerock.openidm.audit.impl.AuditLogFilters.JsonValueObjectConverter;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.crypto.CryptoService;
@@ -101,6 +95,7 @@ import org.forgerock.script.ScriptEntry;
 import org.forgerock.script.ScriptRegistry;
 import org.forgerock.services.context.Context;
 import org.forgerock.services.context.RootContext;
+import org.forgerock.util.Options;
 import org.forgerock.util.annotations.VisibleForTesting;
 import org.forgerock.util.promise.Promise;
 import org.osgi.service.component.ComponentContext;
@@ -118,7 +113,7 @@ import org.slf4j.LoggerFactory;
     @Property(name = "openidm.router.prefix", value = AuditService.ROUTER_PREFIX + "/*")
 })
 public class AuditServiceImpl implements AuditService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AuditServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(AuditServiceImpl.class);
     public static final String EXCEPTION_FORMATTER = "exceptionFormatter";
     public static final String EXCEPTION = "exception";
     private static final String OPENIDM_KEYSTORE_NAME = "openidm";
@@ -170,6 +165,7 @@ public class AuditServiceImpl implements AuditService {
             EVENT_TOPICS + "/activity/watchedFields");
 
     private KeyStoreHandlerProvider keyStoreHandlerProvider;
+    private Client httpClient;
 
     private final JsonValueObjectConverter<AuditLogFilter> fieldJsonValueObjectConverter =
             new JsonValueObjectConverter<AuditLogFilter>() {
@@ -251,9 +247,15 @@ public class AuditServiceImpl implements AuditService {
         recon,
     }
 
+    /**
+     * A map of cached audit event handlers with their default configurations. These handlers should only be used to
+     * call their useForQueriesMethod.
+     */
+    private final Map<String, EventHandlerConfiguration> dummyAuditEventHandlers = new LinkedHashMap<>();
+
     @Activate
     void activate(ComponentContext compContext) throws Exception {
-        LOGGER.debug("Activating Service with configuration {}", compContext.getProperties());
+        logger.debug("Activating Service with configuration {}", compContext.getProperties());
         try {
             // Upon activation the ScriptRegistry is present so we can add script-based audit log filters for event
             // types
@@ -268,7 +270,7 @@ public class AuditServiceImpl implements AuditService {
                                 try {
                                     filters.add(newScriptedFilter(eventType, scriptRegistry.takeScript(filterConfig)));
                                 } catch (Exception e) {
-                                    LOGGER.error(
+                                    logger.error(
                                             "Audit Log Filter builder threw exception {} while processing {} for {}",
                                             e.getClass().getName(), filterConfig.toString(), eventType, e);
                                 }
@@ -280,7 +282,23 @@ public class AuditServiceImpl implements AuditService {
             config = enhancedConfig.getConfigurationAsJson(compContext);
             auditFilter = auditLogFilterBuilder.build(config);
             keyStoreHandlerProvider = createKeyStoreHandlerProvider();
+            httpClient = createHttpClient();
 
+            final DependencyProvider dependencyProvider = new DependencyProvider() {
+                    @SuppressWarnings("unchecked")
+                    @Override
+                    public <T> T getDependency(Class<T> clazz) throws ClassNotFoundException {
+                        if (ConnectionFactory.class.isAssignableFrom(clazz)) {
+                            return (T) connectionFactory;
+                        } else if (KeyStoreHandlerProvider.class.isAssignableFrom(clazz)) {
+                            return (T) keyStoreHandlerProvider;
+                        } else if (Client.class.isAssignableFrom(clazz)) {
+                            return (T) httpClient;
+                        } else {
+                            throw new ClassNotFoundException("No instance registered for class: " + clazz.getName());
+                        }
+                    }
+            };
             final JsonValue topics = AuditJsonConfig.getJson(getClass().getResourceAsStream("/auditTopics.json"));
             final AuditServiceConfiguration serviceConfig =
                     AuditJsonConfig.parseAuditServiceConfiguration(config.get(AUDIT_SERVICE_CONFIG));
@@ -292,19 +310,7 @@ public class AuditServiceImpl implements AuditService {
             final AuditServiceBuilder auditServiceBuilder = AuditServiceBuilder.newAuditService()
                     .withConfiguration(serviceConfig)
                     .withEventTopicsMetaData(eventTopicsMetaData)
-                    .withDependencyProvider(new DependencyProviderBase() {
-                        @SuppressWarnings("unchecked")
-                        @Override
-                        public <T> T getDependency(Class<T> clazz) throws ClassNotFoundException {
-                            if (ConnectionFactory.class.isAssignableFrom(clazz)) {
-                                return (T) connectionFactory;
-                            } else if (KeyStoreHandlerProvider.class.isAssignableFrom(clazz)) {
-                                return (T) keyStoreHandlerProvider;
-                            } else {
-                                return super.getDependency(clazz);
-                            }
-                        }
-                    });
+                    .withDependencyProvider(dependencyProvider);
 
             //register Event Handlers
             final JsonValue eventHandlers = config.get(EVENT_HANDLERS);
@@ -337,11 +343,13 @@ public class AuditServiceImpl implements AuditService {
                 auditService.setDelegate(auditServiceBuilder.build());
             }
 
+            createDummyAuditEventHandlers(dummyAuditEventHandlers);
+
         } catch (Exception ex) {
-            LOGGER.warn("Configuration invalid, can not start Audit service.", ex);
+            logger.warn("Configuration invalid, can not start Audit service.", ex);
             throw ex;
         }
-        LOGGER.info("Audit service started.");
+        logger.info("Audit service started.");
     }
 
     /**
@@ -364,7 +372,7 @@ public class AuditServiceImpl implements AuditService {
      */
     @Modified
     void modified(ComponentContext compContext) throws Exception {
-        LOGGER.debug("Reconfiguring audit service with configuration {}", compContext.getProperties());
+        logger.debug("Reconfiguring audit service with configuration {}", compContext.getProperties());
         try {
             JsonValue newConfig = enhancedConfig.getConfigurationAsJson(compContext);
             if (hasConfigChanged(config, newConfig)) {
@@ -372,10 +380,10 @@ public class AuditServiceImpl implements AuditService {
                 // service
                 cleanup();
                 activate(compContext);
-                LOGGER.info("Reconfigured audit service {}", compContext.getProperties());
+                logger.info("Reconfigured audit service {}", compContext.getProperties());
             }
         } catch (Exception ex) {
-            LOGGER.warn("Configuration invalid, can not reconfigure Audit service.", ex);
+            logger.warn("Configuration invalid, can not reconfigure Audit service.", ex);
             throw ex;
         }
     }
@@ -386,10 +394,10 @@ public class AuditServiceImpl implements AuditService {
 
     @Deactivate
     void deactivate(ComponentContext compContext) {
-        LOGGER.debug("Deactivating Service {}", compContext.getProperties());
+        logger.debug("Deactivating Service {}", compContext.getProperties());
         cleanup();
         auditService.shutdown();
-        LOGGER.info("Audit service stopped.");
+        logger.info("Audit service stopped.");
     }
 
     private void cleanup() {
@@ -410,7 +418,7 @@ public class AuditServiceImpl implements AuditService {
      */
     @Override
     public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
-        LOGGER.debug("Audit read called for {}", request.getResourcePath());
+        logger.debug("Audit read called for {}", request.getResourcePath());
         return auditService.handleRead(context, request);
     }
 
@@ -433,7 +441,7 @@ public class AuditServiceImpl implements AuditService {
         try {
             formatException(request.getContent());
         } catch (Exception e) {
-            LOGGER.error("Failed to format audit entry exception", e);
+            logger.error("Failed to format audit entry exception", e);
             return new InternalServerErrorException("Failed to format audit entry exception", e)
                 .asPromise();
         }
@@ -443,10 +451,10 @@ public class AuditServiceImpl implements AuditService {
             return newResourceResponse(null, null, request.getContent()).asPromise();
         }
 
-        LOGGER.debug("Audit create called for {} with {}", request.getResourcePath(), request.getContent().asMap());
+        logger.debug("Audit create called for {} with {}", request.getResourcePath(), request.getContent().asMap());
 
         if (auditFilter.isFiltered(context, request)) {
-            LOGGER.debug("Request filtered by filter for {}/{} using method {}",
+            logger.debug("Request filtered by filter for {}/{} using method {}",
                     request.getResourcePath(),
                     request.getNewResourceId(),
                     request.getContent().get(new JsonPointer("resourceOperation/operation/method")));
@@ -505,7 +513,7 @@ public class AuditServiceImpl implements AuditService {
     public Promise<QueryResponse, ResourceException> handleQuery(final Context context, final QueryRequest request,
             final QueryResourceHandler handler) {
 
-        LOGGER.debug("Audit query called for {} with {}", request.getResourcePath(), request.getAdditionalParameters());
+        logger.debug("Audit query called for {} with {}", request.getResourcePath(), request.getAdditionalParameters());
 
         return auditService.handleQuery(context, request, handler);
     }
@@ -518,14 +526,14 @@ public class AuditServiceImpl implements AuditService {
     @Override
     public Promise<ActionResponse, ResourceException> handleAction(Context context, ActionRequest request) {
 
-        LOGGER.debug("Audit handleAction called with action={}", request.getAction());
+        logger.debug("Audit handleAction called with action={}", request.getAction());
 
         AuditAction requestAction = null;
         try {
             requestAction = request.getActionAsEnum(AuditAction.class);
         } catch (Exception e) {
             // this will leave requestAction as null.
-            LOGGER.debug("Action is not a OpenIDM action delegating to CAUD", e);
+            logger.debug("Action is not a OpenIDM action delegating to CAUD", e);
         }
 
         JsonValue content = request.getContent();
@@ -650,7 +658,8 @@ public class AuditServiceImpl implements AuditService {
                         field("class", auditEventHandler),
                         field("config",
                                 AuditJsonConfig.getAuditEventHandlerConfigurationSchema(
-                                        auditEventHandler, getClass().getClassLoader()).getObject())
+                                        auditEventHandler, getClass().getClassLoader()).getObject()),
+                        field("isUsableForQueries", canUseForQueries(auditEventHandler))
                 ));
                 result.add(entry.getObject());
             }
@@ -660,6 +669,11 @@ public class AuditServiceImpl implements AuditService {
                     "Unable to get available audit event handlers and their config schema", e)
                     .asPromise();
         }
+    }
+
+    private boolean canUseForQueries(final String auditEventHandler) {
+        final EventHandlerConfiguration eventHandlerConfiguration = dummyAuditEventHandlers.get(auditEventHandler);
+        return eventHandlerConfiguration != null && eventHandlerConfiguration.isUsableForQueries();
     }
 
     private JsonValue getCustomTopics(JsonValue defaultTopics, JsonValue configuredTopics) {
@@ -679,5 +693,39 @@ public class AuditServiceImpl implements AuditService {
                 JettyPropertyUtil.getProperty(OPENIDM_KEYSTORE_LOCATION, false),
                 JettyPropertyUtil.getProperty(OPENIDM_KEYSTORE_PASSWORD, false)));
         return new DefaultKeyStoreHandlerProvider(keystoreHandlers);
+    }
+
+    /**
+     * Creates a new HTTP client.
+     *
+     * @return HTTP client instance
+     * @throws HttpApplicationException failure to create HTTP client
+     */
+    @VisibleForTesting
+    protected Client createHttpClient() throws HttpApplicationException {
+        return new Client(
+                new HttpClientHandler(
+                        Options.defaultOptions()
+                                .set(OPTION_LOADER, new Loader() {
+                                    @Override
+                                    public <S> S load(Class<S> service, Options options) {
+                                        return service.cast(new SyncHttpClientProvider());
+                                    }
+                                })));
+    }
+
+    private void createDummyAuditEventHandlers(final Map<String, EventHandlerConfiguration> handlers)
+            throws ServiceUnavailableException {
+
+        final List<String> availableAuditEventHandlers = auditService.getConfig().getAvailableAuditEventHandlers();
+        for (final String auditEventHandler : availableAuditEventHandlers) {
+            try {
+                handlers.put(
+                        auditEventHandler,
+                        (EventHandlerConfiguration) Class.forName(auditEventHandler + "Configuration").newInstance());
+            } catch (ClassNotFoundException|InstantiationException|IllegalAccessException e) {
+                logger.warn("Unable to create dummy audit event handler for: {}", auditEventHandler);
+            }
+        }
     }
 }

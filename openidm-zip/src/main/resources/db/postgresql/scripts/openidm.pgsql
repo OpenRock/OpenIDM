@@ -62,6 +62,9 @@ CREATE TABLE openidm.managedobjects (
 
 CREATE UNIQUE INDEX idx_managedobjects_object ON openidm.managedobjects (objecttypes_id,objectid);
 CREATE INDEX fk_managedobjects_objectypes ON openidm.managedobjects (objecttypes_id);
+-- Note that this index only applies to role objects, as only role objects have a condition
+CREATE INDEX idx_json_managedobjects_roleCondition ON openidm.managedobjects
+    ( json_extract_path_text(fullobject, 'condition') );
 
 
 -- -----------------------------------------------------
@@ -161,8 +164,8 @@ CREATE INDEX idx_relationshipproperties_prop ON openidm.relationshipproperties (
 CREATE TABLE openidm.links (
   objectid VARCHAR(38) NOT NULL,
   rev VARCHAR(38) NOT NULL,
-  linktype VARCHAR(510) NOT NULL,
-  linkqualifier VARCHAR(255) NOT NULL,
+  linktype VARCHAR(50) NOT NULL,
+  linkqualifier VARCHAR(50) NOT NULL,
   firstid VARCHAR(255) NOT NULL,
   secondid VARCHAR(255) NOT NULL,
   PRIMARY KEY (objectid)
@@ -261,7 +264,7 @@ CREATE TABLE openidm.auditconfig (
   operation VARCHAR(255) NULL ,
   beforeObject TEXT,
   afterObject TEXT,
-  changedfields VARCHAR(255) DEFAULT NULL,
+  changedfields TEXT DEFAULT NULL,
   rev VARCHAR(255) DEFAULT NULL,
   PRIMARY KEY (objectid)
 );
@@ -284,7 +287,7 @@ CREATE TABLE openidm.auditactivity (
   operation VARCHAR(255) NULL ,
   subjectbefore TEXT,
   subjectafter TEXT,
-  changedfields VARCHAR(255) DEFAULT NULL,
+  changedfields TEXT DEFAULT NULL,
   subjectrev VARCHAR(255) DEFAULT NULL,
   passwordchanged VARCHAR(5) DEFAULT NULL,
   message TEXT,

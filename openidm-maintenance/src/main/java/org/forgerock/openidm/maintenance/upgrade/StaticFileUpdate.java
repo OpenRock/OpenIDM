@@ -72,13 +72,14 @@ class StaticFileUpdate {
      * <em>&lt;filepath&gt;-.old-version</em>.  Supports copying fresh file for one that is missing.
      *
      * @param path the path to replace/copy
-     * @throws IOException
+     * @return the altered path of the original file, null if the original was not moved
+     * @throws IOException if the new or old file cannot be accessed
      */
     Path replace(final Path path) throws IOException {
         Path destination = null;
-        Set<PosixFilePermission> permissions = null;
+        final Set<PosixFilePermission> perms = getPosixPermissions(path);
+
         try {
-            permissions = Files.getPosixFilePermissions(path);
             if (CHANGED_STATES.contains(fileStateChecker.getCurrentFileState(path))) {
                 destination = root.resolve(path.toString() + OLD_SUFFIX + timestamp);
                 Files.move(root.resolve(path),
@@ -88,8 +89,6 @@ class StaticFileUpdate {
         } catch (NoSuchFileException e) {
             // this is ok, just install the new file
         }
-
-        final Set<PosixFilePermission> perms = permissions;
         archive.withInputStreamForPath(path, new Function<InputStream, Void, IOException>() {
             @Override
             public Void apply(InputStream inputStream) throws IOException {
@@ -110,25 +109,51 @@ class StaticFileUpdate {
      * Keep the static file that already exists.  Install the new file as <em>&lt;filepath&gt;-.new-version</em>.
      *
      * @param path the path to keep/copy
-     * @throws IOException
+     * @return the altered path of the original file, null if the original was not moved
+     * @throws IOException if the new or old file cannot be accessed
      */
     Path keep(final Path path) throws IOException {
-        if (CHANGED_STATES.contains(fileStateChecker.getCurrentFileState(path))) {
-            final Path destination = root.resolve(path.toString() + NEW_SUFFIX + timestamp);
-            archive.withInputStreamForPath(path, new Function<InputStream, Void, IOException>() {
-                @Override
-                public Void apply(InputStream inputStream) throws IOException {
-                    Files.copy(inputStream,
-                            destination,
-                            StandardCopyOption.REPLACE_EXISTING);
-                    return null;
+        boolean changed = CHANGED_STATES.contains(fileStateChecker.getCurrentFileState(path));
+        final Set<PosixFilePermission> permissions = getPosixPermissions(path);
+
+        final Path destination = root.resolve(changed
+                ? path.toString() + NEW_SUFFIX + timestamp
+                : path.toString());
+
+        archive.withInputStreamForPath(path, new Function<InputStream, Void, IOException>() {
+            @Override
+            public Void apply(InputStream inputStream) throws IOException {
+                Files.copy(inputStream,
+                        destination,
+                        StandardCopyOption.REPLACE_EXISTING);
+
+                if (permissions != null) {
+                    Files.setPosixFilePermissions(destination, permissions);
                 }
-            });
 
-            fileStateChecker.updateState(path);
+                return null;
+            }
+        });
 
-            return destination;
+        fileStateChecker.updateState(path);
+
+        return changed ? destination : null;
+    }
+
+    /**
+     * Get permissions for the file at the given path
+     *
+     * @param path Path of file to get permissions of
+     * @return The permission set or null if the file does not exist or doesn't support POSIX
+     */
+    private Set<PosixFilePermission> getPosixPermissions(final Path path) throws IOException {
+        Set<PosixFilePermission> permissions = null;
+        if (Files.exists(path)) {
+            try {
+                permissions = Files.getPosixFilePermissions(path);
+            } catch (UnsupportedOperationException e) {} // thrown if filesystem doesn't support POSIX
         }
-        return null;
+
+        return permissions;
     }
 }

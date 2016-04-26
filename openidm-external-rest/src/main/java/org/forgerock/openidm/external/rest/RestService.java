@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright 2011-2015 ForgeRock AS. All rights reserved.
+ * Copyright 2011-2016 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -26,13 +26,15 @@ package org.forgerock.openidm.external.rest;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 
+import org.apache.commons.lang3.time.FastDateFormat;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -84,8 +86,8 @@ import org.restlet.data.Reference;
 import org.restlet.data.Status;
 import org.restlet.data.Tag;
 import org.restlet.data.Warning;
+import org.restlet.data.Header;
 import org.restlet.engine.header.CookieReader;
-import org.restlet.engine.header.Header;
 import org.restlet.engine.header.HeaderConstants;
 import org.restlet.engine.util.Base64;
 import org.restlet.representation.EmptyRepresentation;
@@ -287,11 +289,8 @@ public class RestService implements SingletonResourceProvider {
                                 (Series<Header>) cr.getResponseAttributes().get(
                                         HeaderConstants.ATTRIBUTE_HEADERS);
                         if (respHeaders != null) {
-                            for (Header param : respHeaders) {
-                                String name = param.getName();
-                                String value = param.getValue();
-                                resultHeaders.put(name, value);
-                                logger.debug("Adding Response Attribute: {} : {}", name, value);
+                            for (String key : respHeaders.getNames()) {
+                                resultHeaders.put(key, respHeaders.getValuesArray(key));
                             }
                         }
                         JsonValue result = new JsonValue(new HashMap<String, Object>());
@@ -320,7 +319,12 @@ public class RestService implements SingletonResourceProvider {
         }
     }
 
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
+    /**
+     * RFC 1123 {@code HTTP-date} format from <a href="https://tools.ietf.org/html/rfc2616#page-20">RFC 2616</a>
+     * section 3.3, which is the preferred standard format.
+     */
+    private static final FastDateFormat DATE_FORMAT = FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz",
+            TimeZone.getTimeZone("GMT"), Locale.ROOT);
 
     private void setAttributes(Request request, Map<String, Object> attributes, Map<String, Object> headers) {
 

@@ -11,7 +11,7 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2016 ForgeRock AS.
  */
 
 /*global define, $, _, Handlebars, form2js, window */
@@ -25,7 +25,6 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
     "org/forgerock/commons/ui/common/main/EventManager",
     "org/forgerock/commons/ui/common/main/Configuration",
     "org/forgerock/commons/ui/common/util/Constants",
-    "org/forgerock/openidm/ui/common/delegates/SearchDelegate",
     "org/forgerock/openidm/ui/admin/delegates/ConnectorDelegate",
     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate",
     "org/forgerock/openidm/ui/admin/mapping/util/MappingUtils",
@@ -38,14 +37,12 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
     "backgrid",
     "org/forgerock/openidm/ui/admin/util/BackgridUtils",
     "org/forgerock/commons/ui/common/util/UIUtils",
-    "org/forgerock/openidm/ui/admin/util/AdminUtils",
-    "jquerySortable"
+    "org/forgerock/openidm/ui/admin/util/AdminUtils"
 ], function($, _, Handlebars, Backbone,
             MappingAdminAbstractView,
             eventManager,
             conf,
             constants,
-            searchDelegate,
             connectorDelegate,
             configDelegate,
             mappingUtils,
@@ -70,6 +67,10 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             "click #clearChanges": "clearChanges",
             "click #missingRequiredPropertiesButton": "addRequiredProperties"
         },
+        partials: [
+          "partials/mapping/properties/_IconContainerPartial.html",
+          "partials/mapping/properties/_PropertyContainerPartial.html"
+        ],
         model: {
             availableObjects: {},
             mappingProperties: null
@@ -115,6 +116,10 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                     this.data.mapProps = mapProps;
                     this.gridFromMapProps(mapProps);
 
+                    autocompleteProps = _.filter(autocompleteProps, function(prop) {
+                        return !_.isUndefined(prop);
+                    });
+
                     mappingUtils.setupSampleSearch($("#findSampleSource",this.$el), this.mapping, autocompleteProps, _.bind(function(item) {
                         item.IDMSampleMappingName = this.mapping.name;
                         conf.globalData.sampleSource = item;
@@ -135,7 +140,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
 
         initSort: function() {
             BackgridUtils.sortable({
-                "grid": this.$el.find("#attributesGridHolder table"),
+                "containers": [this.$el.find("#attributesGridHolder tbody")[0]],
                 "rows": _.clone(this.model.mappingProperties, true)
             }, _.bind(this.setMappingProperties, this));
         },
@@ -269,19 +274,20 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         editable: false,
                         cell: Backgrid.Cell.extend({
                             render: function () {
-                                var previewElement = $('<i class="dragToSort fa fa-arrows pull-left"></i> <div class="property-container-parent"><div class="property-container"></div></div>');
+                                var attributes = this.model.attributes,
+                                    locals = {
+                                        title: attributes.attribute.source,
+                                        isSource: true
+                                    };
 
-                                if(this.model.attributes.attribute.source) {
-                                    previewElement.find(".property-container").append('<div class="title">' + this.model.attributes.attribute.source + '</div>');
-                                } else {
-                                    previewElement.find(".property-container").append('<div class="title"></div>');
+                                if (attributes.sample) {
+                                    locals.textMuted = "(" + attributes.sample + ")";
                                 }
 
-                                if (this.model.attributes.sample !== null) {
-                                    previewElement.find(".property-container").append('<div class="text-muted">(' + this.model.attributes.sample + ')</div>');
-                                }
+                                this.$el.html(
+                                    Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals})
+                                );
 
-                                this.$el.html(previewElement.text());
                                 this.delegateEvents();
 
                                 return this;
@@ -295,41 +301,37 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         cell: Backgrid.Cell.extend({
                             className: "properties-icon-container-parent",
                             render: function () {
-                                var iconElement = $('<div class="properties-icon-container"></div>'),
-                                    conditionIcon = "",
-                                    transformIcon = "";
+                                var locals = {},
+                                    attribute = this.model.attributes.attribute;
 
-                                if(this.model.attributes.attribute.condition) {
-                                    if(_.isObject(this.model.attributes.attribute.condition)) {
-                                        if(this.model.attributes.attribute.condition.source) {
-                                            conditionIcon = this.model.attributes.attribute.condition.source;
+                                if(attribute.condition) {
+                                    if(_.isObject(attribute.condition)) {
+                                        if (attribute.condition.source){
+                                            locals.conditionIcon = attribute.condition.source;
                                         } else {
-                                            conditionIcon = "File: " + this.model.attributes.attribute.condition.file;
+                                            locals.conditionIcon = "File: " + attribute.condition.file;
                                         }
                                     } else {
-                                        conditionIcon = this.model.attributes.attribute.condition;
+                                        locals.conditionIcon = attribute.condition;
                                     }
-
-                                    iconElement.append('<span class="badge properties-badge" rel="tooltip" data-toggle="popover" data-placement="top" title=""><i class="fa fa-filter"></i>'
-                                        +'<div style="display:none;" class="tooltip-details">' + $.t("templates.mapping.conditionalUpon") +'<pre class="text-muted code-tooltip">' +conditionIcon +'</pre></div></span>');
                                 }
 
-                                if(this.model.attributes.attribute.transform) {
-                                    if(_.isObject(this.model.attributes.attribute.transform)) {
-                                        if(this.model.attributes.attribute.transform.source) {
-                                            transformIcon = this.model.attributes.attribute.transform.source;
+                                if(attribute.transform) {
+                                    if(_.isObject(attribute.transform)) {
+                                        if (attribute.transform.source) {
+                                            locals.transformIcon = attribute.transform.source;
                                         } else {
-                                            transformIcon = "File: " + this.model.attributes.attribute.transform.file;
+                                            locals.transformIcon = "File: " + attribute.transform.file;
                                         }
                                     } else {
-                                        transformIcon = this.model.attributes.attribute.transform;
+                                        locals.transformIcon = attribute.transform;
                                     }
-
-                                    iconElement.append('<span class="badge properties-badge" rel="tooltip" data-toggle="popover" data-placement="top" title=""><i class="fa fa-wrench"></i>'
-                                        +'<div style="display:none;" class="tooltip-details">' +$.t("templates.mapping.transformationScriptApplied") +'<pre class="text-muted code-tooltip">' +transformIcon +'</pre></div></span>');
                                 }
 
-                                this.$el.html(iconElement);
+                                this.$el.html(
+                                    Handlebars.compile("{{> mapping/properties/_IconContainerPartial}}")({"locals": locals})
+                                );
+
                                 this.delegateEvents();
 
                                 return this;
@@ -342,30 +344,33 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         editable: false,
                         cell: Backgrid.Cell.extend({
                             render: function () {
-                                var previewElement = $('<div class="property-container-parent"><div class="property-container"></div></div>');
+                                var locals = {},
+                                    attributes = this.model.attributes;
 
-                                if(this.model.attributes.attribute.target) {
-                                    previewElement.find(".property-container").append('<div class="title">' + this.model.attributes.attribute.target + '</div>');
-                                } else {
-                                    previewElement.find(".property-container").append('<div class="title"></div>');
+                                if(attributes.attribute.target) {
+                                    locals.title = attributes.attribute.target;
                                 }
 
-
-                                if(this.model.attributes.evalResult && this.model.attributes.evalResult.conditionResults && !this.model.attributes.evalResult.conditionResults.result) {
-                                    previewElement.find(".property-container").append('<div class="text-muted"></div>');
-                                } else {
-                                    if (this.model.attributes.sample !== null) {
-                                        if(this.model.attributes.evalResult && this.model.attributes.evalResult.transformResults) {
-                                            previewElement.find(".property-container").append('<div class="text-muted">(' + this.model.attributes.evalResult.transformResults + ')</div>');
+                                if(!attributes.evalResult || !attributes.evalResult.conditionResults || attributes.evalResult.conditionResults.result) {
+                                    if (attributes.sample !== null) {
+                                        if (attributes.evalResult && attributes.evalResult.transformResults) {
+                                            locals.textMuted = attributes.evalResult.transformResults;
                                         } else {
-                                            previewElement.find(".property-container").append('<div class="text-muted">(' + this.model.attributes.sample + ')</div>');
+                                            locals.textMuted = attributes.sample;
                                         }
-                                    } else if (this.model.attributes.attribute["default"]) {
-                                        previewElement.find(".property-container").append('<div class="text-muted">(' + this.model.attributes.attribute["default"] + ')</div>');
+                                    } else if (attributes.attribute["default"]) {
+                                        locals.textMuted = attributes.attribute["default"];
                                     }
                                 }
 
-                                this.$el.html(previewElement.text());
+                                if (locals.textMuted) {
+                                    locals.textMuted = "(" + locals.textMuted + ")";
+                                }
+
+                                this.$el.html(
+                                    Handlebars.compile("{{> mapping/properties/_PropertyContainerPartial}}")({"locals": locals})
+                                );
+
                                 this.delegateEvents();
 
                                 return this;
@@ -376,7 +381,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         name: "",
                         cell: BackgridUtils.ButtonCell([
                             {
-                                className: "fa fa-times grid-icon",
+                                className: "fa fa-times grid-icon removeProperty",
                                 callback: function(event){
                                     event.preventDefault();
 
@@ -401,7 +406,6 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
 
             this.$el.find(".properties-badge").popover({
                 content: function () { return $(this).find(".tooltip-details").clone().show();},
-                trigger:'hover',
                 placement:'top',
                 container: 'body',
                 html: 'true',
@@ -656,6 +660,10 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             e.preventDefault();
 
             var mapping = this.getCurrentMapping();
+
+            if(mapping.recon) {
+                delete mapping.recon;
+            }
 
             if (this.model.mappingProperties) {
                 mapping.properties = this.model.mappingProperties;

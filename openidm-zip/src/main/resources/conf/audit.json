@@ -3,6 +3,8 @@
         "handlerForQueries" : "repo",
         "availableAuditEventHandlers" : [
             "org.forgerock.audit.handlers.csv.CsvAuditEventHandler",
+            "org.forgerock.audit.handlers.elasticsearch.ElasticsearchAuditEventHandler",
+            "org.forgerock.audit.handlers.jms.JmsAuditEventHandler",
             "org.forgerock.openidm.audit.impl.RepositoryAuditEventHandler",
             "org.forgerock.openidm.audit.impl.RouterAuditEventHandler"
         ],
@@ -15,9 +17,7 @@
                     "/access/http/response/headers/Authorization",
                     "/access/http/response/headers/X-OpenIDM-Password"
                 ],
-                "includeIf" : [
-
-                ]
+                "includeIf" : [ ]
             }
         }
     },
@@ -27,19 +27,33 @@
             "config" : {
                 "name" : "csv",
                 "logDirectory" : "&{launcher.working.location}/audit",
-                "topics" : [ "access", "activity", "recon", "sync", "authentication", "config" ]
+                "topics" : [
+                    "access",
+                    "activity",
+                    "recon",
+                    "sync",
+                    "authentication",
+                    "config"
+                ]
             }
         },
         {
-            "class": "org.forgerock.openidm.audit.impl.RepositoryAuditEventHandler",
-            "config": {
-                "name": "repo",
-                "topics" : [ "access", "activity", "recon", "sync", "authentication", "config" ]
+            "class" : "org.forgerock.openidm.audit.impl.RepositoryAuditEventHandler",
+            "config" : {
+                "name" : "repo",
+                "topics" : [
+                    "access",
+                    "activity",
+                    "recon",
+                    "sync",
+                    "authentication",
+                    "config"
+                ]
             }
         }
     ],
     "eventTopics" : {
-        "config": {
+        "config" : {
             "filter" : {
                 "actions" : [
                     "create",
@@ -50,7 +64,7 @@
                 ]
             }
         },
-        "activity": {
+        "activity" : {
             "filter" : {
                 "actions" : [
                     "create",
@@ -61,7 +75,9 @@
                 ]
             },
             "watchedFields" : [ ],
-            "passwordFields" : [ "password" ]
+            "passwordFields" : [
+                "password"
+            ]
         }
     },
     "exceptionFormatter" : {

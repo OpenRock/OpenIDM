@@ -11,7 +11,7 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Portions copyright 2011-2015 ForgeRock AS.
+ * Portions copyright 2011-2016 ForgeRock AS.
  */
 package org.forgerock.openidm.sync.impl;
 
@@ -19,6 +19,7 @@ import static org.forgerock.json.JsonValue.array;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.json.resource.Requests.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,6 +33,9 @@ import java.util.concurrent.Callable;
 
 import javax.script.ScriptException;
 
+import org.forgerock.json.resource.ConnectionFactory;
+import org.forgerock.openidm.sync.SyncContext;
+import org.forgerock.openidm.condition.Conditions;
 import org.forgerock.services.context.Context;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.JsonValueException;
@@ -42,7 +46,6 @@ import org.forgerock.json.resource.NotFoundException;
 import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResourceHandler;
 import org.forgerock.json.resource.QueryResponse;
-import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.ResourceResponse;
 import org.forgerock.services.context.SecurityContext;
@@ -54,8 +57,10 @@ import org.forgerock.openidm.smartevent.Name;
 import org.forgerock.openidm.smartevent.Publisher;
 import org.forgerock.openidm.sync.ReconAction;
 import org.forgerock.openidm.sync.TriggerContext;
-import org.forgerock.openidm.sync.impl.Scripts.Script;
+import org.forgerock.openidm.condition.Condition;
 import org.forgerock.openidm.util.RequestUtil;
+import org.forgerock.openidm.util.Script;
+import org.forgerock.openidm.util.Scripts;
 import org.forgerock.script.exception.ScriptThrownException;
 import org.forgerock.script.source.SourceUnit;
 import org.slf4j.Logger;
@@ -195,6 +200,9 @@ class ObjectMapping {
     /** a script to execute on each mapping event regardless of the operation */
     private Script resultScript;
 
+    /** a script to execute when sync has been performed on managed/user object */
+    private Script postMapping;
+
     /** an additional set of key-value conditions to be met for a source object to be valid to be mapped */
     private Condition sourceCondition;
 
@@ -223,8 +231,8 @@ class ObjectMapping {
     /** The number of initial tasks the ReconFeeder should submit to executors */
     private int feedSize;
 
-    /** a reference to the {@link SynchronizationService} */
-    private final SynchronizationService service;
+    /** a reference to the {@link ConnectionFactory} */
+    private final ConnectionFactory connectionFactory;
 
     /** Whether synchronization (automatic propagation of changes as they are detected) is enabled on that mapping */
     private final Boolean syncEnabled;
@@ -232,12 +240,12 @@ class ObjectMapping {
     /**
      * Create an instance of a mapping between source and target
      *
-     * @param service The associated synchronization service
+     * @param connectionFactory The ConnectionFactory
      * @param config The configuration for this mapping
      * @throws JsonValueException if there is an issue initializing based on the configuration.
      */
-    public ObjectMapping(SynchronizationService service, JsonValue config) throws JsonValueException {
-        this.service = service;
+    public ObjectMapping(ConnectionFactory connectionFactory, JsonValue config) throws JsonValueException {
+        this.connectionFactory = connectionFactory;
         this.config = config;
         name = config.get("name").required().asString();
         linkTypeName = config.get("links").defaultTo(name).asString();
@@ -245,9 +253,9 @@ class ObjectMapping {
         targetObjectSet = config.get("target").required().asString();
         sourceIdsCaseSensitive = config.get("sourceIdsCaseSensitive").defaultTo(Boolean.TRUE).asBoolean();
         targetIdsCaseSensitive = config.get("targetIdsCaseSensitive").defaultTo(Boolean.TRUE).asBoolean();
-        validSource = Scripts.newInstance(config.get("validSource"));
-        validTarget = Scripts.newInstance(config.get("validTarget"));
-        sourceCondition = new Condition(config.get("sourceCondition"));
+        validSource = Scripts.newScript(config.get("validSource"));
+        validTarget = Scripts.newScript(config.get("validTarget"));
+        sourceCondition = Conditions.newCondition(config.get("sourceCondition"));
         correlation = new Correlation(config);
         JsonValue linkQualifiersValue = config.get("linkQualifiers");
         if (linkQualifiersValue.isNull()) {
@@ -256,7 +264,7 @@ class ObjectMapping {
         } else if (linkQualifiersValue.isList() || linkQualifiersValue.isSet()) {
             linkQualifiersList.addAll(config.get("linkQualifiers").asSet(String.class));
         } else if (linkQualifiersValue.isMap()) {
-            linkQualifiersScript = Scripts.newInstance(linkQualifiersValue);
+            linkQualifiersScript = Scripts.newScript(linkQualifiersValue);
         } else {
             linkQualifiersValue.expect(List.class);
         }
@@ -274,18 +282,21 @@ class ObjectMapping {
             policies.put(situation, policyArrayList);
             policyArrayList.add(new Policy(jv));
         }
-        defaultMapping = Scripts.newInstance(config.get("defaultMapping").defaultTo(
+        defaultMapping = Scripts.newScript(config.get("defaultMapping").defaultTo(
                 json(object(field(SourceUnit.ATTR_TYPE, "text/javascript"),
                     field(SourceUnit.ATTR_NAME, "roles/defaultMapping.js")))));
-        onReconScript = Scripts.newInstance(config.get("onRecon").defaultTo(
+        onReconScript = Scripts.newScript(config.get("onRecon").defaultTo(
                 json(object(field(SourceUnit.ATTR_TYPE, "groovy"),
                     field(SourceUnit.ATTR_NAME, "roles/onRecon.groovy")))));
-        onCreateScript = Scripts.newInstance(config.get("onCreate"));
-        onUpdateScript = Scripts.newInstance(config.get("onUpdate"));
-        onDeleteScript = Scripts.newInstance(config.get("onDelete"));
-        onLinkScript = Scripts.newInstance(config.get("onLink"));
-        onUnlinkScript = Scripts.newInstance(config.get("onUnlink"));
-        resultScript = Scripts.newInstance(config.get("result"));
+        onCreateScript = Scripts.newScript(config.get("onCreate"));
+        onUpdateScript = Scripts.newScript(config.get("onUpdate"));
+        onDeleteScript = Scripts.newScript(config.get("onDelete"));
+        onLinkScript = Scripts.newScript(config.get("onLink"));
+        onUnlinkScript = Scripts.newScript(config.get("onUnlink"));
+        resultScript = Scripts.newScript(config.get("result"));
+        postMapping = Scripts.newScript(config.get("postMapping").defaultTo(
+                json(object(field(SourceUnit.ATTR_TYPE, "groovy"),
+                        field(SourceUnit.ATTR_NAME, "roles/defaultPostMapping.groovy")))));
         prefetchLinks = config.get("prefetchLinks").defaultTo(Boolean.TRUE).asBoolean();
         taskThreads = config.get("taskThreads").defaultTo(DEFAULT_TASK_THREADS).asInteger();
         feedSize = config.get("feedSize").defaultTo(ReconFeeder.DEFAULT_FEED_SIZE).asInteger();
@@ -321,18 +332,18 @@ class ObjectMapping {
      * Mappings can share the same link tables.
      * Establish the relationship between the mappings and determine the proper
      * link type to use
-     * @param syncSvc the associated synchronization service
+     *
      * @param allMappings The list of all existing mappings
      */
-    public void initRelationships(SynchronizationService syncSvc, List<ObjectMapping> allMappings) {
+    public void initRelationships(List<ObjectMapping> allMappings) {
         linkType = LinkType.getLinkType(this, allMappings);
     }
 
     /**
      * @return the associated synchronization service
      */
-    SynchronizationService getService() {
-        return service;
+    ConnectionFactory getConnectionFactory() {
+        return connectionFactory;
     }
 
     /**
@@ -352,11 +363,12 @@ class ObjectMapping {
     /**
      * Returns the complete set of link Qualifiers.
      * 
+     * @param a {@link Context} associated with the current sync.
      * @return a {@link Set} object representing the complete set of link qualifiers
      * @throws SynchronizationException
      */
-    private Set<String> getAllLinkQualifiers() throws SynchronizationException {
-        return getLinkQualifiers(null, null, true);
+    private Set<String> getAllLinkQualifiers(Context context) throws SynchronizationException {
+        return getLinkQualifiers(null, null, true, context);
     }
     
     /**
@@ -366,10 +378,12 @@ class ObjectMapping {
      * @param object the object's value
      * @param oldValue the source object's old value
      * @param returnAll true if all link qualifiers should be returned, false otherwise
+     * @param a {@link Context} associated with the current sync.
      * @return a {@link Set} object representing the complete set of link qualifiers
      * @throws SynchronizationException
      */
-    private Set<String> getLinkQualifiers(JsonValue object, JsonValue oldValue, boolean returnAll) throws SynchronizationException {
+    private Set<String> getLinkQualifiers(JsonValue object, JsonValue oldValue, boolean returnAll, Context context) 
+            throws SynchronizationException {
         if (linkQualifiersScript != null) {
             // Execute script to find the list of link qualifiers
             Map<String, Object> scope = new HashMap<String, Object>();
@@ -378,7 +392,7 @@ class ObjectMapping {
             scope.put("oldValue", oldValue == null || oldValue.isNull() ? null : oldValue.asMap());
             scope.put("returnAll", returnAll);
             try {
-                return json(linkQualifiersScript.exec(scope)).asSet(String.class);
+                return json(linkQualifiersScript.exec(scope, context)).asSet(String.class);
             } catch (ScriptException se) {
                 LOGGER.debug("{} {} script encountered exception", name, "linkQualifiers", se);
                 throw new SynchronizationException(se);
@@ -467,26 +481,25 @@ class ObjectMapping {
      * @return sync results of the {@link SyncOperation}
      * @throws SynchronizationException if sync-ing fails.
      */
-    private JsonValue doSourceSync(Context context, String resourceId, JsonValue value, boolean sourceDeleted, JsonValue oldValue)
-            throws SynchronizationException {
+    private JsonValue doSourceSync(Context context, String resourceId, JsonValue value, boolean sourceDeleted, 
+            JsonValue oldValue) throws SynchronizationException {
         JsonValue results = json(array());
         LOGGER.trace("Start source synchronization of {} {}", resourceId, (value == null) ? "without a value" : "with a value");
 
         LazyObjectAccessor sourceObjectAccessor = null;
         if (sourceDeleted) {
-            sourceObjectAccessor = new LazyObjectAccessor(service, sourceObjectSet, resourceId, null);
+            sourceObjectAccessor = new LazyObjectAccessor(connectionFactory, sourceObjectSet, resourceId, null);
         } else if (value != null) {
             value.put("_id", resourceId); // unqualified
-            sourceObjectAccessor = new LazyObjectAccessor(service, sourceObjectSet, resourceId, value);
+            sourceObjectAccessor = new LazyObjectAccessor(connectionFactory, sourceObjectSet, resourceId, value);
         } else {
-            sourceObjectAccessor = new LazyObjectAccessor(service, sourceObjectSet, resourceId);
+            sourceObjectAccessor = new LazyObjectAccessor(connectionFactory, sourceObjectSet, resourceId);
         }
                 
         // Loop over correlation queries, performing a sync for each linkQualifier
-        for (String linkQualifier : getLinkQualifiers(sourceObjectAccessor.getObject(), oldValue, false)) {
+        for (String linkQualifier : getLinkQualifiers(sourceObjectAccessor.getObject(), oldValue, false, context)) {
             // TODO: one day bifurcate this for synchronous and asynchronous source operation
-            SourceSyncOperation op = new SourceSyncOperation();
-            op.context = context;
+            SourceSyncOperation op = new SourceSyncOperation(context);
             op.oldValue = oldValue;
             op.setLinkQualifier(linkQualifier);
             op.sourceObjectAccessor = sourceObjectAccessor;
@@ -530,7 +543,7 @@ class ObjectMapping {
             result.put(QueryResponse.FIELD_RESULT, list);
 
             QueryRequest request = RequestUtil.buildQueryRequestFromParameterMap(targetObjectSet, queryParameters);
-            service.getConnectionFactory().getConnection().query(service.getContext(), request,
+            connectionFactory.getConnection().query(ObjectSetContext.get(), request,
                     new QueryResourceHandler() {
                         @Override
                         public boolean handleResource(ResourceResponse resource) {
@@ -556,10 +569,9 @@ class ObjectMapping {
         LazyObjectAccessor targetObject = null;
         LOGGER.trace("Create target object {}/{}", targetObjectSet, target.get("_id").asString());
         try {
-            CreateRequest createRequest =
-                    Requests.newCreateRequest(targetObjectSet, target.get("_id").asString(), target);
-            ResourceResponse resource =  service.getConnectionFactory().getConnection().create(context, createRequest);
-            targetObject = new LazyObjectAccessor(service, targetObjectSet, resource.getId(), resource.getContent());
+            CreateRequest request = newCreateRequest(targetObjectSet, target.get("_id").asString(), target);
+            ResourceResponse resource =  connectionFactory.getConnection().create(context, request);
+            targetObject = new LazyObjectAccessor(connectionFactory, targetObjectSet, resource.getId(), resource.getContent());
             measure.setResult(target);
         } catch (JsonValueException jve) {
             throw new SynchronizationException(jve);
@@ -588,9 +600,9 @@ class ObjectMapping {
                 throw new SynchronizationException("target '_id' has changed");
             }
             LOGGER.trace("Update target object {}", fullId);
-            UpdateRequest ur = Requests.newUpdateRequest(fullId, target);
-            ur.setRevision(target.get("_rev").asString());
-            service.getConnectionFactory().getConnection().update(context, ur);
+            UpdateRequest request = newUpdateRequest(fullId, target)
+                    .setRevision(target.get("_rev").asString());
+            connectionFactory.getConnection().update(context, request);
             measure.setResult(target);
         } catch (SynchronizationException se) {
             throw se;
@@ -615,10 +627,10 @@ class ObjectMapping {
         if (target != null && target.get("_id").isString()) { // forgiving delete
             EventEntry measure = Publisher.start(EVENT_DELETE_TARGET, target, null);
             try {
-                DeleteRequest ur = Requests.newDeleteRequest(targetObjectSet, target.get("_id").required().asString());
-                ur.setRevision(target.get("_rev").asString());
-                LOGGER.trace("Delete target object {}", ur.getResourcePath());
-                service.getConnectionFactory().getConnection().delete(context, ur);
+                DeleteRequest request = newDeleteRequest(targetObjectSet, target.get("_id").required().asString())
+                        .setRevision(target.get("_rev").asString());
+                LOGGER.trace("Delete target object {}", request.getResourcePath());
+                connectionFactory.getConnection().delete(context, request);
             } catch (JsonValueException jve) {
                 throw new SynchronizationException(jve);
             } catch (NotFoundException nfe) {
@@ -635,21 +647,23 @@ class ObjectMapping {
     /**
      * Apply the configured sync mappings
      *
+     * @param context a {@link Context} for the current request.
      * @param source The current source object 
-     * @param oldSource an optional previous source object before the change(s) that triggered the sync, 
-     * null if not provided
+     * @param oldSource an optional old source object before the change(s) that triggered the sync, null if not provided
      * @param target the current target object to modify
      * @param existingTarget the full existing target object
+     * @param linkQualifier the linkQualifier associated with the current sync operation
      * @throws SynchronizationException if applying the mappings fails.
      */
-    private void applyMappings(JsonValue source, JsonValue oldSource, JsonValue target, JsonValue existingTarget, String linkQualifier) throws SynchronizationException {
+    private void applyMappings(Context context, JsonValue source, JsonValue oldSource, JsonValue target, 
+            JsonValue existingTarget, String linkQualifier) throws SynchronizationException {
         EventEntry measure = Publisher.start(getObjectMappingEventName(), source, null);
         try {
             for (PropertyMapping property : properties) {
-                property.apply(source, oldSource, target, linkQualifier);
+                property.apply(source, oldSource, target, existingTarget, linkQualifier, context);
             }
             // Apply default mapping, if configured
-            applyDefaultMappings(source, oldSource, target, existingTarget, linkQualifier);
+            applyDefaultMappings(context, source, oldSource, target, existingTarget, linkQualifier);
             
             measure.setResult(target);
         } finally {
@@ -657,7 +671,20 @@ class ObjectMapping {
         }
     }
 
-    private JsonValue applyDefaultMappings(JsonValue source, JsonValue oldSource, JsonValue target, JsonValue existingTarget, String linkQualifier) throws SynchronizationException {
+    /**
+     * Applies the default mapping by executing the default mapping script.
+     *
+     * @param context a {@link Context} for the current request.
+     * @param source The current source object 
+     * @param oldSource an optional old source object before the change(s) that triggered the sync, null if not provided
+     * @param target the current target object to modify
+     * @param existingTarget the full existing target object
+     * @param linkQualifier the linkQualifier associated with the current sync operation
+     * @return the result of the default mapping execution.
+     * @throws SynchronizationException
+     */
+    private JsonValue applyDefaultMappings(Context context, JsonValue source, JsonValue oldSource, JsonValue target, 
+            JsonValue existingTarget, String linkQualifier) throws SynchronizationException {
         JsonValue result = null;
         if (defaultMapping != null) {
             Map<String, Object> queryScope = new HashMap<String, Object>();
@@ -670,7 +697,7 @@ class ObjectMapping {
             queryScope.put("existingTarget", existingTarget.copy().asMap());
             queryScope.put("linkQualifier", linkQualifier);
             try {
-                result = json(defaultMapping.exec(queryScope));
+                result = json(defaultMapping.exec(queryScope, context));
             } catch (ScriptThrownException ste) {
                 throw toSynchronizationException(ste, name, "defaultMapping");
             } catch (ScriptException se) {
@@ -710,8 +737,7 @@ class ObjectMapping {
         if (isSourceObject(resourceContainer, resourceId)) {
             if (value == null || value.getObject() == null) {
                 // notification without the actual value
-                value = LazyObjectAccessor.rawReadObject(
-                        service.getContext(), service.getConnectionFactory(), resourceContainer, resourceId);
+                value = LazyObjectAccessor.rawReadObject(connectionFactory, context, resourceContainer, resourceId);
             }
             return doSourceSync(context, resourceId, value); // synchronous for now
         }
@@ -732,8 +758,7 @@ class ObjectMapping {
             throws SynchronizationException {
         if (isSourceObject(resourceContainer, resourceId)) {
         	if (newValue == null || newValue.getObject() == null) { // notification without the actual value
-                newValue = LazyObjectAccessor.rawReadObject(
-                        service.getContext(), service.getConnectionFactory(), resourceContainer, resourceId);
+                newValue = LazyObjectAccessor.rawReadObject(connectionFactory, context, resourceContainer, resourceId);
             }
 
             if (oldValue == null || oldValue.getObject() == null || JsonPatch.diff(oldValue, newValue).size() > 0) {
@@ -804,8 +829,7 @@ class ObjectMapping {
             Status status = Status.SUCCESS;
             try {
                 if (params.get("target").isNull()) {
-                    SourceSyncOperation sop = new SourceSyncOperation();
-                    sop.context = context;
+                    SourceSyncOperation sop = new SourceSyncOperation(context);
                     op = sop;
                     sop.fromJsonValue(params);
 
@@ -819,15 +843,14 @@ class ObjectMapping {
                     //TODO blank check
                     String targetId = params.get("targetId").asString();
                     if (null != targetId){
-                        op.targetObjectAccessor = new LazyObjectAccessor(service, targetObjectSet, targetId);
+                        op.targetObjectAccessor = new LazyObjectAccessor(connectionFactory, targetObjectSet, targetId);
                         if (null == sop.getTargetObject()) {
                             throw new SynchronizationException("Target object " + targetId + " does not exist");
                         }
                     }
                     sop.assessSituation();
                 } else {
-                    TargetSyncOperation top = new TargetSyncOperation();
-                    top.context = context;
+                    TargetSyncOperation top = new TargetSyncOperation(context);
                     op = top;
                     top.fromJsonValue(params);
                     String targetId = params.get("targetId").required().asString();
@@ -837,7 +860,7 @@ class ObjectMapping {
                     String targetObjectId = LazyObjectAccessor.qualifiedId(targetObjectSet, targetId);
                     event.setTargetObjectId(targetObjectId);
 
-                    top.targetObjectAccessor = new LazyObjectAccessor(service, targetObjectSet, targetId);
+                    top.targetObjectAccessor = new LazyObjectAccessor(connectionFactory, targetObjectSet, targetId);
                     if (null == top.getTargetObject()) {
                         throw new SynchronizationException("Target object " + targetObjectId + " does not exist");
                     }
@@ -892,14 +915,14 @@ class ObjectMapping {
         }
     }
 
-    private void doResults(ReconciliationContext reconContext) throws SynchronizationException {
+    private void doResults(ReconciliationContext reconContext, Context context) throws SynchronizationException {
         if (resultScript != null) {
             Map<String, Object> scope = new HashMap<String, Object>();
             scope.put("source", reconContext.getStatistics().getSourceStat().asMap());
             scope.put("target", reconContext.getStatistics().getTargetStat().asMap());
             scope.put("global", reconContext.getStatistics().asMap());
             try {
-                resultScript.exec(scope);
+                resultScript.exec(scope, context);
             } catch (ScriptThrownException ste) {
                 throw toSynchronizationException(ste, name, "result");
             } catch (ScriptException se) {
@@ -957,16 +980,14 @@ class ObjectMapping {
             }
 
             // If we will handle a target phase, pre-load all relevant target identifiers
-            Collection<String> remainingTargetIds = null;
+            Collection<String> remainingTargetIds = new ArrayList<String>();
             ResultIterable targetIterable = null;
             if (reconContext.getReconHandler().isRunTargetPhase()) {
                 reconContext.getStatistics().targetQueryStart();
                 targetIterable = reconContext.queryTarget();
-                remainingTargetIds = targetIterable.getAllIds();
+                remainingTargetIds.addAll(targetIterable.getAllIds());
                 reconContext.getStatistics().targetQueryEnd();
-            } else {
-                remainingTargetIds = new ArrayList<String>();
-            }
+            }            
 
             // Optionally get all links up front as well
             Map<String, Map<String, Link>> allLinks = null;
@@ -974,7 +995,7 @@ class ObjectMapping {
                 allLinks = new HashMap<String, Map<String, Link>>();
                 Integer totalLinkEntries = new Integer(0);
                 reconContext.getStatistics().linkQueryStart();
-                for (String linkQualifier : getAllLinkQualifiers()) {
+                for (String linkQualifier : getAllLinkQualifiers(context)) {
                     Map<String, Link> linksByQualifier = Link.getLinksForMapping(ObjectMapping.this, linkQualifier);
                     allLinks.put(linkQualifier, linksByQualifier);
                     totalLinkEntries += linksByQualifier.size();
@@ -1017,7 +1038,7 @@ class ObjectMapping {
             if (reconContext.getReconHandler().isRunTargetPhase()) {
                 EventEntry measureTarget = Publisher.start(EVENT_RECON_TARGET, reconId, null);
                 reconContext.setStage(ReconStage.ACTIVE_RECONCILING_TARGET);       
-                targetIterable.removeNotMatchingEntries(remainingTargetIds);
+                targetIterable = targetIterable.removeNotMatchingEntries(remainingTargetIds);
                 reconContext.getStatistics().targetPhaseStart();
                 ReconPhase targetPhase = new ReconPhase(targetIterable.iterator(), reconContext, context,
                         allLinks, null, targetRecon);
@@ -1029,7 +1050,7 @@ class ObjectMapping {
 
             reconContext.getStatistics().reconEnd();
             reconContext.setStage(ReconStage.ACTIVE_PROCESSING_RESULTS);
-            doResults(reconContext);
+            doResults(reconContext, context);
             reconContext.setStage(ReconStage.COMPLETED_SUCCESS);
             logReconEndSuccess(reconContext, context);
         } catch (InterruptedException ex) {
@@ -1042,21 +1063,21 @@ class ObjectMapping {
                 reconContext.setStage(ReconStage.COMPLETED_FAILED);
                 syncException = new SynchronizationException("Interrupted execution of reconciliation", ex);
             }
-            doResults(reconContext);
+            doResults(reconContext, context);
             throw syncException;
         } catch (SynchronizationException e) {
             // Make sure that the error did not occur within doResults or last logging for completed success case
             reconContext.setStage(ReconStage.COMPLETED_FAILED);
             if ( reconContext.getStage() != ReconStage.ACTIVE_PROCESSING_RESULTS
                     && reconContext.getStage() != ReconStage.COMPLETED_SUCCESS ) {
-                doResults(reconContext);
+                doResults(reconContext, context);
             }
             reconContext.getStatistics().reconEnd();
             logReconEndFailure(reconContext, context);
             throw new SynchronizationException("Synchronization failed", e);
         } catch (Exception e) {
             reconContext.setStage(ReconStage.COMPLETED_FAILED);
-            doResults(reconContext);
+            doResults(reconContext, context);
             reconContext.getStatistics().reconEnd();
             logReconEndFailure(reconContext, context);
             throw new SynchronizationException("Synchronization failed", e);
@@ -1076,7 +1097,7 @@ class ObjectMapping {
             scope.put("context", context);
             scope.put("mappingConfig", config);
             try {
-                onReconScript.exec(scope);
+                onReconScript.exec(scope, context);
             } catch (ScriptThrownException se) {
                 throw toSynchronizationException(se, name, "onRecon");
             } catch (ScriptException se) {
@@ -1151,13 +1172,12 @@ class ObjectMapping {
                 throws SynchronizationException {
             reconContext.checkCanceled();
             LazyObjectAccessor sourceObjectAccessor = objectEntry == null 
-                    ? new LazyObjectAccessor(service, sourceObjectSet, id) // Load source detail on demand
-                    : new LazyObjectAccessor(service, sourceObjectSet, id, objectEntry); // Pre-queried source detail
+                    ? new LazyObjectAccessor(connectionFactory, sourceObjectSet, id) // Load source detail on demand
+                    : new LazyObjectAccessor(connectionFactory, sourceObjectSet, id, objectEntry); // Pre-queried source detail
             Status status = Status.SUCCESS;
 
-            for (String linkQualifier : getLinkQualifiers(sourceObjectAccessor.getObject(), null, false)) {
-                SourceSyncOperation op = new SourceSyncOperation();
-                op.context = context;
+            for (String linkQualifier : getLinkQualifiers(sourceObjectAccessor.getObject(), null, false, context)) {
+                SourceSyncOperation op = new SourceSyncOperation(context);
                 op.reconContext = reconContext;
                 op.setLinkQualifier(linkQualifier);
 
@@ -1223,9 +1243,8 @@ class ObjectMapping {
         public void recon(String id, JsonValue objectEntry, ReconciliationContext reconContext, Context context, Map<String,
                 Map<String, Link>> allLinks, Collection<String> remainingIds)  throws SynchronizationException {
             reconContext.checkCanceled();
-            for (String linkQualifier : getAllLinkQualifiers()) {
-                TargetSyncOperation op = new TargetSyncOperation();
-                op.context = context;
+            for (String linkQualifier : getAllLinkQualifiers(context)) {
+                TargetSyncOperation op = new TargetSyncOperation(context);
                 op.reconContext = reconContext;
                 op.setLinkQualifier(linkQualifier);
 
@@ -1234,10 +1253,10 @@ class ObjectMapping {
                 
                 if (objectEntry == null) {
                     // Load target detail on demand
-                    op.targetObjectAccessor = new LazyObjectAccessor(service, targetObjectSet, id);
+                    op.targetObjectAccessor = new LazyObjectAccessor(connectionFactory, targetObjectSet, id);
                 } else {
                     // Pre-queried target detail
-                    op.targetObjectAccessor = new LazyObjectAccessor(service, targetObjectSet, id, objectEntry);
+                    op.targetObjectAccessor = new LazyObjectAccessor(connectionFactory, targetObjectSet, id, objectEntry);
                 }
                 event.setTargetObjectId(LazyObjectAccessor.qualifiedId(targetObjectSet, id));
                 op.reconId = reconContext.getReconId();
@@ -1347,9 +1366,9 @@ class ObjectMapping {
      */
     private void logEntry(AbstractSyncAuditEventLogger entry) throws SynchronizationException {
         try {
-            entry.log(service.getConnectionFactory());
-        } catch (ResourceException ose) {
-            throw new SynchronizationException(ose);
+            entry.log(connectionFactory);
+        } catch (ResourceException e) {
+            throw new SynchronizationException(e);
         }
     }
 
@@ -1422,16 +1441,18 @@ class ObjectMapping {
 
     /**
      * Execute a sync engine action explicitly, without going through situation assessment.
+     * 
+     * @param a {@link Context} associated with the current sync.
      * @param sourceObject the source object if applicable to the action
      * @param targetObject the target object if applicable to the action
      * @param situation an optional situation that was originally assessed. Null if not the result of an earlier situation assessment.
      * @param action the explicit action to invoke
      * @param reconId an optional identifier for the recon context if this is done in the context of reconciliation
      */
-    public void explicitOp(JsonValue sourceObject, JsonValue targetObject, Situation situation, ReconAction action, String reconId)
-            throws SynchronizationException {
-        for (String linkQualifier : getLinkQualifiers(sourceObject, null, false)) {
-            ExplicitSyncOperation linkOp = new ExplicitSyncOperation();
+    public void explicitOp(Context context, JsonValue sourceObject, JsonValue targetObject, Situation situation, 
+            ReconAction action, String reconId) throws SynchronizationException {
+        for (String linkQualifier : getLinkQualifiers(sourceObject, null, false, context)) {
+            ExplicitSyncOperation linkOp = new ExplicitSyncOperation(context);
             linkOp.setLinkQualifier(linkQualifier);
             linkOp.init(sourceObject, targetObject, situation, action, reconId);
             linkOp.sync();
@@ -1456,15 +1477,18 @@ class ObjectMapping {
      */
     abstract class SyncOperation {
 
-        /** 
+        public SyncOperation(Context context) {
+            this.context = new SyncContext(context, name);
+        }
+        /**
          * A reconciliation ID 
          */
         public String reconId;
-        
+
         /**
          * The request context of this sync operation
          */
-        public Context context;
+        private Context context;
         
         /** 
          * An optional reconciliation context 
@@ -1716,7 +1740,7 @@ class ObjectMapping {
          *
          * @throws SynchronizationException when cannot determine action from script
          */
-        protected void determineAction() throws SynchronizationException {
+        protected void determineAction(Context context) throws SynchronizationException {
             if (situation != null) {
                 // start with a reasonable default
                 action = situation.getDefaultAction();
@@ -1725,10 +1749,10 @@ class ObjectMapping {
                     if (policy.getCondition().evaluate(
                             json(object(
                                     field("object", getSourceObject()),
-                                    field("linkQualifier", getLinkQualifier()))))) {
+                                    field("linkQualifier", getLinkQualifier()))), context)) {
                         activePolicy = policy;
-                        action = activePolicy.getAction(sourceObjectAccessor, 
-                                                targetObjectAccessor, this, getLinkQualifier());
+                        action = activePolicy.getAction(sourceObjectAccessor, targetObjectAccessor, this, 
+                                getLinkQualifier(), context);
                         break;
                     }
                 }
@@ -1762,21 +1786,27 @@ class ObjectMapping {
                                     throw new SynchronizationException("target object already exists");
                                 }
                                 JsonValue createTargetObject = json(object());
-                                applyMappings(getSourceObject(), oldValue, createTargetObject, json(null), linkObject.linkQualifier); // apply property mappings to target
-                                targetObjectAccessor = new LazyObjectAccessor(service, targetObjectSet, createTargetObject.get("_id").asString(), createTargetObject);
+                                // apply property mappings to target
+                                applyMappings(context, getSourceObject(), oldValue, createTargetObject, json(null), 
+                                        linkObject.linkQualifier);
+                                targetObjectAccessor = new LazyObjectAccessor(connectionFactory, targetObjectSet, 
+                                        createTargetObject.get("_id").asString(), createTargetObject);
                                 execScript("onCreate", onCreateScript);
 
                                 // Allow the early link creation as soon as the target identifier is known
                                 String sourceId = getSourceObjectId();
                                 if (isLinkingEnabled()) {
                                     // Create and populate the PendingActionContext for the LINK action
-                                    context = PendingAction.createPendingActionContext(context, ReconAction.LINK, ObjectMapping.this.name, getSourceObject(), reconId, situation);
+                                    context = PendingAction.createPendingActionContext(context, ReconAction.LINK, 
+                                            ObjectMapping.this.name, getSourceObject(), reconId, situation);
                                 }
 
                                 targetObjectAccessor = createTargetObject(context, createTargetObject);
 
                                 if (!isLinkingEnabled()) {
                                     LOGGER.debug("Linking disabled for {} during {}, skipping additional link processing", sourceId, reconId);
+                                    // execute the post defaultPostMapping script to add lastSync attribute to managed user
+                                    execScript("postMapping", postMapping);
                                     break;
                                 }
 
@@ -1784,6 +1814,8 @@ class ObjectMapping {
                                 if (wasLinked) {
                                     linkCreated = true;
                                     LOGGER.debug("Pending link for {} during {} has already been created, skipping additional link processing", sourceId, reconId);
+                                    // execute the post defaultPostMapping script to add lastSync attribute to managed user
+                                    execScript("postMapping", postMapping);
                                     break;
                                 } else {
                                     LOGGER.debug("Pending link for {} during {} not yet resolved, proceed to link processing", sourceId, reconId);
@@ -1799,11 +1831,11 @@ class ObjectMapping {
 
                                 // get a copy of the target before the onLink trigger,
                                 // the onUpdate trigger or the mappings are applied
-                                JsonValue oldTarget = getTargetObject().copy();
+                                JsonValue oldTarget = getTargetObject() == null ? new JsonValue(null) : getTargetObject().copy();
 
                                 if (isLinkingEnabled() && linkObject._id == null) {
                                     try {
-                                        createLink(getSourceObjectId(), targetId, reconId);
+                                        createLink(context, getSourceObjectId(), targetId, reconId);
                                         linkCreated = true;
                                     } catch (SynchronizationException ex) {
                                         // Allow for link to have been created in the meantime, e.g. programmatically
@@ -1821,30 +1853,37 @@ class ObjectMapping {
                                 }
                                 if (isLinkingEnabled() && linkObject._id != null && !linkObject.targetEquals(targetId)) {
                                     linkObject.targetId = targetId;
-                                    linkObject.update();
+                                    linkObject.update(context);
                                 }
                                 // TODO: Detect change of source id, and update link accordingly.
                                 if (action == ReconAction.CREATE || action == ReconAction.LINK) {
+                                    execScript("postMapping", postMapping);
                                     break; // do not update target
                                 }
                                 if (getSourceObject() != null && getTargetObject() != null) {
-                                    applyMappings(getSourceObject(), oldValue, getTargetObject(), oldTarget, linkObject.linkQualifier);
+                                    applyMappings(context, getSourceObject(), oldValue, getTargetObject(), oldTarget, 
+                                            linkObject.linkQualifier);
                                     execScript("onUpdate", onUpdateScript, oldTarget);
-                                    if (JsonPatch.diff(oldTarget, getTargetObject()).size() > 0) { // only update if target changes
+                                    // only update if target changes
+                                    if (JsonPatch.diff(oldTarget, getTargetObject()).size() > 0) {
                                         updateTargetObject(context, getTargetObject(), targetId);
                                     }
                                 }
+                                // execute the defaultPostMapping script to add lastSync attribute to managed user
+                                execScript("postMapping", postMapping);
                                 break; // terminate UPDATE
                             case DELETE:
                                 if (isLinkingEnabled()) {
                                     // Create and populate the PendingActionContext for the UNLINK action
-                                    context = PendingAction.createPendingActionContext(context, ReconAction.UNLINK, ObjectMapping.this.name, getSourceObject(), reconId, situation);
+                                    context = PendingAction.createPendingActionContext(context, ReconAction.UNLINK, 
+                                            ObjectMapping.this.name, getSourceObject(), reconId, situation);
                                 }
-                                if (getTargetObjectId() != null && getTargetObject() != null) { // forgiving; does nothing if no target
+                                // forgiving; does nothing if no target
+                                if (getTargetObjectId() != null && getTargetObject() != null) {
                                     execScript("onDelete", onDeleteScript);
                                     deleteTargetObject(context, getTargetObject());
                                     // Represent as not existing anymore so it gets removed from processed targets
-                                    targetObjectAccessor = new LazyObjectAccessor(service,
+                                    targetObjectAccessor = new LazyObjectAccessor(connectionFactory,
                                             targetObjectSet, getTargetObjectId(), null);
                                 }
                                 boolean wasUnlinked = PendingAction.wasPerformed(context, ReconAction.UNLINK);
@@ -1859,14 +1898,17 @@ class ObjectMapping {
                             case UNLINK:
                                 if (linkObject._id != null) { // forgiving; does nothing if no link exists
                                     execScript("onUnlink", onUnlinkScript);
-                                    linkObject.delete();
+                                    linkObject.delete(context);
                                 }
                                 break; // terminate DELETE and UNLINK
                             case EXCEPTION:
-                                throw new SynchronizationException("Situation " + situation + " marked as EXCEPTION"); // aborts change; recon reports
+                                // aborts change; recon reports
+                                throw new SynchronizationException("Situation " + situation + " marked as EXCEPTION");
                         }
                     } catch (JsonValueException jve) {
                         throw new SynchronizationException(jve);
+                    } catch (ResourceException e) {
+                        throw new SynchronizationException(e);
                     }
                 case REPORT:
                 case NOREPORT:
@@ -1889,26 +1931,28 @@ class ObjectMapping {
 
         /**
          * Evaluates a post action
-         * @param sourceAction sourceAction true if the {@link ReconAction} is determined for the {@link SourceSyncOperation}
+         * @param sourceAction sourceAction true if the {@link ReconAction} is determined for the 
+         * {@link SourceSyncOperation}
          * and false if the action is determined for the {@link TargetSyncOperation}.
          * @throws SynchronizationException TODO.
          */
         protected void postAction(boolean sourceAction) throws SynchronizationException {
             if (null != activePolicy) {
-                activePolicy.evaluatePostAction(
-                                sourceObjectAccessor, targetObjectAccessor, action, sourceAction, getLinkQualifier(), reconId);
+                activePolicy.evaluatePostAction(sourceObjectAccessor, targetObjectAccessor, action, sourceAction, 
+                        getLinkQualifier(), reconId, context);
             }
         }
 
-        protected void createLink(String sourceId, String targetId, String reconId) throws SynchronizationException {
+        protected void createLink(Context context, String sourceId, String targetId, String reconId) 
+                throws SynchronizationException {
             Link linkObject = new Link(ObjectMapping.this);
             linkObject.setLinkQualifier(this.linkObject.linkQualifier);
             execScript("onLink", onLinkScript);
             linkObject.sourceId = sourceId;
             linkObject.targetId = targetId;
-            linkObject.create();
+            linkObject.create(context);
             initializeLink(linkObject);
-            LOGGER.debug("Established link sourceId: {} targetId: {} in reconId: {}", new Object[] {sourceId, targetId, reconId});
+            LOGGER.debug("Established link sourceId: {} targetId: {} in reconId: {}", sourceId, targetId, reconId);
         }
         
         /**
@@ -1922,7 +1966,7 @@ class ObjectMapping {
         	JsonValue params = json(object(
         			field("source", sourceObjectAccessor.getObject()), 
         			field("linkQualifier", linkQualifier)));
-        	return sourceCondition.evaluate(params);
+        	return sourceCondition.evaluate(params, context);
         }
 
         /**
@@ -1955,7 +1999,7 @@ class ObjectMapping {
                     scope.put("source", sourceObject.asMap());
                     scope.put("linkQualifier", getLinkQualifier());
                     try {
-                        Object o = validSource.exec(scope);
+                        Object o = validSource.exec(scope, context);
                         if (o == null || !(o instanceof Boolean)) {
                             throw new SynchronizationException("Expecting boolean value from validSource");
                         }
@@ -1990,7 +2034,7 @@ class ObjectMapping {
                     scope.put("target", getTargetObject().asMap());
                     scope.put("linkQualifier", getLinkQualifier());
                     try {
-                        Object o = validTarget.exec(scope);
+                        Object o = validTarget.exec(scope, context);
                         if (o == null || !(o instanceof Boolean)) {
                             throw new SynchronizationException("Expecting boolean value from validTarget");
                         }
@@ -2040,6 +2084,7 @@ class ObjectMapping {
                     JsonValue source = getSourceObject();
                     scope.put("source", null != source ? source.getObject() : null);
                 }
+                scope.put("oldSource", oldValue);
                 scope.put("sourceId", sourceId);
                 
                 // Target may not have ID yet (e.g. an onCreate with the target object defined, but not stored).
@@ -2057,7 +2102,7 @@ class ObjectMapping {
                     scope.put("situation", situation.toString());
                 }
                 try {
-                    script.exec(scope);
+                    script.exec(scope, context);
                 } catch (ScriptThrownException se) {
                     throw toSynchronizationException(se, name, type);
                 } catch (ScriptException se) {
@@ -2068,7 +2113,11 @@ class ObjectMapping {
             }
         }
 
-        public JsonValue toJsonValue() {
+        protected Context getContext() {
+            return context;
+        }
+
+        public JsonValue toJsonValue() throws SynchronizationException {
             return json(object(
                     field("reconId", reconId),
                     field("mapping", ObjectMapping.this.getName()),
@@ -2089,6 +2138,10 @@ class ObjectMapping {
      */
     private class ExplicitSyncOperation extends SyncOperation {
 
+        public ExplicitSyncOperation(Context context) {
+            super(context);
+        }
+
         protected boolean isSourceToTarget() {
             //TODO: detect by the source id match
             return true;
@@ -2097,8 +2150,8 @@ class ObjectMapping {
         public void init(JsonValue sourceObject, JsonValue targetObject, Situation situation, ReconAction action, String reconId) {
             String sourceObjectId = getObjectId(sourceObject);
             String targetObjectId = getObjectId(targetObject);
-            this.sourceObjectAccessor = new LazyObjectAccessor(service, sourceObjectSet, sourceObjectId, sourceObject);
-            this.targetObjectAccessor = new LazyObjectAccessor(service, targetObjectSet, targetObjectId, targetObject);
+            this.sourceObjectAccessor = new LazyObjectAccessor(connectionFactory, sourceObjectSet, sourceObjectId, sourceObject);
+            this.targetObjectAccessor = new LazyObjectAccessor(connectionFactory, targetObjectSet, targetObjectId, targetObject);
             this.reconId = reconId;
             this.situation = situation;
             this.action = action;
@@ -2137,6 +2190,10 @@ class ObjectMapping {
         // If it can not uniquely identify a target, the list of ambiguous target ids
         public List<String> ambiguousTargetIds;
 
+        public SourceSyncOperation(Context context) {
+            super(context);
+        }
+
         @Override
         @SuppressWarnings("fallthrough")
         public JsonValue sync() throws SynchronizationException {
@@ -2155,7 +2212,7 @@ class ObjectMapping {
                 boolean linkExisted = (getLinkId() != null);
 
                 try {
-                    determineAction();
+                    determineAction(getContext());
                 } finally {
                     measureDetermine.end();
                 }
@@ -2219,7 +2276,7 @@ class ObjectMapping {
 
         public void fromJsonValue(JsonValue params) {
             reconId = params.get("reconId").asString();
-            sourceObjectAccessor = new LazyObjectAccessor(service, sourceObjectSet, params.get("sourceId").required().asString());
+            sourceObjectAccessor = new LazyObjectAccessor(connectionFactory, sourceObjectSet, params.get("sourceId").required().asString());
             ignorePostAction = params.get("ignorePostAction").defaultTo(false).asBoolean();
             linkObject.setLinkQualifier(params.get("linkQualifier").defaultTo(Link.DEFAULT_LINK_QUALIFIER).asString());
         }
@@ -2252,9 +2309,9 @@ class ObjectMapping {
                     }
                 }
                 if (preloaded != null) {
-                    targetObjectAccessor = new LazyObjectAccessor(service, targetObjectSet, linkObject.targetId, preloaded);
+                    targetObjectAccessor = new LazyObjectAccessor(connectionFactory, targetObjectSet, linkObject.targetId, preloaded);
                 } else {
-                    targetObjectAccessor = new LazyObjectAccessor(service, targetObjectSet, linkObject.targetId);
+                    targetObjectAccessor = new LazyObjectAccessor(connectionFactory, targetObjectSet, linkObject.targetId);
                 }
             }
 
@@ -2286,7 +2343,7 @@ class ObjectMapping {
                         situation = Situation.LINK_ONLY;
                     }
                 } else {
-                    if (oldValue == null) {
+                    if (oldValue == null || oldValue.isNull()) {
                         // If there is no previous value known we can not correlate
                         situation = Situation.ALL_GONE;
                     } else {
@@ -2411,7 +2468,7 @@ class ObjectMapping {
                 scope.put("source", sourceObject.asMap());
 
                 try {
-                    result = correlation.correlate(scope, getLinkQualifier());
+                    result = correlation.correlate(scope, getLinkQualifier(), getContext());
                 } finally {
                     measure.end();
                 }
@@ -2430,9 +2487,9 @@ class ObjectMapping {
             // TODO: Optimize to get the entire object with one query if it's sufficient
             LazyObjectAccessor fullObj = null;
             if (hasNonSpecialAttribute(resultValue.keys())) { //Assume this is a full object
-                fullObj = new LazyObjectAccessor(service, targetObjectSet, resultValue.get("_id").required().asString(), resultValue);
+                fullObj = new LazyObjectAccessor(connectionFactory, targetObjectSet, resultValue.get("_id").required().asString(), resultValue);
             } else {
-                fullObj = new LazyObjectAccessor(service, targetObjectSet, resultValue.get("_id").required().asString());
+                fullObj = new LazyObjectAccessor(connectionFactory, targetObjectSet, resultValue.get("_id").required().asString());
                 //fullObj.getObject();
             }
             return fullObj;
@@ -2499,15 +2556,15 @@ class ObjectMapping {
                 if (correlationQueryValue.isList()) {
                     for (JsonValue correlationQuery : correlationQueryValue) {
                         correlationQueries.put(correlationQuery.get("linkQualifier").defaultTo(Link.DEFAULT_LINK_QUALIFIER).asString(), 
-                                Scripts.newInstance(correlationQuery));
+                                Scripts.newScript(correlationQuery));
                     }
                 } else if (correlationQueryValue.isMap()) {
                     correlationQueries.put(correlationQueryValue.get("linkQualifier").defaultTo(Link.DEFAULT_LINK_QUALIFIER).asString(), 
-                            Scripts.newInstance(correlationQueryValue));
+                            Scripts.newScript(correlationQueryValue));
                 }
             } else if (!correlationScriptValue.isNull()) {
                 type = CorrelationType.correlationScript;
-                correlationScript = Scripts.newInstance(correlationScriptValue);
+                correlationScript = Scripts.newScript(correlationScriptValue);
             } else {
                 type = CorrelationType.none;
             }
@@ -2538,18 +2595,19 @@ class ObjectMapping {
          * @return a list of results if no correlation is configured
          * @throws SynchronizationException if there was an error during correlation
          */
-        public JsonValue correlate(Map<String, Object> scope, String linkQualifier) throws SynchronizationException {
+        public JsonValue correlate(Map<String, Object> scope, String linkQualifier, Context context) 
+                throws SynchronizationException {
             // Set the link qualifier in the script's scope
             scope.put("linkQualifier", linkQualifier);
             try {
                 switch (type) {
                 case correlationQuery:
                     // Execute the correlationQuery and return the results
-                    return json(queryTargetObjectSet(execScript(type.toString(), correlationQueries.get(linkQualifier), scope).asMap()))
-                            .get(QueryResponse.FIELD_RESULT).required();
+                    return json(queryTargetObjectSet(execScript(type.toString(),  correlationQueries.get(linkQualifier), 
+                            scope, context).asMap())).get(QueryResponse.FIELD_RESULT).required();
                 case correlationScript:
                     // Execute the correlationScript and return the results corresponding to the given linkQualifier
-                    return execScript(type.toString(), correlationScript, scope);
+                    return execScript(type.toString(), correlationScript, scope, context);
                 default:
                     return null;
                 }
@@ -2570,8 +2628,9 @@ class ObjectMapping {
          * @return A {@link Map} representing the results
          * @throws ScriptException if there was an error during execution
          */
-        private JsonValue execScript(String type, Script script, Map<String, Object> scope) throws ScriptException {
-            Object results = script.exec(scope);
+        private JsonValue execScript(String type, Script script, Map<String, Object> scope, Context context) 
+                throws ScriptException {
+            Object results = script.exec(scope, context);
             return json(results);
         }
         
@@ -2581,6 +2640,10 @@ class ObjectMapping {
      * TODO: Description.
      */
     class TargetSyncOperation extends SyncOperation {
+
+        public TargetSyncOperation(Context context) {
+            super(context);
+        }
 
         @Override
         public JsonValue sync() throws SynchronizationException {
@@ -2595,7 +2658,7 @@ class ObjectMapping {
 
                 EventEntry measureDetermine = Publisher.start(EVENT_TARGET_DETERMINE_ACTION, targetObjectAccessor, null);
                 try {
-                    determineAction();
+                    determineAction(getContext());
                 } finally {
                     measureDetermine.end();
                 }
@@ -2627,13 +2690,14 @@ class ObjectMapping {
             linkObject.setLinkQualifier(params.get("linkQualifier").defaultTo(Link.DEFAULT_LINK_QUALIFIER).asString());
         }
 
-        public JsonValue toJsonValue() {
+        public JsonValue toJsonValue() throws SynchronizationException {
             return json(object(
                     field("reconId", reconId),
                     field("mapping", ObjectMapping.this.getName()),
                     field("situation", situation.name()),
                     field("action", situation.getDefaultAction().name()),
                     field("target", "true"),
+                    field("oldSource", getSourceObject()),
                     field("linkQualifier", linkObject.linkQualifier),
                     (targetObjectAccessor != null && targetObjectAccessor.getLocalId() != null) 
                         ? field("targetId", targetObjectAccessor.getLocalId()) 
@@ -2665,7 +2729,7 @@ class ObjectMapping {
             if (linkObject._id == null || linkObject.sourceId == null) {
                 situation = Situation.UNASSIGNED;
             } else {
-                sourceObjectAccessor = new LazyObjectAccessor(service, sourceObjectSet, linkObject.sourceId);
+                sourceObjectAccessor = new LazyObjectAccessor(connectionFactory, sourceObjectSet, linkObject.sourceId);
                 if (getSourceObject() == null) { // force load to double check
                     situation = Situation.SOURCE_MISSING;
                 } else if (!isSourceValid()) {

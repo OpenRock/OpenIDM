@@ -178,7 +178,7 @@ CREATE TABLE auditconfig (
   operation VARCHAR2(255 CHAR) NULL ,
   beforeObject CLOB,
   afterObject CLOB,
-  changedfields VARCHAR2(255 CHAR),
+  changedfields CLOB,
   rev VARCHAR2(255 CHAR)
 );
 
@@ -221,7 +221,7 @@ CREATE TABLE auditactivity (
   operation VARCHAR2(255 CHAR) NULL ,
   subjectbefore CLOB,
   subjectafter CLOB,
-  changedfields VARCHAR2(255 CHAR),
+  changedfields CLOB,
   subjectrev VARCHAR2(255 CHAR),
   passwordchanged VARCHAR2(5 CHAR),
   message CLOB,
@@ -566,8 +566,8 @@ PROMPT Creating Table links ...
 CREATE TABLE links (
   objectid VARCHAR2(38 CHAR) NOT NULL,
   rev VARCHAR2(38 CHAR) NOT NULL,
-  linktype VARCHAR2(510 CHAR) NOT NULL,
-  linkqualifier VARCHAR2(255 CHAR) NOT NULL,
+  linktype VARCHAR2(50 CHAR) NOT NULL,
+  linkqualifier VARCHAR2(50 CHAR) NOT NULL,
   firstid VARCHAR2(255 CHAR) NOT NULL,
   secondid VARCHAR2(255 CHAR) NOT NULL
 );

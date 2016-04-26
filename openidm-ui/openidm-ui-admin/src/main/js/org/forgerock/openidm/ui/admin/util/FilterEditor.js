@@ -35,7 +35,7 @@ define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
             },
             events: {
                 "change .expressionTree :input": "updateNodeValue",
-                "click .expressionTree .add-btn": "addNode",
+                "click .expressionTree .add-btn": "addNodeAndReRender",
                 "click .expressionTree .remove-btn": "removeNode"
             },
             getExpressionContext: function (e) {
@@ -78,16 +78,21 @@ define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
 
                 this.renderExpressionTree(callback);
             },
-            addNode: function (e, callback) {
+            createNode: function (e) {
                 var context = this.getExpressionContext(e),
                     node = context.current;
-
+                if (!node.children) {
+                    node.children = [];
+                }
                 node.children.push({name: "", value: "", tag: "equalityMatch", children: [], op: "expr"});
-
                 this.data.filterString = this.getFilterString();
+            },
 
+            addNodeAndReRender: function(e, callback) {
+                this.createNode(e);
                 this.renderExpressionTree(callback);
             },
+
             updateNodeValue: function (e, callback) {
                 var context = this.getExpressionContext(e),
                     node = context.current,
@@ -105,7 +110,14 @@ define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
                     } else if (node.op === "none") {
                         node.children = [];
                     } else if (!node.children || !node.children.length) {
-                        node.children = [{name: "", value: "", tag: "equalityMatch", children: [], op: "expr"}];
+                        // create 2 nodes for 'and'/'or' comparisons
+                        if (node.op === "and" || node.op === "or") {
+                            this.createNode(e);
+                            this.createNode(e);
+                        // create 1 node for other types of comparisons
+                        } else {
+                            this.createNode(e);
+                        }
                     }
                 } else if (field.hasClass("name")) {
 
@@ -116,7 +128,9 @@ define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
                         node.extensible.matchType = field.val();
                         node.name = field.val() + ":1.2.840.113556.1.4.804";
                     } else {
-                        node.name = field.val();
+                        if (node) {
+                            node.name = field.val();
+                        }
                     }
 
                 } else if (field.hasClass("tag")) {
@@ -166,7 +180,7 @@ define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
                     node.value = field.val();
                 }
 
-                if (node.op !== "none") {
+                if (node && node.op !== "none") {
                     this.data.filterString = this.getFilterString();
                 } else {
                     this.data.filterString = "";

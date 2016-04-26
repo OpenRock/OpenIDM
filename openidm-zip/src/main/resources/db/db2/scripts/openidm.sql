@@ -209,8 +209,8 @@ CREATE TABLESPACE SOIDM07 MANAGED BY AUTOMATIC STORAGE;
 CREATE TABLE SOPENIDM.LINKS (
     objectid                   VARCHAR(38)    NOT NULL,
     rev                        VARCHAR(38)    NOT NULL,
-    linktype                   VARCHAR(255)   NOT NULL,
-    linkqualifier              VARCHAR(255)   NOT NULL,
+    linktype                   VARCHAR(50)   NOT NULL,
+    linkqualifier              VARCHAR(50)   NOT NULL,
     firstid                    VARCHAR(255)   NOT NULL,
     secondid                   VARCHAR(255)   NOT NULL,
     PRIMARY KEY (OBJECTID)
@@ -345,7 +345,7 @@ CREATE  TABLE sopenidm.auditconfig (
   operation VARCHAR(255) NULL ,
   beforeObject CLOB(2M) NULL ,
   afterObject CLOB(2M) NULL ,
-  changedfields VARCHAR(255) NULL ,
+  changedfields CLOB(2M) NULL ,
   rev VARCHAR(255) NULL,
   PRIMARY KEY (objectid)
 ) IN DOPENIDM.SOIDM21;
@@ -369,7 +369,7 @@ CREATE TABLE SOPENIDM.AUDITACTIVITY (
     operation VARCHAR(255) NULL ,
     subjectbefore CLOB(2M) NULL ,
     subjectafter CLOB(2M) NULL ,
-    changedfields VARCHAR(255) NULL ,
+    changedfields CLOB(2M) NULL ,
     subjectrev VARCHAR(255) NULL ,
     passwordchanged VARCHAR(5) NULL ,
     message CLOB(2M) NULL,

@@ -1,7 +1,7 @@
 /** 
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2014-2015 ForgeRock AS. All rights reserved.
+ * Copyright (c) 2014-2016 ForgeRock AS. All rights reserved.
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -123,9 +123,26 @@ function findAssignment(assignment, listOfAssignments) {
     return null;
 }
 
+function oldAssignments(source) {
+    return (typeof source.lastSync[mappingName] != 'undefined')
+        ? source.lastSync[mappingName].effectiveAssignments
+        : null;
+}
+
+function oldValueProvided() {
+    return (typeof oldSource !== 'undefined' && oldSource !== null)
+}
+
+function lastSyncProvided(managedObject) {
+    return (typeof managedObject.lastSync !== 'undefined' && managedObject.lastSync !== null)
+}
+
 // Check for any assignments that have been removed or modified
-if (typeof oldSource !== 'undefined' && oldSource !== null) {
-    var oldAssignments = oldSource.effectiveAssignments; // Assignments from the old source value
+if (lastSyncProvided(source) || oldValueProvided() && lastSyncProvided(oldSource)) {
+    // Assignments from the last syncd snapshot
+    var oldAssignments = oldValueProvided() && lastSyncProvided(oldSource)
+        ? oldAssignments(oldSource)
+        : oldAssignments(source);
     var currentAssignments = source.effectiveAssignments; // Assignments from the current source value
     var unassigned = [];
     // Loop through old assignments
