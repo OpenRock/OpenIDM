@@ -20,5 +20,6 @@ define([
     "./queryFilterEditorTest",
     "./TemporalConstraintsUtilsTest",
     "./MembersViewTest",
-    "./ResourceCollection"
+    "./ResourceCollection",
+    "./ConnectorListViewTest"
 ]);

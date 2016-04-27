@@ -98,6 +98,9 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorListView", [
 
                     connector.displayData = this.versionCheck(connector.connectorRef.bundleVersion);
 
+                    //remove data links from connector toggle
+                    this.pruneObjectTypes.bind(this, connector);
+
                     this.model.connectorCollection.add(connector);
                 }, this));
 
@@ -186,6 +189,13 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorListView", [
 
                 }, this));
             }, this));
+        },
+
+        pruneObjectTypes: function(connector) {
+            if(!connector.ok) {
+                connector.objectTypes = [];
+            }
+            return connector;
         },
 
         /**
