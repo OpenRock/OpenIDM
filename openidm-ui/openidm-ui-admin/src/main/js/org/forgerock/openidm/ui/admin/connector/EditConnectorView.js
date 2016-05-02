@@ -14,8 +14,8 @@
  * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
 
+/*global define */
 define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
     "jquery",
     "underscore",
@@ -172,6 +172,10 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
                     this.data.connectorName = data.name;
                     this.data.connectorTypeName = data.connectorRef.connectorName;
                     this.data.enabled = data.enabled;
+
+                    if(_.isUndefined(this.data.enabled)) {
+                        this.data.enabled = true;
+                    }
 
                     //Store in memory version of connector details. This is to ensure we can move around tabs and keep the correct data state.
                     this.connectorDetails = data;

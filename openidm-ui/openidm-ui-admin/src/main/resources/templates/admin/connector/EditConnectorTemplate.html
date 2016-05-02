@@ -73,11 +73,11 @@
                         <div id="connectorGeneralDetails" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="connectorGeneralDetails" aria-expanded="true">
                             <div class="panel-body">
                                 <div class="form-group">
-                                    <label for="connectorType" class="col-sm-3 control-label">{{t "templates.connector.connectorEnabled"}}</label>
+                                    <label for="connectorEnabled" class="col-sm-3 control-label">{{t "templates.connector.connectorEnabled"}}</label>
                                     <div class="col-sm-8">
                                         <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
                                             <label>
-                                                <input class="toggleBoolean" id="connectorEnabled" type="checkbox" name="enabled" value="true" checked>
+                                                <input class="toggleBoolean" id="connectorEnabled" type="checkbox" name="enabled" value="{{enabled}}" {{#if enabled}} checked {{/if}}>
                                                 <span></span>
                                             </label>
                                         </div>
