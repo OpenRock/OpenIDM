@@ -11,10 +11,8 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014-2015 ForgeRock AS.
+ * Copyright 2014-2016 ForgeRock AS.
  */
-
-/*global define */
 
 define("org/forgerock/openidm/ui/admin/connector/ConnectorTypeAbstractView", [
     "jquery",
@@ -176,7 +174,9 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorTypeAbstractView", [
             $('#' + field_type + 'Wrapper').find('.input-group-addon').show();
 
             validatorsManager.bindValidators(this.$el.find('#' + field_type + 'Wrapper'));
-            validatorsManager.validateAllFields(this.$el.find('#' + field_type + 'Wrapper'));
+
+            $(field).find("input").trigger("focus");
+            $(field).find("input").trigger("blur");
         },
 
         removeField: function (event){

@@ -1513,6 +1513,8 @@
                 "groupFilter" : "Group Filter",
                 "defaultPort" : "1389",
                 "baseDN" : "cn=Users,dc=company,dc=com",
+                "group" : "Group",
+                "account" : "Account",
                 "errorMessages": {
                     "unknownHost" : "Unknown Host",
                     "portOutOfRange" : "Port Out of Range",
