@@ -352,7 +352,9 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                                 }
 
                                 if(!attributes.evalResult || !attributes.evalResult.conditionResults || attributes.evalResult.conditionResults.result) {
-                                    if (attributes.sample !== null) {
+                                    if (attributes.evalResult){
+                                        locals.textMuted = attributes.evalResult.transformResults;
+                                    } else if (attributes.sample !== null) {
                                         if (attributes.evalResult && attributes.evalResult.transformResults) {
                                             locals.textMuted = attributes.evalResult.transformResults;
                                         } else {
