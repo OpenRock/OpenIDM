@@ -59,6 +59,8 @@ define("org/forgerock/openidm/ui/common/resource/ResourceCollectionSearchDialog"
                 saveButtonText = $.t("common.form.save");
             }
 
+            this.data.originalPropertyValue = _.cloneDeep(this.data.propertyValue);
+
             this.setRefProperties();
 
             $('#dialogs').append(this.currentDialog);
@@ -88,7 +90,7 @@ define("org/forgerock/openidm/ui/common/resource/ResourceCollectionSearchDialog"
                         action: function(dialogRef) {
                             if (_this.currentDialog.find("#select_" + _this.data.property.propName).val()) {
                                 var newVal = _this.getNewVal();
-                                opts.onChange(newVal.val, newVal.text);
+                                opts.onChange(newVal.val, _this.data.originalPropertyValue, newVal.text);
                                 dialogRef.close();
                             }
                         }
