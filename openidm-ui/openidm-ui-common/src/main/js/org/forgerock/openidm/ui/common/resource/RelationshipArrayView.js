@@ -218,7 +218,7 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
                 this.$el.find('.remove-relationships-btn').prop('disabled',false);
             }
         },
-
+        
         render: function(args, callback) {
             this.args = args;
             this.element = args.element;
@@ -234,14 +234,14 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
 
             this.parentRender(function() {
 
-                this.buildRelationshipArrayGrid(this.getCols());
-
-                if(callback) {
-                    callback();
-                }
+                this.buildRelationshipArrayGrid(this.getCols(), args.onGridChange).then(function () {
+                    if(callback) {
+                        callback();
+                    }
+                });
             });
         },
-        buildRelationshipArrayGrid: function (cols) {
+        buildRelationshipArrayGrid: function (cols, onGridChange) {
             var _this = this,
                 grid_id = this.grid_id_selector,
                 url = this.getURL(),
@@ -258,6 +258,12 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
                 paginator;
 
             this.model.relationships = new RelationshipCollection();
+
+            this.model.relationships.on('sync', function(){
+                if (onGridChange) {
+                    onGridChange();
+                }
+            });
 
             relationshipGrid = new Backgrid.Grid({
                 className: "backgrid table table-hover",
@@ -295,7 +301,7 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
             this.$el.find(pager_id).append(paginator.render().el);
             this.bindDefaultHandlers();
 
-            this.model.relationships.getFirstPage();
+            return this.model.relationships.getFirstPage();
 
         },
 

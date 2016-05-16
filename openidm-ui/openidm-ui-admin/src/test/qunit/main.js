@@ -19,4 +19,5 @@ define([
     "./searchTest",
     "./queryFilterEditorTest",
     "./TemporalConstraintsUtilsTest"
+    "./MembersViewTest"
 ]);
