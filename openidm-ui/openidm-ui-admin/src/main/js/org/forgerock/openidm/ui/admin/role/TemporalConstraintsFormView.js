@@ -14,7 +14,7 @@
  * Copyright 2016 ForgeRock AS.
  */
 
-/*global define */
+/*global define localStorage*/
 
 define("org/forgerock/openidm/ui/admin/role/TemporalConstraintsFormView", [
     "jquery",

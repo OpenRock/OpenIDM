@@ -14,6 +14,8 @@
  * Copyright 2016 ForgeRock AS.
  */
 
+ /*global define localStorage*/
+
 define([
     "jquery",
     "underscore",
@@ -48,9 +50,9 @@ define([
             intervalEnd = intervalString.split("/")[1];
         }
 
-        if (timezoneOffset == null && defaultTimezone) {
+        if (!timezoneOffset && timezoneOffset !== 0 && defaultTimezone) {
             timezoneOffset = this.getTimezoneOffset(defaultTimezone, new Date(intervalStart));
-        } else if (timezoneOffset == null) {
+        } else if (!timezoneOffset && timezoneOffset !== 0) {
             timezoneOffset = new Date().getTimezoneOffset();
         }
 
@@ -89,9 +91,9 @@ define([
             end = new Date(),
             intervalString = "";
 
-        if (timezoneOffset == null && defaultTimezone) {
+        if (!timezoneOffset && timezoneOffset !== 0 && defaultTimezone) {
             timezoneOffset = this.getTimezoneOffset(defaultTimezone, new Date(intervalStart));
-        } else if (timezoneOffset == null) {
+        } else if (!timezoneOffset && timezoneOffset !== 0) {
             timezoneOffset = new Date().getTimezoneOffset();
         }
 
