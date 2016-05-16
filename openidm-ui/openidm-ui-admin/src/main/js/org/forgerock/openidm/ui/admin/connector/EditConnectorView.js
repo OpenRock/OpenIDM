@@ -705,7 +705,7 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
 
                 //Added logic to ensure array parts correctly add and delete what is set
                 _.each(arrayComponents, function (component) {
-                    tempArrayObject = form2js($(component).prop("id"), ".", false);
+                    tempArrayObject = form2js($(component).prop("id"), ".", true);
 
                     _.each(tempArrayObject.configurationProperties, function(item, key) {
                         mergedResult.configurationProperties[key] = item;
