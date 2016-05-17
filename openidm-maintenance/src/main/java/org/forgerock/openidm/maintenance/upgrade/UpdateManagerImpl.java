@@ -782,14 +782,23 @@ public class UpdateManagerImpl implements UpdateManager {
 
     @Override
     public void restartNow() {
+        // Update Thread will restart immediately if it's waiting
         restartImmediately.set(true);
+
+        // If no update thread is running we can restart
         if (updateThread == null) {
-            try {
-                // FIXME - New thread just to restart? yuck.
-                new UpdateThread().restart();
-            } catch (BundleException e) {
-                logger.debug("Failed to restart!", e);
-            }
+            restartOsgiFramework();
+        }
+    }
+
+    /**
+     * Send an update event to the {@link OSGiFrameworkService} effectively restarting the application
+     */
+    private void restartOsgiFramework() {
+        try {
+            osgiFrameworkService.getSystemBundle().update();
+        } catch (BundleException e) {
+            logger.error("Failed to restart!", e);
         }
     }
 
@@ -849,18 +858,6 @@ public class UpdateManagerImpl implements UpdateManager {
         /** List of new repo updates found in archive */
         private final List<Path> repoUpdates;
 
-        // FIXME - Does this even work? Can we just make this private?
-        public UpdateThread() {
-            this.updateEntry = null;
-            this.archive = null;
-            this.archivePath = null;
-            this.fileStateChecker = null;
-            this.staticFileUpdate = null;
-            this.updateConfig = null;
-            this.tempDirectory = null;
-            this.repoUpdates = new ArrayList<>();
-        }
-
         public UpdateThread(UpdateLogEntry updateEntry, Path archivePath, Archive archive, FileStateChecker fileStateChecker,
                 Path installDir, JsonValue updateConfig, Path tempDirectory) throws IOException, UpdateException {
             this.updateEntry = updateEntry;
@@ -877,11 +874,6 @@ public class UpdateManagerImpl implements UpdateManager {
         }
 
         public void run() {
-            // FIXME - smelly ...
-            if (updateEntry == null) {
-                return;
-            }
-
             try {
                 final String projectDir = IdentityServer.getInstance().getProjectLocation().toString();
                 final String installDir = IdentityServer.getInstance().getInstallLocation().toString();
@@ -1051,11 +1043,7 @@ public class UpdateManagerImpl implements UpdateManager {
 
             // Restart if necessary
             if (updateConfig.get(UPDATE_RESTARTREQUIRED).asBoolean()) {
-                try {
-                    restart();
-                } catch (BundleException e) {
-                    logger.debug("Failed to restart!", e);
-                }
+                restart();
             }
         }
 
@@ -1099,7 +1087,10 @@ public class UpdateManagerImpl implements UpdateManager {
             return pid;
         }
 
-        protected void restart() throws BundleException {
+        /**
+         * Restart in 30 seconds unless {@link #restartImmediately} is {@code true}
+         */
+        private void restart() {
             long timeout = System.currentTimeMillis() + 30000;
             try {
                 do {
@@ -1108,8 +1099,8 @@ public class UpdateManagerImpl implements UpdateManager {
             } catch (Exception e) {
                 // restart now
             }
-            // Send updated FrameworkEvent
-            osgiFrameworkService.getSystemBundle().update();
+
+            restartOsgiFramework();
         }
 
         /**
