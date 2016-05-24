@@ -13,22 +13,22 @@
  *
  * Copyright 2016 ForgeRock AS.
  */
-
 /*global define */
 
 define("org/forgerock/openidm/ui/common/resource/ResourceCollection", [
+    "lodash",
     "org/forgerock/commons/ui/common/main/AbstractModel",
     "org/forgerock/openidm/ui/admin/util/BackgridUtils",
     "org/forgerock/commons/ui/common/main/AbstractCollection"
-], function(AbstractModel, BackgridUtils, AbstractCollection) {
+], function(_, AbstractModel, BackgridUtils, AbstractCollection) {
     var ResourceCollection = AbstractCollection.extend({
         initialize: function(models, options) {
             this.url = options.url;
             this.model = AbstractModel.extend({ "url": options.url });
             this.state = options.state;
-            this.queryParams = BackgridUtils.getQueryParams({
+            _.extend(this.queryParams, BackgridUtils.getQueryParams({
                 _queryFilter: options._queryFilter
-            }, options.isSystemResource);
+            }, options.isSystemResource));
         }
     });
     return ResourceCollection;
