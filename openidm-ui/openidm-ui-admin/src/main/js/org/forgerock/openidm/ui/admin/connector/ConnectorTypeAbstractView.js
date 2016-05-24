@@ -31,24 +31,31 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorTypeAbstractView", [
 
         render: function(args, callback) {
             var base = "templates/admin/connector/";
+            this.data.docHelpUrl = constants.DOC_URL;
 
             $("#connectorDetails").hide();
 
             this.data.connectorDefaults = args.connectorDefaults;
 
-            ConnectorDelegate.templateCheck(args.connectorType).then(_.bind(function(data){
-                    this.template = base + args.connectorType +".html";
+            // Check if it's kerberos
+            this.handleKerberos(args);
 
-                    UIUtils.templates[constants.host + "templates/admin/connector/" +args.connectorType +".html"] = data;
+            ConnectorDelegate.templateCheck(args.connectorType).then(
+                function(data) {
+                    this.template = base + args.connectorType + ".html";
+
+                    UIUtils.templates[constants.host + this.template] = data;
 
                     this.renderTemplate(callback, false, args);
 
-                }, this),
-                _.bind(function(result){
-                    this.template = base +"GenericConnector.html";
+                }.bind(this),
+                function(result) {
+                    this.template = base + "GenericConnector.html";
 
                     this.renderTemplate(callback, true, args);
-                }, this));
+
+                }.bind(this)
+            );
         },
 
         renderTemplate: function(callback, jsonEditorLoad, args) {
@@ -62,13 +69,13 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorTypeAbstractView", [
                 orderCount = 0;
 
             this.parentRender(_.bind(function() {
-                if(args.animate) {
+                if (args.animate) {
                     $("#connectorDetails").slideDown("slow", function() {});
                 } else {
                     $("#connectorDetails").show();
                 }
 
-                if(!jsonEditorLoad) {
+                if (!jsonEditorLoad) {
                     this.fieldButtonCheck();
 
                     this.isGeneric = false;
@@ -87,41 +94,8 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorTypeAbstractView", [
 
                     this.isGeneric = true;
 
-                    /*
-                        For now we will allow the schema to be generic with no restrictions
-                    _.each(this.data.connectorDefaults.configurationProperties, function(value, key, obj) {
-                        if(value === null) {
-                            this.data.connectorDefaults.configurationProperties[key] = "";
-
-                            schema.properties[key] = {
-                                type:"string",
-                                propertyOrder : orderCount
-                            };
-
-                        } else if (value === true || value === false) {
-                            schema.properties[key] = {
-                                type:"boolean",
-                                propertyOrder : orderCount
-                            };
-                        } else if (_.isObject(value)){
-                            schema.properties[key] = {
-                                type:"object",
-                                propertyOrder : orderCount
-                            };
-                        } else if (_.isArray(value)) {
-                            schema.properties[key] = {
-                                type:"array",
-                                propertyOrder : orderCount
-                            };
-                        } else {
-                            schema.properties[key] = {
-                                type:"string",
-                                propertyOrder : orderCount
-                            };
-                        }
-
-                        orderCount++;
-                    }, this);*/
+                    // For now we will allow the schema to be generic with no restrictions
+                    // this.setSchema(schema, orderCount);
 
                     this.editor = new JSONEditor(this.$el.find("#genericConnectorBody")[0], {
                         schema: schema
@@ -130,10 +104,45 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorTypeAbstractView", [
                     this.editor.setValue(this.data.connectorDefaults.configurationProperties);
                 }
 
-                if(callback){
+                if (callback) {
                     callback();
                 }
             }, this));
+        },
+
+        setSchema: function(schema, orderCount) {
+            _.each(this.data.connectorDefaults.configurationProperties, function(value, key, obj) {
+                if (value === null) {
+                    this.data.connectorDefaults.configurationProperties[key] = "";
+
+                    schema.properties[key] = {
+                        type:"string",
+                        propertyOrder: orderCount
+                    };
+
+                } else if (value === true || value === false) {
+                    schema.properties[key] = {
+                        type:"boolean",
+                        propertyOrder: orderCount
+                    };
+                } else if (_.isObject(value)) {
+                    schema.properties[key] = {
+                        type:"object",
+                        propertyOrder: orderCount
+                    };
+                } else if (_.isArray(value)) {
+                    schema.properties[key] = {
+                        type:"array",
+                        propertyOrder: orderCount
+                    };
+                } else {
+                    schema.properties[key] = {
+                        type:"string",
+                        propertyOrder: orderCount
+                    };
+                }
+                orderCount++;
+            }, this);
         },
 
         getGenericState: function() {
@@ -200,6 +209,24 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorTypeAbstractView", [
 
             validatorsManager.bindValidators(this.$el.find('#' + field_type + 'Wrapper'));
             validatorsManager.validateAllFields(this.$el.find('#' + field_type + 'Wrapper'));
+        },
+
+        handleKerberos: function(args) {
+            if (args.connectorType.match("kerberos")) {
+
+                var configProps = this.data.connectorDefaults.configurationProperties,
+                    customConfigString = "kadmin { cmd = '/usr/sbin/kadmin.local'; user='<KADMIN USERNAME>'; default_realm='<REALM, e.g. EXAMPLE.COM>' }",
+                    connectorType = "org.forgerock.openicf.connectors.ssh.SSHConnector_1.4";
+
+                args.connectorType = connectorType;
+                this.data.isKerberos = true;
+
+                // set defaults for the template if these are not already set
+                // in the provisioner
+                if (!configProps.customConfiguration) {
+                    configProps.customConfiguration = customConfigString;
+                }
+            }
         }
     });
 
