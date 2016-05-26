@@ -325,6 +325,7 @@ define("org/forgerock/openidm/ui/common/resource/ListResourceView", [
 
                 paginator = new Backgrid.Extension.Paginator({
                     collection: this.model.resources,
+                    goBackFirstOnSort: false,
                     windowSize: 0
                 });
 
