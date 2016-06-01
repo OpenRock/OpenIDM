@@ -100,13 +100,25 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
             }
 
             uiUtils.confirmDialog($.t("templates.admin.ResourceEdit.confirmDeleteSelected"),  "danger", _.bind(function(){
-                var promArr = [];
-
+                var promise;
+                /*
+                loop over the selectedItems you want to delete and
+                build "promise" by tacking on a "then" for each item
+                */
                 _.each(this.data.selectedItems, _.bind(function(relationship) {
-                    promArr.push(this.deleteRelationship(relationship));
+                    if (!promise) {
+                        //no promise exists so create it
+                        promise = this.deleteRelationship(relationship);
+                    } else {
+                        //promise exists now "concat" a new "then" onto the original promise
+                        promise = promise.then(_.bind(function () {
+                            return this.deleteRelationship(relationship);
+                        }, this));
+                    }
                 }, this));
 
-                $.when.apply($,promArr).then(_.bind(function(proms){
+                //"concat" the final "then" onto promise
+                promise.then(_.bind(function(proms){
                     this.reloadGrid(null, _.bind(function() {
                         messagesManager.messages.addMessage({"message": $.t("templates.admin.ResourceEdit.deleteSelectedSuccess")});
                     },this));
@@ -118,7 +130,7 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
             if(event) {
                 event.preventDefault();
             }
-            this.render(this.args);
+            this.render(this.args, callback);
         },
         getURL: function(){
             return "/" + constants.context + "/" + this.relationshipUrl;
@@ -218,7 +230,7 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
                 this.$el.find('.remove-relationships-btn').prop('disabled',false);
             }
         },
-        
+
         render: function(args, callback) {
             this.args = args;
             this.element = args.element;
@@ -311,7 +323,7 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
                     this.data.selectedItems.push(model.attributes);
                 }
             } else {
-                this.data.selectedItems = _.without(this.data.selectedItems, model.id);
+                this.data.selectedItems = _.without(this.data.selectedItems, model.attributes);
             }
             this.toggleActions();
 
