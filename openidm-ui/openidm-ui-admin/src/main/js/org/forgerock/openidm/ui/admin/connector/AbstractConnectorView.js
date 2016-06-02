@@ -239,6 +239,19 @@ define("org/forgerock/openidm/ui/admin/connector/AbstractConnectorView", [
             }
         },
 
+        /**
+           Replaces all keys in the top level of the object which have values like
+           "true" or "false" into actual boolean values instead. Modifies object provided
+         */
+        convertStringsToBooleans: function (obj) {
+            _.each(_.keys(obj), function (key) {
+                if (obj[key] === "true" || obj[key] === "false") {
+                    // convert string values for true and false into actual booleans
+                    obj[key] = (obj[key] === "true");
+                }
+            });
+        },
+
         oAuthFormSubmit: function(event) {
             event.preventDefault();
             var mergedResult = this.getProvisioner();

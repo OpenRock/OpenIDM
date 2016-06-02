@@ -78,34 +78,34 @@
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="recompileGroovySource">{{t "templates.connector.scriptedShared.recompileGroovySource"}}</label>
                 <div class="col-sm-8">
-                    <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
-                        <label>
-                            <input class="toggleBoolean" id="recompileGroovySource" type="checkbox" name="configurationProperties.recompileGroovySource" value="false" >
-                            <span></span>
-                        </label>
-                    </div>
+                    <select id="recompileGroovySource" class="form-control" name="configurationProperties.recompileGroovySource">
+                        {{#staticSelect connectorDefaults.configurationProperties.recompileGroovySource}}
+                        <option value="true">{{t "common.form.true"}}</option>
+                        <option value="false">{{t "common.form.false"}}</option>
+                        {{/staticSelect}}
+                    </select>
                 </div>
             </div>
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="debug">{{t "templates.connector.scriptedShared.debug"}}</label>
                 <div class="col-sm-8">
-                    <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
-                        <label>
-                            <input class="toggleBoolean" id="debug" type="checkbox" name="configurationProperties.debug" value="false" >
-                            <span></span>
-                        </label>
-                    </div>
+                    <select id="debug" class="form-control" name="configurationProperties.debug">
+                        {{#staticSelect connectorDefaults.configurationProperties.debug}}
+                        <option value="true">{{t "common.form.true"}}</option>
+                        <option value="false">{{t "common.form.false"}}</option>
+                        {{/staticSelect}}
+                    </select>
                 </div>
             </div>
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="verbose">{{t "templates.connector.scriptedShared.verbose"}}</label>
                 <div class="col-sm-8">
-                    <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
-                        <label>
-                            <input class="toggleBoolean" id="verbose" type="checkbox" name="configurationProperties.verbose" value="false" >
-                            <span></span>
-                        </label>
-                    </div>
+                    <select id="verbose" class="form-control" name="configurationProperties.verbose">
+                        {{#staticSelect connectorDefaults.configurationProperties.verbose}}
+                        <option value="true">{{t "common.form.true"}}</option>
+                        <option value="false">{{t "common.form.false"}}</option>
+                        {{/staticSelect}}
+                    </select>
                 </div>
             </div>
         </div>

@@ -77,7 +77,7 @@
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="jdbcDriver">{{t "templates.connector.databaseTableConnector.jdbcDriver"}}</label>
                 <div class="col-sm-8">
-                    <input class="form-control" type="text" id="jdbcDriver" name="configurationProperties.jdbcDriver" data-validator-event="keyup blur" data-validator="required" value={{t "templates.connector.databaseTableConnector.jdbcDefaultDriver"}} />
+                    <input class="form-control" type="text" id="jdbcDriver" name="configurationProperties.jdbcDriver" data-validator-event="keyup blur" data-validator="required" value="{{connectorDefaults.configurationProperties.jdbcDriver}}" />
                     <span class="error form-control-feedback"><i class='fa validation-icon'></i></span>
                     <span class="help-block">{{t "templates.connector.databaseTableConnector.jdbcDriverHelp"}}</span>
                 </div>
@@ -85,7 +85,7 @@
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="jdbcUrlTemplate">{{t "templates.connector.databaseTableConnector.jdbcUrlTemplate"}}</label>
                 <div class="col-sm-8">
-                    <input class="form-control" type="text" id="jdbcUrlTemplate" name="configurationProperties.jdbcUrlTemplate" data-validator-event="keyup blur" data-validator="required" value={{t "templates.connector.databaseTableConnector.jdbcDefaultUrl"}} />
+                    <input class="form-control" type="text" id="jdbcUrlTemplate" name="configurationProperties.jdbcUrlTemplate" data-validator-event="keyup blur" data-validator="required" value="{{connectorDefaults.configurationProperties.jdbcUrlTemplate}}" />
                     <span class="error form-control-feedback"><i class='fa validation-icon'></i></span>
                     <span class="help-block">{{t "templates.connector.databaseTableConnector.jdbcUrlTemplateHelp"}}</span>
                 </div>
@@ -100,48 +100,48 @@
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="enableEmptyString">{{t "templates.connector.databaseTableConnector.enableEmptyString"}}</label>
                 <div class="col-sm-8">
-                    <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
-                        <label>
-                            <input class="toggleBoolean" id="enableEmptyString" type="checkbox" name="configurationProperties.enableEmptyString" value="false">
-                            <span></span>
-                        </label>
-                    </div>
+                    <select id="enableEmptyString" class="form-control" name="configurationProperties.enableEmptyString">
+                        {{#staticSelect connectorDefaults.configurationProperties.enableEmptyString}}
+                        <option value="true">{{t "common.form.true"}}</option>
+                        <option value="false">{{t "common.form.false"}}</option>
+                        {{/staticSelect}}
+                    </select>
                     <span class="help-block">{{t "templates.connector.databaseTableConnector.emptyStringHelp"}}</span>
                 </div>
             </div>
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="rethrowAllSQLExceptions">{{t "templates.connector.databaseTableConnector.rethrowSQL"}}</label>
                 <div class="col-sm-8">
-                    <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
-                        <label>
-                            <input class="toggleBoolean" id="rethrowAllSQLExceptions" type="checkbox" name="configurationProperties.rethrowAllSQLExceptions" value="true" checked>
-                            <span></span>
-                        </label>
-                    </div>
+                    <select id="rethrowAllSQLExceptions" class="form-control" name="configurationProperties.rethrowAllSQLExceptions">
+                        {{#staticSelect connectorDefaults.configurationProperties.rethrowAllSQLExceptions}}
+                        <option value="true">{{t "common.form.true"}}</option>
+                        <option value="false">{{t "common.form.false"}}</option>
+                        {{/staticSelect}}
+                    </select>
                     <span class="help-block">{{t "templates.connector.databaseTableConnector.rethrowSqlHelp"}}</span>
                 </div>
             </div>
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="nativeTimestamps">{{t "templates.connector.databaseTableConnector.nativeTimestamps"}}</label>
                 <div class="col-sm-8">
-                    <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
-                        <label>
-                            <input class="toggleBoolean" id="nativeTimestamps" type="checkbox" name="configurationProperties.nativeTimestamps" value="false" >
-                            <span></span>
-                        </label>
-                    </div>
+                    <select id="nativeTimestamps" class="form-control" name="configurationProperties.nativeTimestamps">
+                        {{#staticSelect connectorDefaults.configurationProperties.nativeTimestamps}}
+                        <option value="true">{{t "common.form.true"}}</option>
+                        <option value="false">{{t "common.form.false"}}</option>
+                        {{/staticSelect}}
+                    </select>
                     <span class="help-block">{{t "templates.connector.databaseTableConnector.nativeTimestampsHelp"}}</span>
                 </div>
             </div>
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="allNative">{{t "templates.connector.databaseTableConnector.allNative"}}</label>
                 <div class="col-sm-8">
-                    <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
-                        <label>
-                            <input class="toggleBoolean" id="allNative" type="checkbox" name="configurationProperties.allNative" value="false" >
-                            <span></span>
-                        </label>
-                    </div>
+                    <select id="allNative" class="form-control" name="configurationProperties.allNative">
+                        {{#staticSelect connectorDefaults.configurationProperties.nativeTimestamps}}
+                        <option value="true">{{t "common.form.true"}}</option>
+                        <option value="false">{{t "common.form.false"}}</option>
+                        {{/staticSelect}}
+                    </select>
                     <span class="help-block">{{t "templates.connector.databaseTableConnector.allNativeHelp"}}</span>
                 </div>
             </div>

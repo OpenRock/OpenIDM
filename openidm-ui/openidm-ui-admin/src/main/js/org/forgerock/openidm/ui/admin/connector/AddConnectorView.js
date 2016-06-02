@@ -48,8 +48,7 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
         template: "templates/admin/connector/AddConnectorTemplate.html",
         events: {
             "change #connectorType" : "loadConnectorTemplate",
-            "onValidate": "onValidate",
-            "change .toggleBoolean" : connectorUtils.toggleValue
+            "onValidate": "onValidate"
         },
         data: {
 
@@ -120,6 +119,7 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
 
             connectorData = form2js("connectorForm", ".", true);
 
+            this.convertStringsToBooleans(connectorData.configurationProperties);
             if (this.connectorTypeRef.getGenericState()) {
                 delete connectorData.root;
                 connectorData.configurationProperties = this.connectorTypeRef.getGenericConnector();

@@ -69,8 +69,7 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
             "change .postRetryAction": "postRetryActionChange",
             "change #connectorForm :input" : "connectorChangesCheck",
             "keypress #connectorForm :input" : "connectorFlowCheck",
-            "paste #connectorForm :input" : "connectorFlowCheck",
-            "change .toggleBoolean" : connectorUtils.toggleValue
+            "paste #connectorForm :input" : "connectorFlowCheck"
         },
         data: {
 
@@ -698,6 +697,7 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
 
                 delete connectorData.connectorType;
 
+                this.convertStringsToBooleans(connectorData.configurationProperties);
                 connectorData.configurationProperties.readSchema = false;
                 connectorData.objectTypes = {};
 
