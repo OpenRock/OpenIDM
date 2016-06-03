@@ -90,7 +90,7 @@ define("org/forgerock/openidm/ui/admin/delegates/MaintenanceDelegate", [
 
     obj.update = function (archive) {
         return obj.serviceCall({
-            url: "/update?_action=update&archive=" + archive,
+            url: "/update?_action=update&archive=" + archive + "&acceptLicense=true",
             type: "POST"
         });
     };
