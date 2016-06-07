@@ -54,12 +54,22 @@
         </license>
     </licenses>
     <scm>
-        <connection>scm:git:ssh://git@stash.forgerock.org:7999/openidm/openidm.git</connection>
-        <developerConnection>scm:git:ssh://git@stash.forgerock.org:7999/openidm/openidm.git</developerConnection>
-        <url>https://stash.forgerock.org/projects/OPENIDM/repos/openidm/browse</url>
-      <tag>HEAD</tag>
+        <connection>scm:git:ssh://git@stash.forgerock.org:7999/openidm/openidm-sustaining.git</connection>
+        <developerConnection>scm:git:ssh://git@stash.forgerock.org:7999/openidm/openidm-sustaining.git</developerConnection>
+        <url>https://stash.forgerock.org/projects/OPENIDM/repos/openidm-sustaining/browse</url>
   </scm>
     <distributionManagement>
+      <!-- For Deployment to ForgeRock Maven private repositories -->
+      <repository>
+           <id>forgerock-private-releases</id>
+           <name>maven.forgerock.org-releases</name>
+           <url>http://maven.forgerock.org/repo/private-releases</url>
+      </repository>
+      <snapshotRepository>
+           <id>forgerock-private-snapshots</id>
+           <name>maven.forgerock.org-snapshots</name>
+           <url>http://maven.forgerock.org/repo/private-snapshots</url>
+      </snapshotRepository>
         <site>
             <id>forgerock.org</id>
             <name>ForgeRock Community Server</name>
@@ -154,7 +164,6 @@
             </snapshots>
         </pluginRepository>
     </pluginRepositories>
-
     <mailingLists>
         <mailingList>
             <name>OpenIDM: Technical communications</name>
@@ -719,7 +728,7 @@
                 <artifactId>pax-web-jetty-bundle</artifactId>
                 <version>${paxweb.version}</version>
             </dependency>
-        
+
             <!-- H2 Database -->
             <dependency>
                 <groupId>com.h2database</groupId>
