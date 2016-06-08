@@ -223,6 +223,16 @@ public final class ServerConstants {
     public static final String ROUTER_PREFIX = "openidm.router.prefix";
 
     /**
+     * Felix SCR property for scheduled service invoke service names.
+     */
+    public static final String SCHEDULED_SERVICE_INVOKE_SERVICE = "openidm.scheduledservice.invokeService";
+
+    /**
+     * Default prefix for OpenIDM OSGi services.  Also used as prefix for scheduled service job "invokeService" attributes.
+     */
+    public final static String SERVICE_RDN_PREFIX = "org.forgerock.openidm.";
+
+    /**
      * Query input value for the QUERY_ID input key.
      *
      * Querying with this query id results in querying all object IDs for a
