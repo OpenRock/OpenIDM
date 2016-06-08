@@ -251,7 +251,7 @@
         </openidm.osgi.import>
 
         <!-- OpenICF Framework and Connector versions -->
-        <openicf.framework.version>1.5.0.1-SNAPSHOT</openicf.framework.version>
+        <openicf.framework.version>1.5.0.1-RC1</openicf.framework.version>
         <openicf.xmlconnector.version>1.1.0.2</openicf.xmlconnector.version>
         <openicf.csvconnector.version>1.5.1.2</openicf.csvconnector.version>
         <openicf.dbtableconnector.version>1.1.0.1</openicf.dbtableconnector.version>
@@ -263,7 +263,7 @@
         <openicf.kerberosconnector.version>1.4.0.0</openicf.kerberosconnector.version>
         <openicf.racfconnector.version>1.1.0.0</openicf.racfconnector.version>
         <salesforce.api.version>29</salesforce.api.version>
-        <provisioner.salesforcemodule.version>2.0.${salesforce.api.version}.3-SNAPSHOT</provisioner.salesforcemodule.version>
+        <provisioner.salesforcemodule.version>2.0.${salesforce.api.version}.3</provisioner.salesforcemodule.version>
 
         <!-- Site properties -->
         <siteDistributionURL>scp://community.internal.forgerock.com/var/www/vhosts/openidm.forgerock.org/httpdocs</siteDistributionURL>
