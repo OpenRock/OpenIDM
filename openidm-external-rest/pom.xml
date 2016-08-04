@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.forgerock.openidm</groupId>
         <artifactId>openidm-project</artifactId>
-        <version>4.1.0-SNAPSHOT</version>
+        <version>5.0.0-SNAPSHOT</version>
     </parent>
     <artifactId>openidm-external-rest</artifactId>
     <packaging>bundle</packaging>
@@ -41,37 +41,23 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.restlet.osgi</groupId>
-            <artifactId>org.restlet</artifactId>
+            <groupId>org.forgerock.http</groupId>
+            <artifactId>chf-client-apache-async</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.restlet.osgi</groupId>
-            <artifactId>org.restlet.ext.httpclient</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient-osgi</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpcore-osgi</artifactId>
+            <groupId>org.forgerock.commons.guava</groupId>
+            <artifactId>forgerock-guava-net</artifactId>
         </dependency>
 
         <!-- Provided OSGi Dependencies -->
         <dependency>
             <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.core</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <!-- TODO Remove org.apache.felix.framework when Compendium 4.3 is used -->
-        <dependency>
-            <groupId>org.apache.felix</groupId>
-            <artifactId>org.apache.felix.framework</artifactId>
+            <artifactId>osgi.core</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.compendium</artifactId>
+            <artifactId>osgi.cmpn</artifactId>
             <scope>provided</scope>
         </dependency>
 
@@ -89,8 +75,28 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.easytesting</groupId>
-            <artifactId>fest-assert-core</artifactId>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-all</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.forgerock.commons</groupId>
+            <artifactId>forgerock-test-utils</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.forgerock.commons.guava</groupId>
+            <artifactId>forgerock-guava-collect</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.forgerock.commons.guava</groupId>
+            <artifactId>forgerock-guava-io</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -11,7 +11,7 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Portions copyright 2011-2016 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 package org.forgerock.openidm.managed;
 
@@ -36,10 +36,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.forgerock.json.JsonException;
+import org.forgerock.json.JsonPatch;
 import org.forgerock.json.JsonPointer;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.JsonValueException;
-import org.forgerock.json.patch.JsonPatch;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
@@ -180,6 +180,8 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
     /** Flag for indicating if policy enforcement is enabled */
     private final boolean enforcePolicies;
 
+    private final JsonValue config;
+
     /**
      * Constructs a new managed object set.
      *
@@ -212,6 +214,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
         }
         this.managedObjectPath = new ResourcePath("managed").child(name);
 
+        this.config = config;
         this.schema = new ManagedObjectSchema(config.get("schema").expect(Map.class), scriptRegistry, cryptoService);
 
         for (JsonPointer relationship : schema.getRelationshipFields()) {
@@ -458,21 +461,31 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
     }
 
     /**
-     * Update a resource as part of an update or patch request.
+     * Update a resource as part of an update or patch request. This method will also be invoked from a triggerSyncCheck
+     * (via the updateInstance method). Its fundamental concern is to perform diff logic between between the oldValue, 
+     * which is obtained via a repo read, and the newValue, which is provided by the caller, and to trigger the 
+     * appropriate repo persistence and sync actions as dictated by the specific differences between the oldValue and 
+     * newValue.
      *
      * @param context the current Context
      * @param request the source Request
      * @param resourceId the resource id of the object being modified
-     * @param rev the revision of hte object being modified
-     * @param oldValue the old value of the object
-     * @param newValue the new value of the object
-     * @param relationshipFields a set of relationship fields to persist
+     * @param rev the revision of the object being modified
+     * @param oldValue the old value of the object, as read from the repo
+     * @param newValue the new value of the object, as specified by the user, or as constituted via a router read 
+     *                 request in the triggerSyncCheck action.
+     * @param relationshipFields a set of relationship fields to persist.
+     * @param alreadyPersistedRelationshipFields the set of relationship fields already persisted by the caller. Non-empty
+     *                                           set specified only when method invoked by RelationshipProvider when
+     *                                           consumed as a relationship endpoint, as it persists the relationship
+     *                                           prior to calling this method.
      * @return a {@link ResourceResponse} object representing the updated resource
      * @throws ResourceException
      */
-    private ResourceResponse update(final Context context, Request request, String resourceId, String rev,
-    		JsonValue oldValue, JsonValue newValue, Set<JsonPointer> relationshipFields)
+    public ResourceResponse update(final Context context, Request request, String resourceId, String rev,
+    		JsonValue oldValue, JsonValue newValue, Set<JsonPointer> relationshipFields, Set<JsonPointer> alreadyPersistedRelationshipFields)
             throws ResourceException {
+        Context managedContext = new ManagedObjectContext(context);
 
         JsonValue decryptedNew = decrypt(newValue);
         JsonValue decryptedOld = decrypt(oldValue);
@@ -486,10 +499,15 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
                 prepareScriptBindings(context, request, resourceId, decryptedOld, decryptedNew));
 
         // determine if any onUpdate script manipulated a relationship field, and update the relationshipFields Set accordingly
-        updateRelationshipFields(relationshipFields, decryptedOld, decryptedNew);
+        // and insure that the oldObject contains the repo-resident relationship state so that diff logic can be performed
+        // appropriately.
+        updateRelationshipFields(context, resourceId, relationshipFields, decryptedOld, decryptedNew);
+
+        //remove already-persisted relationship fields, as they should not be validated/persisted
+        relationshipFields.removeAll(alreadyPersistedRelationshipFields);
 
         // Validate relationships before persisting
-        validateRelationshipFields(context, decryptedOld, decryptedNew);
+        validateRelationshipFields(managedContext, decryptedOld, decryptedNew, relationshipFields);
 
         // Populate the virtual properties (so they are updated for sync-ing)
         populateVirtualProperties(context, request, decryptedNew);
@@ -510,10 +528,11 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
         responseContent.asMap().putAll(strippedRelationshipFields.asMap());
 
         // Persists all relationship fields that are present in the new value and updates their values.
-        responseContent.asMap().putAll(persistRelationships(false, context, resourceId, oldValue, responseContent, relationshipFields)
+        responseContent.asMap().putAll(persistRelationships(false, managedContext, resourceId, oldValue, responseContent, relationshipFields)
                 .asMap());
 
         // Execute the postUpdate script if configured
+
         executePostUpdate(context, request, resourceId, decryptedOld, responseContent);
 
         performSyncAction(context, request, resourceId, SynchronizationService.SyncServiceAction.notifyUpdate,
@@ -531,21 +550,39 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
      * the relationshipFields set must be updated with this field name, so that the corresponding relationships can
      * be persisted. So if the relationshipFields does not contain a relationship field, and a difference between the
      * oldObject and newObject includes this field, then this field must be added to the relationshipFields collection.
+     * In addition, if a relationship has been added to the newObject, then the oldObject should be updated with the
+     * repo-resident state corresponding to this relationship, so that the diff logic has the correct state.
      * @param relationshipFields the set of relationship fields that should be updated
      * @param oldObject the managed object prior to the script onUpdate invocation
      * @param newObject the managed object following script onUpdate invocation
      */
-    private void updateRelationshipFields(Set<JsonPointer> relationshipFields, JsonValue oldObject, JsonValue newObject) {
+    private void updateRelationshipFields(Context context, String resourceId, Set<JsonPointer> relationshipFields,
+                                          JsonValue oldObject, JsonValue newObject) throws ResourceException {
         final Set<JsonPointer> systemRelationships = relationshipProviders.keySet();
         if (!relationshipFields.containsAll(systemRelationships)) {
             final JsonValue diff = JsonPatch.diff(oldObject, newObject);
-            for (Map<String, Object> diffOp : diff.asList(Map.class)) {
-                //not descriminating on type of diff - replace/add/remove
+            for (JsonValue diffElement : diff) {
+                Map<String, Object> diffOp = diffElement.asMap();
+                //not discriminating on type of diff - replace/add/remove will all result in relationshipField additions
                 JsonPointer pathPointer = new JsonPointer((String) diffOp.get(JsonPatch.PATH_PTR.leaf()));
                 if (systemRelationships.contains(pathPointer) && !relationshipFields.contains(pathPointer)) {
                     relationshipFields.add(pathPointer);
                     logger.info("In updateRelationshipFields, adding onUpdate-script-modified relationship to " +
                             "processed relationship set: {}", pathPointer);
+                    // if the relationshipFields did not include a relationship which we have added to the newObject,
+                    // populate the oldObject with the repo-resident state corresponding to the relationship to insure
+                    // that the update diff logic has the correct state.
+                    if ("add".equals(diffOp.get(JsonPatch.OP_PTR.leaf()))) {
+                        try {
+                            final JsonValue relationships = fetchRelationshipFields(context, resourceId,
+                                    Collections.singletonList(pathPointer));
+                            oldObject.asMap().putAll(relationships.asMap());
+                            logger.info("In updateRelationshipFields, adding relationships {} to managed object {}.",
+                                    relationships.toString(), resourceId);
+                        } catch (ExecutionException | InterruptedException e) {
+                            throw new InternalServerErrorException(e.getMessage(), e);
+                        }
+                    }
                 }
             }
         }
@@ -682,7 +719,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
                     prepareScriptBindings(managedContext, request, resourceId, new JsonValue(null), content));
 
             // Validate relationships before persisting
-            validateRelationshipFields(managedContext, json(object()), value);
+            validateRelationshipFields(managedContext, json(object()), value, relationshipProviders.keySet());
 
             // Populate the virtual properties (so they are available for sync-ing)
             populateVirtualProperties(managedContext, request, value);
@@ -811,47 +848,84 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
     }
 
     /**
-     * This will traverse the jsonValue and validate that all relationship references are valid.
+     * This will traverse the jsonValue and validate that all relationship references are valid and available for
+     * assignment.
      *
+     * @param context context of the request that is in progress.
      * @param oldValue previous state of the json.
      * @param newValue json object that will get its relationship fields validated.
-     * @param context context of the request that is in progress.
+     * @param toBeValidatedRelationshipFields the set of relationship fields which should be validated
      * @throws ResourceException BadRequestException when the first invalid relationship reference is discovered,
      * otherwise for other issues.
      */
-    private void validateRelationshipFields(Context context, JsonValue oldValue, JsonValue newValue)
-            throws ResourceException {
-        for (JsonPointer field : schema.getRelationshipFields()) {
-            if (schema.getField(field).isValidationRequired()) {
-                relationshipProviders.get(field).validateRelationshipField(context,
-                        oldValue.get(field) == null ? json(null) : oldValue.get(field),
-                        newValue.get(field) == null ? json(null) : newValue.get(field));
+    private void validateRelationshipFields(Context context, JsonValue oldValue, JsonValue newValue,
+                Set<JsonPointer> toBeValidatedRelationshipFields) throws ResourceException {
+        EventEntry measure = Publisher.start(Name.get("openidm/internal/managedObjectSet/validateRelationshipFields"), null, null);
+        try {
+            for (JsonPointer field : toBeValidatedRelationshipFields) {
+                final SchemaField schemaField = schema.getField(field);
+                if ((schemaField != null) && schemaField.isValidationRequired()) {
+                    relationshipProviders.get(field).validateRelationshipField(context,
+                            oldValue.get(field) == null ? json(null) : oldValue.get(field),
+                            newValue.get(field) == null ? json(null) : newValue.get(field));
+                }
             }
+        } finally {
+            measure.end();
         }
     }
 
+    /**
+     * Called from the triggerSyncCheck action, or as part of the CollectionResourceProvider contract. When called from
+     * triggerSyncCheck, the UpdateRequest will contain the ManagedObject as populated via a router READ - i.e. with
+     * the virtual attributes, and any necessary relationships, populated. This method will read the specified resource
+     * from the repo, and pass this (old) object, and the (new) object passed in the UpdateRequest parameter, to the update
+     * method, so that the appropriate fields can be updated and synced.
+     * Note that it is important to the diff logic in the update method that the repo-read (old) object and the caller-dispatched
+     * (new) object reference the same fields - in particular relationship fields.
+     * @param context the caller's context
+     * @param resourceId the resource identifier
+     * @param request the updated resource representation, as specified by the caller
+     * @return the updated resource, referencing the fields as specified in the UpdateRequest.
+     */
     @Override
     public Promise<ResourceResponse, ResourceException>  updateInstance(final Context context, final String resourceId,
     		final UpdateRequest request) {
         logger.debug("update {} ", "name=" + name + " id=" + resourceId + " rev=" + request.getRevision());
         Context managedContext = new ManagedObjectContext(context);
 
+        /*
+        First constitute the repo read request, including all fields specified in the UpdateRequest, minus the relationship
+        fields, as these are stored in a separate table.
+         */
         try {
-            ReadRequest readRequest = Requests.newReadRequest(repoId(resourceId));
+            ReadRequest repoReadRequest = Requests.newReadRequest(repoId(resourceId));
             for (JsonPointer pointer : request.getFields()) {
                 if (pointer.equals(SchemaField.FIELD_ALL)) {
-                    readRequest.addField("");
+                    repoReadRequest.addField("");
                 } else if (!pointer.equals(SchemaField.FIELD_ALL_RELATIONSHIPS)) {
-                    readRequest.addField(pointer);
+                    repoReadRequest.addField(pointer);
                 }
             }
-            ResourceResponse readResponse = connectionFactory.getConnection().read(managedContext, readRequest);
+            ResourceResponse repoReadResponse = connectionFactory.getConnection().read(managedContext, repoReadRequest);
 
+            /*
+            Now populate the relationship fields as specified in the UpdateRequest.
+             */
+            final JsonValue relationships = fetchRelationshipFields(managedContext, resourceId, request.getFields());
+            repoReadResponse.getContent().asMap().putAll(relationships.asMap());
+
+            /*
+            Now call the update method, passing the repo-read object as the old object, and the caller-specified object
+            as the new object, so that the update method can perform the appropriate diff logic and the resulting sync
+            actions.
+             */
             ResourceResponse updatedResponse = update(managedContext, request, resourceId, request.getRevision(),
-            		readResponse.getContent(), request.getContent(), relationshipProviders.keySet());
+            		repoReadResponse.getContent(), request.getContent(), relationshipProviders.keySet(),
+                    Collections.<JsonPointer>emptySet());
             
-            activityLogger.log(managedContext, request, "update", managedId(readResponse.getId()).toString(),
-                    readResponse.getContent(), updatedResponse.getContent(), Status.SUCCESS);
+            activityLogger.log(managedContext, request, "update", managedId(repoReadResponse.getId()).toString(),
+                    repoReadResponse.getContent(), updatedResponse.getContent(), Status.SUCCESS);
 
             return prepareResponse(managedContext, updatedResponse, request.getFields()).asPromise();
         } catch (ResourceException e) {
@@ -946,9 +1020,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
 
         // Get the oldest value for diffing in the log
         // JsonValue oldValue = new JsonValue(cryptoService.getRouter().read(repoId(id)));
-        ReadRequest readRequest = Requests.newReadRequest(repoId(resourceId));
-        ResourceResponse resource = connectionFactory.getConnection().read(context, readRequest);
-
+        ResourceResponse resource = readResource(context, repoId(resourceId));
         return patchResource(context, request, resource, revision, patchOperations);
     }
 
@@ -994,6 +1066,9 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
                     JsonPointer field = new JsonPointer(operation.getField().get(0));
                     SchemaField schemaField = schema.getField(field);
                     if (schemaField != null && schemaField.isRelationship()) {
+                        if (schemaField.isArray() && operation.getValue().isNull()) {
+                            throw new BadRequestException("Cannot delete collection: " + field.toString());
+                        }
                         patchedRelationshipFields.add(field);
                     }
                 }
@@ -1044,8 +1119,12 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
                     }
                 }
 
+                if (forceUpdate) {
+                    newValue.put("_rev", rev);
+                }
                 ResourceResponse patchedResource =
-                        update(context, request, resource.getId(), rev, oldValue, newValue, patchedRelationshipFields);
+                        update(context, request, resource.getId(), rev, oldValue, newValue, patchedRelationshipFields,
+                                Collections.<JsonPointer>emptySet());
 
                 activityLogger.log(context, request, "", managedId(patchedResource.getId()).toString(),
                         oldValue, patchedResource.getContent(), Status.SUCCESS);
@@ -1056,6 +1135,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
             } catch (PreconditionFailedException e) {
                 if (forceUpdate) {
                     logger.debug("Unable to update due to revision conflict. Retrying.");
+                    resource = readResource(context, repoId(resource.getId()));
                 } else {
                     // If it fails and we're not trying to force an update, we gave it our best shot
                     throw e;
@@ -1169,7 +1249,7 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
                     return newActionResponse(patchResponse.getContent()).asPromise();
                 case triggerSyncCheck:
                     // Sync changes if required
-                    // Read in managed object to get updated virtual attributes. The result of the read request will be 
+                    // Read in managed object via the router to get updated virtual attributes. The result of the read request will be
                     // compared against the last sync'd value stored in the repository (in the updateInstance() request 
                     // below) to determine an update/sync is required.
                     final List<JsonPointer> requestFields = request.getFields();
@@ -1250,7 +1330,19 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
     public String getTemplate() {
         return name.indexOf('/') == 0 ? name : '/' + name;
     }
-    
+
+    /**
+     * Read a resource from the repo by id
+     *
+     * @param context the current ServerContext
+     * @param resourceId the id of the resource to obtain
+     * @return The resource object
+     * @throws ResourceException
+     */
+    private ResourceResponse readResource(Context context, String resourceId) throws ResourceException {
+        ReadRequest readRequest = Requests.newReadRequest(resourceId);
+        return connectionFactory.getConnection().read(context, readRequest);
+    }
 
     /**
      * Prepares the response contents by removing the following: any private properties (if the request is from an 
@@ -1441,7 +1533,6 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
         return stripped;
     }
 
-    @Override
     public void performSyncAction(final Context context, final Request request, final String resourceId,
             final SynchronizationService.SyncServiceAction action, final JsonValue oldValue, final JsonValue newValue)
         throws ResourceException {
@@ -1530,5 +1621,14 @@ class ManagedObjectSet implements CollectionResourceProvider, ScriptListener, Ma
      */
     Map<JsonPointer, RelationshipProvider> getRelationshipProviders() {
         return relationshipProviders;
+    }
+
+    /**
+     * Original JSON configuration.
+     *
+     * @return JSON configuration
+     */
+    JsonValue getConfig() {
+        return config;
     }
 }

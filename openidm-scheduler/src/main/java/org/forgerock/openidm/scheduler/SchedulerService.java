@@ -80,7 +80,6 @@ import org.forgerock.openidm.router.RouteService;
 import org.forgerock.util.promise.Promise;
 import org.osgi.framework.Constants;
 import org.osgi.service.component.ComponentContext;
-import org.osgi.util.tracker.ServiceTracker;
 import org.quartz.CronTrigger;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -128,9 +127,6 @@ public class SchedulerService implements RequestHandler {
     // Valid configuration values
     public final static String SCHEDULE_TYPE_CRON = "cron";
 
-    // Default service PID prefix to use if the invokeService name is a fragment
-    public final static String SERVICE_RDN_PREFIX = "org.forgerock.openidm.";
-
     // Misfire Policies
     public final static String MISFIRE_POLICY_DO_NOTHING = "doNothing";
     public final static String MISFIRE_POLICY_FIRE_AND_PROCEED = "fireAndProceed";
@@ -170,13 +166,10 @@ public class SchedulerService implements RequestHandler {
     // Optional user defined name for this instance, derived from the file install name
     String configFactoryPID;
 
-    // Tracks OSGi services that match the configured service PID
-    ServiceTracker scheduledServiceTracker;
-
     @Reference
     ClusterManagementService clusterManager;
 
-    @Reference(name = "ref_SchedulerService_PolicyService", 
+    @Reference(name = "ref_SchedulerService_PolicyService",
             target = "(" + ServerConstants.ROUTER_PREFIX + "=/policy*)")
     protected RouteService policy;
 
@@ -191,7 +184,7 @@ public class SchedulerService implements RequestHandler {
 
     /** Enhanced configuration service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
-    private EnhancedConfig enhancedConfig;
+    private volatile EnhancedConfig enhancedConfig;
     
     protected void bindEnhancedConfig(EnhancedConfig enhancedConfig) {
     	this.enhancedConfig = enhancedConfig;
@@ -268,17 +261,23 @@ public class SchedulerService implements RequestHandler {
     }
 
     /**
-     * Unregisters a {@link ScheduleConfigService} and deletes the schedule if the scheduler has been started.
+     * Unregisters a {@link ScheduleConfigService} and deletes the schedule if the scheduler has been started, and
+     * if the service deactivation has not occurred as part of the shutdown of an idm node.
      * 
-     * @param service the {@link ScheduleConfigService} to register.
-     * @throws SchedulerException
-     * @throws ParseException
+     * @param service the {@link ScheduleConfigService} to remove.
+     * @param frameworkStopping indicates whether the osgi container is stopping
      */
-    public void unregisterConfigService(ScheduleConfigService service) {
+    public void unregisterConfigService(ScheduleConfigService service, boolean frameworkStopping) {
         synchronized (CONFIG_SERVICE_LOCK) {
             logger.debug("Unregistering ScheduleConfigService");
             configMap.remove(service.getJobName());
-            if (started) {
+            /*
+            The deleteSchedule call below will remove the schedule from any configured persistent store only if
+            the config deactivation is not taking place due to IDM shutdown. This check is present to insure that
+            the shutdown of a node cluster does not remove a scheduled task, which would prevent that schedule from
+            firing again on any remaining node clusters.
+             */
+            if (started && !frameworkStopping) {
                 try {
                     logger.debug("Deleting schedule {}", service.getJobName());
                     deleteSchedule(service.getJobName());
@@ -327,7 +326,7 @@ public class SchedulerService implements RequestHandler {
             // Lock access to the scheduler so that a schedule is not added during a config update
             synchronized (LOCK) {
                 // Determine the schedule class based on whether the job has concurrent execution enabled/disabled
-                Class scheduleClass = null;
+                Class<?> scheduleClass = null;
                 if (scheduleConfig.getConcurrentExecution()) {
                     scheduleClass = SchedulerServiceJob.class;
                 } else {
@@ -355,16 +354,16 @@ public class SchedulerService implements RequestHandler {
                         // Schedule the Job (with trigger)
                         scheduler.scheduleJob(job, trigger);
                         logger.info("Job {} scheduled with schedule {}, timezone {}, start time {}, end time {}.",
-                                new Object[] { jobName, scheduleConfig.getCronSchedule(), scheduleConfig.getTimeZone(),
-                                scheduleConfig.getStartTime(), scheduleConfig.getEndTime() });
+                                jobName, scheduleConfig.getCronSchedule(), scheduleConfig.getTimeZone(),
+                                scheduleConfig.getStartTime(), scheduleConfig.getEndTime());
                     } else {
                         // Set the job to durable so that it can exist without a trigger (since the job is "disabled")
                         job.setDurability(true);
                         // Add the job (no trigger)
                         scheduler.addJob(job, false);
                         logger.info("Job {} added with schedule {}, timezone {}, start time {}, end time {}.",
-                                new Object[] { jobName, scheduleConfig.getCronSchedule(), scheduleConfig.getTimeZone(),
-                                scheduleConfig.getStartTime(), scheduleConfig.getEndTime() });
+                                jobName, scheduleConfig.getCronSchedule(), scheduleConfig.getTimeZone(),
+                                scheduleConfig.getStartTime(), scheduleConfig.getEndTime());
                     }
 
                 }
@@ -780,8 +779,7 @@ public class SchedulerService implements RequestHandler {
     private JsonValue parseStringified(String stringified) {
         JsonValue jsonValue = null;
         try {
-            Map parsedValue = (Map) mapper.readValue(stringified, Map.class);
-            jsonValue = new JsonValue(parsedValue);
+            jsonValue = new JsonValue(mapper.readValue(stringified, Map.class));
         } catch (IOException ex) {
             throw new JsonException("String passed into parsing is not valid JSON", ex);
         }

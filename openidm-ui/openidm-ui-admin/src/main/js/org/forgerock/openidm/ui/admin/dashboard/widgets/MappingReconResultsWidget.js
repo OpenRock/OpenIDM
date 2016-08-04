@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define, window */
-
-define("org/forgerock/openidm/ui/admin/dashboard/widgets/MappingReconResultsWidget", [
+define([
     "jquery",
     "underscore",
     "bootstrap",
@@ -61,9 +59,6 @@ define("org/forgerock/openidm/ui/admin/dashboard/widgets/MappingReconResultsWidg
                 "chartMarginTop" : "30px",
                 "chartMarginRight" : "90px",
                 "chartMarginBottom" : "125px",
-                "goodColor" : "#70a796",
-                "warningColor" : "#e6bf24",
-                "dangerColor" : "#ca3127",
                 "overrideTemplate" : "dashboard/widget/_reconResultConfig"
             },
 
@@ -101,6 +96,10 @@ define("org/forgerock/openidm/ui/admin/dashboard/widgets/MappingReconResultsWidg
             },
 
             reconResultRender: function(mapping, recon, callback) {
+                const goodColor = "#70a796";
+                const warningColor = "#e6bf24";
+                const dangerColor = "#ca3127";
+
                 var svg,
                     list = $('<ul class="recon-list"></ul>'),
                     orderCounter = 0;
@@ -168,17 +167,17 @@ define("org/forgerock/openidm/ui/admin/dashboard/widgets/MappingReconResultsWidg
 
                         this.model.chart.addSeries("Raw Situation", dimple.plot.bar);
 
-                        this.model.chart.assignColor("CONFIRMED", this.model.goodColor);
-                        this.model.chart.assignColor("FOUND", this.model.goodColor);
-                        this.model.chart.assignColor("ABSENT", this.model.goodColor);
-                        this.model.chart.assignColor("SOURCE_IGNORED", this.model.warningColor);
-                        this.model.chart.assignColor("TARGET_IGNORED", this.model.warningColor);
-                        this.model.chart.assignColor("AMBIGUOUS", this.model.dangerColor);
-                        this.model.chart.assignColor("SOURCE_MISSING", this.model.dangerColor);
-                        this.model.chart.assignColor("MISSING", this.model.dangerColor);
-                        this.model.chart.assignColor("FOUND_ALREADY_LINKED", this.model.dangerColor);
-                        this.model.chart.assignColor("UNQUALIFIED", this.model.dangerColor);
-                        this.model.chart.assignColor("UNASSIGNED", this.model.dangerColor);
+                        this.model.chart.assignColor("CONFIRMED", goodColor);
+                        this.model.chart.assignColor("FOUND", goodColor);
+                        this.model.chart.assignColor("ABSENT", goodColor);
+                        this.model.chart.assignColor("SOURCE_IGNORED", warningColor);
+                        this.model.chart.assignColor("TARGET_IGNORED", warningColor);
+                        this.model.chart.assignColor("AMBIGUOUS", dangerColor);
+                        this.model.chart.assignColor("SOURCE_MISSING", dangerColor);
+                        this.model.chart.assignColor("MISSING",dangerColor);
+                        this.model.chart.assignColor("FOUND_ALREADY_LINKED", dangerColor);
+                        this.model.chart.assignColor("UNQUALIFIED", dangerColor);
+                        this.model.chart.assignColor("UNASSIGNED", dangerColor);
 
                         this.model.chart.draw(1000);
 
@@ -225,9 +224,17 @@ define("org/forgerock/openidm/ui/admin/dashboard/widgets/MappingReconResultsWidg
         });
 
     widgetInstance.generateWidget = function(loadingObject, callback) {
-        var widget = {};
+        var widget = {},
+            loadingWidget = loadingObject.widget;
 
         $.extend(true, widget, new Widget());
+
+        // The boolean value of `false` will cause an error for settings so convert to string
+        if (loadingObject.widget.barchart) {
+            loadingObject.widget.barchart = loadingObject.widget.barchart.toString();
+        } else {
+            loadingObject.widget.barchart = "false";
+        }
 
         widget.render(loadingObject, callback);
 

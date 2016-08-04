@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014-2015 ForgeRock AS.
+ * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/mapping/AddMappingView", [
+define([
     "jquery",
     "underscore",
     "bootstrap",
@@ -51,7 +49,6 @@ define("org/forgerock/openidm/ui/admin/mapping/AddMappingView", [
         render: function(args, callback) {
             var connectorPromise,
                 managedPromise,
-                iconPromise,
                 splitConfig,
                 tempIconClass;
 
@@ -59,14 +56,13 @@ define("org/forgerock/openidm/ui/admin/mapping/AddMappingView", [
 
             connectorPromise = ConnectorDelegate.currentConnectors();
             managedPromise = ConfigDelegate.readEntity("managed");
-            iconPromise = connectorUtils.getIconList();
 
-            $.when(connectorPromise, managedPromise, iconPromise).then(_.bind(function(connectors, managedObjects, iconList){
+            $.when(connectorPromise, managedPromise).then(_.bind(function(connectors, managedObjects){
 
                 _.each(connectors, _.bind(function(connector){
                     connector.displayName = $.t("templates.connector." +connectorUtils.cleanConnectorName(connector.connectorRef.connectorName));
 
-                    tempIconClass = connectorUtils.getIcon(connector.connectorRef.connectorName, iconList);
+                    tempIconClass = connectorUtils.getIcon(connector.connectorRef.connectorName);
                     connector.iconClass = tempIconClass.iconClass;
                     connector.iconSrc = tempIconClass.src;
 
@@ -100,7 +96,7 @@ define("org/forgerock/openidm/ui/admin/mapping/AddMappingView", [
                 this.data.currentManagedObjects = _.sortBy(managedObjects.objects, 'name');
 
                 _.each(this.data.currentManagedObjects, _.bind(function(managedObject){
-                    tempIconClass = connectorUtils.getIcon("managedobject", iconList);
+                    tempIconClass = connectorUtils.getIcon("managedobject");
 
                     managedObject.iconClass = tempIconClass.iconClass;
                     managedObject.iconSrc = tempIconClass.src;
@@ -114,14 +110,14 @@ define("org/forgerock/openidm/ui/admin/mapping/AddMappingView", [
                     });
 
                     MapResourceView.render({
-                            "removeCallback": _.bind(function(){
-                                this.$el.find(".add-resource-button").prop("disabled", false);
-                            }, this),
-                            "addCallback" : _.bind(function(source, target){
-                                if(source && target) {
-                                    this.$el.find(".add-resource-button").prop("disabled", true);
-                                }
-                            }, this)},
+                        "removeCallback": _.bind(function(){
+                            this.$el.find(".add-resource-button").prop("disabled", false);
+                        }, this),
+                        "addCallback" : _.bind(function(source, target){
+                            if(source && target) {
+                                this.$el.find(".add-resource-button").prop("disabled", true);
+                            }
+                        }, this)},
                         _.bind(function(){
                             if(args.length > 0) {
                                 this.preselectMappingCard(args);

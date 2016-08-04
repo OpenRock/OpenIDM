@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/commons/ui/common/util/Constants",
@@ -90,19 +88,19 @@ define("org/forgerock/openidm/ui/common/delegates/ResourceDelegate", [
     };
     obj.deleteResource = function (serviceUrl, id, successCallback, errorCallback) {
         var callParams = {
-                serviceUrl: serviceUrl, url: "/" + id,
-                type: "DELETE",
-                success: successCallback,
-                error: errorCallback,
-                errorsHandlers: {
-                    "Conflict": {
-                        status: 409
-                    }
-                },
-                headers: {
-                    "If-Match": "*"
+            serviceUrl: serviceUrl, url: "/" + id,
+            type: "DELETE",
+            success: successCallback,
+            error: errorCallback,
+            errorsHandlers: {
+                "Conflict": {
+                    status: 409
                 }
-            };
+            },
+            headers: {
+                "If-Match": "*"
+            }
+        };
 
         return obj.serviceCall(callParams).fail(function(err){
             var response = err.responseJSON;

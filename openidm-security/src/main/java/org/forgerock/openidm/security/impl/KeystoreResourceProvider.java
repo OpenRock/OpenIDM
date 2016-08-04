@@ -39,6 +39,7 @@ import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.jce.PKCS10CertificationRequest;
 import org.forgerock.json.JsonValueException;
+import org.forgerock.openidm.crypto.KeyRepresentation;
 import org.forgerock.services.context.Context;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ActionRequest;
@@ -57,7 +58,6 @@ import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.repo.RepositoryService;
 import org.forgerock.openidm.security.KeyStoreHandler;
 import org.forgerock.openidm.security.KeyStoreManager;
-import org.forgerock.openidm.util.ResourceUtil;
 import org.forgerock.util.promise.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,7 +120,7 @@ public class KeystoreResourceProvider extends SecurityResourceProvider implement
 
                         result = returnCertificate(alias, cert);
                         if (request.getContent().get("returnPrivateKey").defaultTo(false).asBoolean()) {
-                            result.put("privateKey", getKeyMap(key));
+                            result.put("privateKey", KeyRepresentation.getKeyMap(key).getObject());
                         }
                     }
                 } else {
@@ -129,7 +129,7 @@ public class KeystoreResourceProvider extends SecurityResourceProvider implement
                             signatureAlgorithm, keySize, request.getContent());
                     result = returnCertificateRequest(alias, csr.getKey());
                     if (request.getContent().get("returnPrivateKey").defaultTo(false).asBoolean()) {
-                        result.put("privateKey", getKeyMap(csr.getRight()));
+                        result.put("privateKey", KeyRepresentation.getKeyMap(csr.getRight()).getObject());
                     }
                 }
                 return Responses.newActionResponse(result).asPromise();

@@ -11,13 +11,12 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014-2015 ForgeRock AS.
+ * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define */
-/*jslint evil: true */
+/* eslint no-eval: 0 */
 
-define("org/forgerock/openidm/ui/admin/delegates/SyncDelegate", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/commons/ui/common/util/Constants",
@@ -31,11 +30,11 @@ define("org/forgerock/openidm/ui/admin/delegates/SyncDelegate", [
 
     obj.performAction = function (reconId, mapping, action, sourceId, targetId, linkType) {
         var params = {
-                _action: "performAction",
-                reconId: reconId,
-                mapping: mapping,
-                action: action
-            };
+            _action: "performAction",
+            reconId: reconId,
+            mapping: mapping,
+            action: action
+        };
 
         if (sourceId) {
             params.sourceId = sourceId;
@@ -70,23 +69,23 @@ define("org/forgerock/openidm/ui/admin/delegates/SyncDelegate", [
         } else {
 
             return obj.serviceCall({
-                    "serviceUrl": constants.host + "/openidm/repo/link",
-                    "url": "?_queryId=links-for-" + ordinal + "&linkType=" + linkType + "&" + ordinal + "=" + encodeURIComponent(id)
-                }).then(function (qry) {
-                    var i, deletePromises = [];
-                    for (i=0;i<qry.result.length;i++) {
-                        deletePromises.push(obj.serviceCall({
-                            "serviceUrl": constants.host + "/openidm/repo/link/",
-                            "url" : qry.result[i]._id,
-                            "type": "DELETE",
-                            "headers": {
-                                "If-Match": qry.result[i]._rev
-                            }
-                        }));
-                    }
+                "serviceUrl": constants.host + "/openidm/repo/link",
+                "url": "?_queryId=links-for-" + ordinal + "&linkType=" + linkType + "&" + ordinal + "=" + encodeURIComponent(id)
+            }).then(function (qry) {
+                var i, deletePromises = [];
+                for (i=0;i<qry.result.length;i++) {
+                    deletePromises.push(obj.serviceCall({
+                        "serviceUrl": constants.host + "/openidm/repo/link/",
+                        "url" : qry.result[i]._id,
+                        "type": "DELETE",
+                        "headers": {
+                            "If-Match": qry.result[i]._rev
+                        }
+                    }));
+                }
 
-                    return $.when.apply($, deletePromises);
-                });
+                return $.when.apply($, deletePromises);
+            });
         }
     };
 
@@ -181,17 +180,16 @@ define("org/forgerock/openidm/ui/admin/delegates/SyncDelegate", [
             url = "?mapping=" + mapping;
         }
 
-        doServiceCall()
-        .fail(function (xhr) {
-                if(xhr.status === 404){
-                    configDelegate.createEntity("endpoint/mappingDetails", {
-                            "context" : "endpoint/mappingDetails",
-                            "type" : "text/javascript",
-                            "file" : "ui/mappingDetails.js"
-                        }).then(function(){
-                            _.delay(doServiceCall, 2000);
-                        });
-                }
+        doServiceCall().fail(function (xhr) {
+            if(xhr.status === 404){
+                configDelegate.createEntity("endpoint/mappingDetails", {
+                    "context" : "endpoint/mappingDetails",
+                    "type" : "text/javascript",
+                    "file" : "ui/mappingDetails.js"
+                }).then(function(){
+                    _.delay(doServiceCall, 2000);
+                });
+            }
         });
 
         return promise;

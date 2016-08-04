@@ -11,14 +11,14 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2013-2015 ForgeRock AS.
+ * Copyright 2013-2016 ForgeRock AS.
  */
-
 package org.forgerock.openidm.servlet.internal;
 
 import static org.forgerock.openidm.servletregistration.ServletRegistration.SERVLET_FILTER_AUGMENT_SECURITY_CONTEXT;
 import static org.forgerock.openidm.servletregistration.ServletRegistration.SERVLET_FILTER_SCRIPT_EXTENSIONS;
 
+import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
@@ -28,6 +28,9 @@ import javax.script.ScriptException;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 
+import io.swagger.models.Info;
+import io.swagger.models.Scheme;
+import io.swagger.models.Swagger;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -39,16 +42,18 @@ import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.ReferenceStrategy;
 import org.apache.felix.scr.annotations.Service;
+import org.forgerock.http.ApiProducer;
+import org.forgerock.http.DescribedHttpApplication;
 import org.forgerock.http.Filter;
 import org.forgerock.http.Handler;
-import org.forgerock.http.HttpApplication;
 import org.forgerock.http.HttpApplicationException;
-import org.forgerock.http.filter.TransactionIdInboundFilter;
 import org.forgerock.http.handler.Handlers;
 import org.forgerock.http.io.Buffer;
 import org.forgerock.http.servlet.HttpFrameworkServlet;
+import org.forgerock.http.swagger.SwaggerApiProducer;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ConnectionFactory;
+import org.forgerock.json.resource.CrestApplication;
 import org.forgerock.json.resource.http.CrestHttp;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.servletregistration.ServletFilterRegistrator;
@@ -66,12 +71,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A NAME does ...
- * 
+ * A component to create and register the "API" Servlet; that is, the CHF Servlet that
+ *
+ * 1) listens on /openidm,
+ * 2) dispatches to the HttpApplication, that is composed of
+ *    a) the auth filter
+ *    b) the JSON resource HTTP Handler, that
+ *       i) converts CHF Requests to CREST requests, and
+ *       ii) routes them on the CREST router using the external ConnectionFactory.
  */
-@Component(name = "org.forgerock.openidm.api-servlet",
-        immediate = true,
-        policy = ConfigurationPolicy.IGNORE)
+@Component(name = ServletComponent.PID, policy = ConfigurationPolicy.IGNORE, immediate = true)
 @Service
 @Properties({
     @Property(name = Constants.SERVICE_VENDOR, value = ServerConstants.SERVER_VENDOR_NAME),
@@ -80,16 +89,20 @@ import org.slf4j.LoggerFactory;
 })
 public class ServletComponent implements EventHandler {
 
-    public static final String PID = "org.forgerock.openidm.router";
+    static final String PID = "org.forgerock.openidm.api-servlet";
 
     private static final String SERVLET_ALIAS = "/openidm";
+
+    private static final String API_ID = "frapi:openidm";
+
+    private static final String API_TITLE = "OpenIDM";
 
     /** Setup logging for the {@link ServletComponent}. */
     private final static Logger logger = LoggerFactory.getLogger(ServletComponent.class);
 
     /** The (external) ConnectionFactory */
-    @Reference(policy = ReferencePolicy.DYNAMIC, target = "(service.pid=org.forgerock.openidm.router)")
-    protected ConnectionFactory connectionFactory;
+    @Reference(policy = ReferencePolicy.DYNAMIC, target = ServerConstants.EXTERNAL_ROUTER_SERVICE_PID_FILTER)
+    protected volatile ConnectionFactory connectionFactory;
 
     @Reference(policy = ReferencePolicy.STATIC, target = "(service.pid=org.forgerock.openidm.auth.config)")
     private Filter authFilter;
@@ -99,10 +112,10 @@ public class ServletComponent implements EventHandler {
 
     /** Script Registry service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
-    protected ScriptRegistry scriptRegistry;
+    protected volatile ScriptRegistry scriptRegistry;
 
     // Optional scripts to augment/populate the security context
-    private List<ScriptEntry> augmentSecurityScripts = new CopyOnWriteArrayList<ScriptEntry>();
+    private List<ScriptEntry> augmentSecurityScripts = new CopyOnWriteArrayList<>();
 
     // Register script extensions configured
     @Reference(
@@ -114,8 +127,7 @@ public class ServletComponent implements EventHandler {
             policy = ReferencePolicy.DYNAMIC,
             strategy = ReferenceStrategy.EVENT
     )
-    protected Map<ServletFilterRegistrator, ScriptEntry> filterRegistratorMap =
-            new HashMap<ServletFilterRegistrator, ScriptEntry>();
+    private Map<ServletFilterRegistrator, ScriptEntry> filterRegistratorMap = new HashMap<>();
 
     protected synchronized void bindRegistrator(ServletFilterRegistrator registrator, Map<String, Object> properties) {
         JsonValue scriptConfig = registrator.getConfiguration()
@@ -145,11 +157,33 @@ public class ServletComponent implements EventHandler {
 
     @Activate
     protected void activate(ComponentContext context) throws ServletException, NamespaceException {
-        logger.debug("Try registering servlet at {}", SERVLET_ALIAS);
+        logger.debug("Registering servlet at {}", SERVLET_ALIAS);
+
         final Handler handler = CrestHttp.newHttpHandler(
-                connectionFactory, new IDMSecurityContextFactory(augmentSecurityScripts));
+                new CrestApplication() {
+                    @Override
+                    public ConnectionFactory getConnectionFactory() {
+                        return connectionFactory;
+                    }
+
+                    @Override
+                    public String getApiId() {
+                        return API_ID;
+                    }
+
+                    @Override
+                    public String getApiVersion() {
+                        return ServerConstants.getVersion();
+                    }
+                }, new IDMSecurityContextFactory(augmentSecurityScripts));
+
         servlet = new HttpFrameworkServlet(
-                new HttpApplication() {
+                new DescribedHttpApplication() {
+                    @Override
+                    public ApiProducer<Swagger> getApiProducer() {
+                        return new SwaggerApiProducer(new Info().title(API_TITLE), null, null, (List<Scheme>)null);
+                    }
+
                     @Override
                     public Handler start() throws HttpApplicationException {
                         return Handlers.chainOf(handler, authFilter);
@@ -165,7 +199,9 @@ public class ServletComponent implements EventHandler {
                     }
                 });
 
-        servletRegistration.registerServlet(SERVLET_ALIAS, servlet, new Hashtable());
+        @SuppressWarnings("rawtypes")
+        final Dictionary params = new Hashtable();
+        servletRegistration.registerServlet(SERVLET_ALIAS, servlet, params);
         logger.info("Registered servlet at {}", SERVLET_ALIAS);
     }
 

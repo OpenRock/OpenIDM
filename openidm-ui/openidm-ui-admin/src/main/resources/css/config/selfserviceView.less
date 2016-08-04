@@ -11,8 +11,16 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2016 ForgeRock AS.
  */
+.email-message-code-mirror-disabled+.CodeMirror {
+  height: 80px;
+  background-color: #f7f7f7;
+}
+
+.email-message-code-mirror+.CodeMirror {
+  height:140px;
+}
 
 .translationMapGroup {
     ul {
@@ -22,19 +30,52 @@
     }
 }
 
+#options {
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+}
+
+.disabled.card .image.circle.self-service-icon {
+  background-color: #ddd;
+}
+.card .image.circle.self-service-icon {
+  margin: 8px 0 0 16px;
+  width: 50px;
+  font-size: 22px;
+  height: 50px;
+  .fa {
+    text-align: center;
+  }
+}
+
 .gu-mirror.self-service-card .panel-footer {
   background-color: #eee;
+}
+
+.selfservice-holder {
+  .simple-section {
+    margin-bottom: 10px;
+
+    .wide-card {
+      overflow: auto;
+      margin-bottom: 10px;
+
+      .details {
+        padding-bottom: 0px;
+      }
+
+      .logo-details {
+        float: none;
+        margin-left: 80px;
+      }
+    }
+  }
 }
 
 .selfservice-holder .wide-card,
 .gu-mirror.self-service-card, {
   height:125px;
-
-  &.disabled{
-    button {
-      display:none;
-    }
-  }
 
   .panel-heading {
     padding: 5px 15px 0 0;
@@ -43,6 +84,10 @@
   .panel-body {
     padding-left:90px;
     padding-top:5px;
+  }
+
+  .panel-body.no-toggle {
+    padding-left:0px;
   }
 
   .panel-footer {
@@ -62,32 +107,6 @@
 
     .btn-link:hover {
       background-color:inherit;
-    }
-  }
-
-  &.disabled {
-    cursor:default;
-
-    &:hover {
-      border-color:#ddd;
-    }
-
-    h3 {
-      color:#777;
-    }
-
-    .btn-link {
-      cursor:default;
-
-      &:hover {
-        color:#777;
-      }
-    }
-
-    label {
-      span {
-        cursor: default;
-      }
     }
   }
 
@@ -118,18 +137,56 @@
     text-align: right;
     margin-right: 10px;
   }
-}
 
+  .social-logo {
+    max-width:100px;
+    margin-left: 20px;
+    margin-top: 10px;
+  }
 
-.selfservice-holder {
-  position:relative;
+  .logo-holder {
+    float:left;
+  }
 
-  .details h3 {
-      text-transform: none;
+  .logo-details {
+    float:left;
+    margin-left:20px;
+  }
+
+  &.disabled {
+    cursor:default;
+
+    button {
+      display:none;
+    }
+
+    &:hover {
+      border-color:#ddd;
+    }
+
+    h3 {
+      color:#777;
+    }
+
+    .btn-link {
+      cursor:default;
+
+      &:hover {
+        color:#777;
+      }
+    }
+
+    label {
+      span {
+        cursor: default;
+      }
+    }
+
+    .social-logo {
+      opacity: .5;
+    }
   }
 }
-
-
 
 .nav-tabs>li.disabled {
   >a {

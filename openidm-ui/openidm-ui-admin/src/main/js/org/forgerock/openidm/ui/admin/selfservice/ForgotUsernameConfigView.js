@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/selfservice/ForgotUsernameConfigView", [
+define([
     "jquery",
     "org/forgerock/openidm/ui/admin/selfservice/AbstractSelfServiceView"
 ], function($, AbstractSelfServiceView) {
@@ -68,7 +66,7 @@ define("org/forgerock/openidm/ui/admin/selfservice/ForgotUsernameConfigView", [
                         "usernameToken": "%username%"
                     },
                     {
-                      "name" : "retrieveUsername"
+                        "name" : "retrieveUsername"
                     }
                 ],
                 "snapshotToken" : {
@@ -82,7 +80,13 @@ define("org/forgerock/openidm/ui/admin/selfservice/ForgotUsernameConfigView", [
                 },
                 "storage": "stateless"
             },
-            "saveConfig": {}
+            "saveConfig": {},
+            identityServiceURLSaveLocations: [
+                {
+                    "stepName": "userQuery",
+                    "stepProperty": "identityServiceUrl"
+                }
+            ]
         },
         render: function(args, callback) {
             this.data.configList = [{
@@ -91,22 +95,20 @@ define("org/forgerock/openidm/ui/admin/selfservice/ForgotUsernameConfigView", [
                 help: $.t("templates.selfservice.captcha.description"),
                 editable: true,
                 enabledByDefault: false
-            },
-            {
+            }, {
                 type: "userQuery",
                 title: $.t("templates.selfservice.userQuery.name"),
                 help: $.t("templates.selfservice.userQuery.description"),
                 editable: true,
-                enabledByDefault: true
-            },
-            {
+                enabledByDefault: true,
+                icon: "user"
+            }, {
                 type: "emailUsername",
                 title: $.t("templates.selfservice.emailUsername.name"),
                 help: $.t("templates.selfservice.emailUsername.description"),
                 editable: true,
                 enabledByDefault: true
-            },
-            {
+            }, {
                 type: "retrieveUsername",
                 title: $.t("templates.selfservice.retrieveUsername.name"),
                 help: $.t("templates.selfservice.retrieveUsername.description"),

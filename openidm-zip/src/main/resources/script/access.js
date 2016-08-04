@@ -60,6 +60,12 @@ var httpAccessConfig =
            "actions"    : "*"
         },
         {
+           "pattern"    : "identityProviders",
+           "roles"      : "*",
+           "methods"    : "read,action",
+           "actions"    : "getauthtoken"
+        },
+        {
             "pattern"    : "config/ui/themeconfig",
             "roles"      : "*",
             "methods"    : "read",
@@ -84,7 +90,6 @@ var httpAccessConfig =
             "methods"    : "read",
             "actions"    : "*"
         },
-
         // externally-visisble Self-Service endpoints
         {
            "pattern"    : "selfservice/registration",
@@ -215,6 +220,14 @@ var httpAccessConfig =
             "methods"   : "*", // default to all methods allowed
             "actions"   : "*", // default to all actions allowed
             "customAuthz" : "disallowCommandAction()"
+        },
+        //allow the ability to delete links for a specific mapping
+        {
+            "pattern"   : "repo/links",
+            "roles"     : "openidm-admin",
+            "methods"   : "action",
+            "actions"   : "command",
+            "customAuthz" : "request.additionalParameters.commandId === 'delete-mapping-links'"
         },
 
         // Additional checks for authenticated users

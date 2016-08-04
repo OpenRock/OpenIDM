@@ -14,9 +14,7 @@
  * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
+define([
     "jquery",
     "underscore",
     "form2js",
@@ -58,6 +56,7 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
             "change #connectorType" : "loadConnectorTemplate",
             "click #updateObjectTypes" : "objectTypeFormSubmit",
             "click #updateSync" : "syncFormSubmit",
+            "click #updateAdvanced" : "advancedFormSubmit",
             "click .addLiveSync" : "addLiveSync",
             "click .edit-objectType" : "editObjectType",
             "click .delete-objectType" : "deleteObjectType",
@@ -70,7 +69,7 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
             "change #connectorForm :input" : "connectorChangesCheck",
             "keypress #connectorForm :input" : "connectorFlowCheck",
             "paste #connectorForm :input" : "connectorFlowCheck",
-            "change .toggleBoolean" : connectorUtils.toggleValue
+            "change #advancedForm :input" : "advancedChangesCheck"
         },
         data: {
 
@@ -101,11 +100,6 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
                     "displayName" : "Full LDAP Configuration",
                     "fileName" : "fullConfig",
                     "type": "ldap"
-                },
-                {
-                    "displayName" : "IBM LDAP Configuration",
-                    "fileName" : "provisioner.openicf-racfldap",
-                    "type": "ldap"
                 }
             ]
         },
@@ -124,14 +118,12 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
             this.connectorTypeRef = null;
             this.connectorList = null;
             this.postActionBlockScript = null;
-            this.name = null;
             this.addedLiveSyncSchedules = [];
             this.connectorTypeRef = null;
             this.userDefinedObjectTypes = null;
 
             //Get available list of connectors
-            $.when(ConnectorDelegate.availableConnectors(), connectorUtils.getIconList()).then(_.bind(function(connectors, iconList){
-                connectors = connectors[0];
+            $.when(ConnectorDelegate.availableConnectors()).then(_.bind(function(connectors){
                 this.data.connectors = connectors.connectorRef;
 
                 //Build Connector type selection
@@ -159,19 +151,36 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
 
                 this.data.editState = true;
                 this.data.systemType = splitDetails[0];
-                this.data.connectorId = this.name = splitDetails[1];
+                this.data.connectorId = splitDetails[1];
 
                 //Get current connector details
-                ConfigDelegate.readEntity(this.data.systemType +"/" + this.data.connectorId).then(_.bind(function(data){
+                ConfigDelegate.readEntity(this.data.systemType + "/" + this.data.connectorId).then(_.bind(function(data){
                     var tempVersion;
 
-                    this.data.connectorIcon = connectorUtils.getIcon(data.connectorRef.connectorName, iconList);
+                    this.data.connectorIcon = connectorUtils.getIcon(data.connectorRef.connectorName);
                     this.currentObjectTypeLoaded = "savedConfig";
                     this.data.objectTypeDefaultConfigs = this.objectTypeConfigs[data.connectorRef.bundleName];
 
                     this.data.connectorName = data.name;
                     this.data.connectorTypeName = data.connectorRef.connectorName;
+
                     this.data.enabled = data.enabled;
+
+                    //Need a check here in the instances where connectors do not have enable
+                    if(_.isUndefined(this.data.enabled)) {
+                        this.data.enabled = true;
+                    }
+
+                    this.data.poolConfigOption = data.poolConfigOption;
+                    this.data.resultsHandlerConfig = data.resultsHandlerConfig;
+                    this.data.operationTimeout = data.operationTimeout;
+
+                    if(this.data.resultsHandlerConfig) {
+                        this.data.resultsHandlerConfig.enableAttributesToGetSearchResultsHandler = (this.data.resultsHandlerConfig.enableAttributesToGetSearchResultsHandler === "true" || this.data.resultsHandlerConfig.enableAttributesToGetSearchResultsHandler === true);
+                        this.data.resultsHandlerConfig.enableCaseInsensitiveFilter = (this.data.resultsHandlerConfig.enableCaseInsensitiveFilter === "true" || this.data.resultsHandlerConfig.enableCaseInsensitiveFilter === true);
+                        this.data.resultsHandlerConfig.enableFilteredResultsHandler = (this.data.resultsHandlerConfig.enableFilteredResultsHandler === "true" || this.data.resultsHandlerConfig.enableFilteredResultsHandler === true);
+                        this.data.resultsHandlerConfig.enableNormalizingResultsHandler = (this.data.resultsHandlerConfig.enableNormalizingResultsHandler === "true" || this.data.resultsHandlerConfig.enableNormalizingResultsHandler === true);
+                    }
 
                     //Store in memory version of connector details. This is to ensure we can move around tabs and keep the correct data state.
                     this.connectorDetails = data;
@@ -302,7 +311,6 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
 
                                         //Set the current newest version incase there is a range
                                         this.connectorTypeRef.data.connectorDefaults.connectorRef.bundleVersion = data.connectorRef.bundleVersion;
-
                                         this.setSubmitFlow();
 
                                         if (callback) {
@@ -326,20 +334,62 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
         },
 
         deleteResource: function(event) {
+            var connectorPath = "config/" + this.data.systemType +"/" +this.data.connectorId;
+
             event.preventDefault();
 
-            UIUtils.confirmDialog($.t("templates.connector.connectorDelete"), "danger", _.bind(function(){
-                ConfigDelegate.deleteEntity(this.data.systemType +"/" +this.data.connectorId).then(function(){
-                        ConnectorDelegate.deleteCurrentConnectorsCache();
+            connectorUtils.deleteConnector(this.data.connectorName, connectorPath, () => {
+                eventManager.sendEvent(constants.EVENT_CHANGE_VIEW, {route: router.configuration.routes.connectorListView});
+            });
+        },
 
-                        eventManager.sendEvent(constants.EVENT_CHANGE_VIEW, {route: router.configuration.routes.connectorListView});
+        advancedFormSubmit: function(event) {
+            event.preventDefault();
 
-                        eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "deleteConnectorSuccess");
-                    },
-                    function(){
-                        eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "deleteConnectorFail");
-                    });
-            } , this));
+            var advancedData = form2js('advancedForm', '.', true),
+                mergedResults = this.advancedDetailsGenerate(this.connectorDetails, advancedData);
+
+            ConfigDelegate.updateEntity(this.data.systemType + "/" + this.data.connectorId,  mergedResults).then(_.bind(function () {
+                this.connectorDetails = mergedResults;
+
+                eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "advancedSaved");
+
+                this.$el.find("#connectorWarningMessage .message .advanced-pending").remove();
+
+                this.warningMessageCheck();
+            }, this));
+        },
+
+        advancedDetailsGenerate: function(oldAdvanced, newAdvanced) {
+            var mergedResults = {},
+                tempNumber,
+                defaultOperationTimeout = -1,
+                defaultPoolConfigOption = 10;
+
+            $.extend(true, mergedResults, oldAdvanced, newAdvanced);
+
+            //Need to convert all strings to numbers also some safety check to prevent bad values
+            _.each(mergedResults.operationTimeout, function(value, key) {
+                tempNumber = parseInt(value, 10);
+
+                if(!_.isNaN(tempNumber)) {
+                    mergedResults.operationTimeout[key] = parseInt(value, 10);
+                } else {
+                    mergedResults.operationTimeout[key] = defaultOperationTimeout;
+                }
+            });
+
+            _.each(mergedResults.poolConfigOption, function(value, key) {
+                tempNumber = parseInt(value, 10);
+
+                if(!_.isNaN(tempNumber)) {
+                    mergedResults.poolConfigOption[key] = parseInt(value, 10);
+                } else {
+                    mergedResults.poolConfigOption[key] = defaultPoolConfigOption;
+                }
+            });
+
+            return mergedResults;
         },
 
         //Saves the connector tab
@@ -456,61 +506,36 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
 
             this.updateLiveSyncObjects();
 
-            // Get all schedule IDS
-            SchedulerDelegate.availableSchedules().then(_.bind(function (schedules) {
-                var schedulerPromises = [];
+            SchedulerDelegate.getLiveSyncSchedulesByConnectorName(this.connectorDetails.name).then((schedules) => {
+                _.each(schedules, (schedule) => {
+                    this.$el.find(".sources option[value='" + schedule.invokeContext.source + "']").remove();
 
-                _.each(schedules.result, function (index) {
-                    // Get the schedule of each ID
-                    schedulerPromises.push(SchedulerDelegate.specificSchedule(index._id));
-                }, this);
+                    this.$el.find("#schedules").append("<div class='liveSyncScheduleContainer'></div>");
+                    Scheduler.generateScheduler({
+                        "element": this.$el.find("#schedules .liveSyncScheduleContainer").last(),
+                        "defaults": {
+                            enabled: schedule.enabled,
+                            schedule: schedule.schedule,
+                            persisted: schedule.persisted,
+                            misfirePolicy: schedule.misfirePolicy,
+                            liveSyncSeconds: schedule.schedule
+                        },
+                        "onDelete": _.bind(this.removeSchedule, this),
+                        "invokeService": schedule.invokeService,
+                        "source": schedule.invokeContext.source,
+                        "scheduleId": schedule._id
+                    });
+                    this.addedLiveSyncSchedules.push(schedule.invokeContext.source);
+                });
 
-                $.when.apply($, schedulerPromises).then(_.bind(function () {
-                    _.each(schedulerPromises, function (schedule) {
-                        schedule = schedule.responseJSON;
-                        //////////////////////////////////////////////////////////////////////////////////////////////////
-                        //                                                                                              //
-                        // TODO: Use queryFilters to avoid having to pull back all schedules and sifting through them.  //
-                        //                                                                                              //
-                        //////////////////////////////////////////////////////////////////////////////////////////////////
-                        if (schedule && schedule.invokeContext.action === "liveSync") {
-
-                            sourcePieces = schedule.invokeContext.source.split("/");
-
-                            if(sourcePieces[1] === this.name) {
-                                this.$el.find(".sources option[value='" + schedule.invokeContext.source + "']").remove();
-
-                                this.$el.find("#schedules").append("<div class='liveSyncScheduleContainer'></div>");
-                                Scheduler.generateScheduler({
-                                    "element": this.$el.find("#schedules .liveSyncScheduleContainer").last(),
-                                    "defaults": {
-                                        enabled: schedule.enabled,
-                                        schedule: schedule.schedule,
-                                        persisted: schedule.persisted,
-                                        misfirePolicy: schedule.misfirePolicy,
-                                        liveSyncSeconds: schedule.schedule
-                                    },
-                                    "onDelete": _.bind(this.removeSchedule, this),
-                                    "invokeService": schedule.invokeService,
-                                    "source": schedule.invokeContext.source,
-                                    "scheduleId": schedule._id
-                                });
-                                this.addedLiveSyncSchedules.push(schedule.invokeContext.source);
-                            }
-                        }
-
-                    }, this);
-
-                    if (this.$el.find(".sources option").length === 0) {
-                        this.$el.find(".addLiveSync").prop('disabled', true);
-                        this.$el.find(".sources").prop('disabled', true);
-                    } else {
-                        this.$el.find(".addLiveSync").prop('disabled', false);
-                        this.$el.find(".sources").prop('disabled', false);
-                    }
-
-                }, this));
-            }, this));
+                if (this.$el.find(".sources option").length === 0) {
+                    this.$el.find(".addLiveSync").prop('disabled', true);
+                    this.$el.find(".sources").prop('disabled', true);
+                } else {
+                    this.$el.find(".addLiveSync").prop('disabled', false);
+                    this.$el.find(".sources").prop('disabled', false);
+                }
+            });
 
             if (!this.postActionBlockScript) {
                 this.postActionBlockScript = InlineScriptEditor.generateScriptEditor({
@@ -524,16 +549,16 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
         updateLiveSyncObjects: function() {
             var objectTypes = [];
 
-            if (this.name) {
+            if (this.connectorDetails.name) {
                 this.$el.find(".nameFieldMessage").hide();
 
                 if (this.userDefinedObjectTypes && _.size(this.userDefinedObjectTypes) > 0) {
                     objectTypes = _.map(this.userDefinedObjectTypes, function (object, key) {
-                        return "system/" + this.name + "/" + key;
+                        return "system/" + this.connectorDetails.name + "/" + key;
                     }, this);
                 } else {
                     objectTypes = _.map(this.data.objectTypes, function (object, key) {
-                        return "system/" + this.name + "/" + key;
+                        return "system/" + this.connectorDetails.name + "/" + key;
                     }, this);
                 }
 
@@ -628,6 +653,13 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
             }
         },
 
+        advancedChangesCheck: function() {
+            if(this.$el.find("#connectorWarningMessage .message .advanced-pending").length === 0) {
+                this.$el.find("#connectorWarningMessage .message").append('<div class="pending-changes advanced-pending">' +$.t("templates.connector.advanced.pendingAdvancedChanges") +'</div>');
+                this.$el.find("#connectorWarningMessage").show();
+            }
+        },
+
         //This function is to find the newest version of a connector and select it if a user provides a range
         versionRangeCheck: function(version) {
             var cleanVersion = null,
@@ -676,10 +708,9 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
         //Returns the current provisioner based on a merged copy of the connector defaults and what was set in the template by the user
         getProvisioner: function() {
             var connectorData = {},
-                connDetails = this.connectorTypeRef.data.connectorDefaults,
+                connDetails = this.connectorDetails,
                 mergedResult = {},
                 tempArrayObject,
-                tempKeys,
                 arrayComponents = $(".connector-array-component");
 
             if(this.connectorTypeRef.getGenericState()) {
@@ -701,7 +732,7 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
 
                 //Added logic to ensure array parts correctly add and delete what is set
                 _.each(arrayComponents, function (component) {
-                    tempArrayObject = form2js($(component).prop("id"), ".", false);
+                    tempArrayObject = form2js($(component).prop("id"), ".", true);
 
                     _.each(tempArrayObject.configurationProperties, function(item, key) {
                         mergedResult.configurationProperties[key] = item;
@@ -712,12 +743,6 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
                         }
                     });
                 }, this);
-            }
-
-            if (mergedResult.enabled === "true") {
-                mergedResult.enabled = true;
-            } else {
-                mergedResult.enabled = false;
             }
 
             mergedResult.objectTypes = this.userDefinedObjectTypes || this.data.objectTypes;
@@ -787,7 +812,7 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
             _.each(objectTypes, function(object, key){
                 this.$el.find(".dropdown-menu .divider").before(
                         '<li class="data-link">'
-                        +'<a href="#resource/system/' +this.data.connectorName +'/' +key+'/list/"><i class="fa fa-database"> Data ('+key  +')</i></a>'
+                        +'<a href="#resource/system/' + this.data.connectorId +'/' +key+'/list/"><i class="fa fa-database"> Data ('+key  +')</i></a>'
                         +'</li>');
             }, this);
         },
@@ -812,7 +837,8 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
                 if(value === "fullConfig") {
                     this.connectorDetails.configurationProperties.readSchema = true;
 
-                    ConnectorDelegate.testConnector(this.connectorDetails).then(_.bind(function (result) {
+                    ConnectorDelegate.testConnector(this.connectorDetails).then(
+                        _.bind(function (result) {
                             eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "objectTypeLoaded");
 
                             this.renderObjectTypes(result.objectTypes);
@@ -825,7 +851,8 @@ define("org/forgerock/openidm/ui/admin/connector/EditConnectorView", [
                         this.renderObjectTypes(this.previousObjectType);
                     }
                 } else {
-                    ConnectorDelegate.connectorDefault(value, type).then(_.bind(function (result) {
+                    ConnectorDelegate.connectorDefault(value, type).then(
+                        _.bind(function (result) {
                             eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "objectTypeLoaded");
 
                             this.renderObjectTypes(result.objectTypes);

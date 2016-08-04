@@ -19,10 +19,12 @@ import static org.forgerock.json.JsonValue.array;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.json.JsonValueFunctions.enumConstant;
 import static org.forgerock.json.resource.Requests.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -37,9 +39,9 @@ import org.forgerock.json.resource.ConnectionFactory;
 import org.forgerock.openidm.sync.SyncContext;
 import org.forgerock.openidm.condition.Conditions;
 import org.forgerock.services.context.Context;
+import org.forgerock.json.JsonPatch;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.JsonValueException;
-import org.forgerock.json.patch.JsonPatch;
 import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.NotFoundException;
@@ -596,7 +598,9 @@ class ObjectMapping {
         try {
             final String id = target.get("_id").required().asString();
             final String fullId = LazyObjectAccessor.qualifiedId(targetObjectSet, id);
-            if (!targetId.equals(id)) {
+            // Do simple comparison first, only if it fails handle case sensitivity
+            if (!targetId.equals(id) && 
+                    !linkType.normalizeTargetId(targetId).equals(linkType.normalizeTargetId(id))) {
                 throw new SynchronizationException("target '_id' has changed");
             }
             LOGGER.trace("Update target object {}", fullId);
@@ -761,7 +765,7 @@ class ObjectMapping {
                 newValue = LazyObjectAccessor.rawReadObject(connectionFactory, context, resourceContainer, resourceId);
             }
 
-            if (oldValue == null || oldValue.getObject() == null || JsonPatch.diff(oldValue, newValue).size() > 0) {
+            if (oldValue == null || oldValue.getObject() == null || !oldValue.isEqualTo(newValue)) {
                 return doSourceSync(context, resourceId, newValue, false, oldValue); // synchronous for now
             } else {
                 LOGGER.trace("There is nothing to update on {}", resourceContainer + "/" + resourceId);
@@ -823,7 +827,7 @@ class ObjectMapping {
         }
 
         try {
-            ReconAction action = params.get("action").required().asEnum(ReconAction.class);
+            ReconAction action = params.get("action").required().as(enumConstant(ReconAction.class));
             SyncOperation op = null;
             ReconAuditEventLogger event = null;
             Status status = Status.SUCCESS;
@@ -868,7 +872,7 @@ class ObjectMapping {
                 }
                 // IF an expected situation is supplied, compare and reject if current situation changed
                 if (params.isDefined("situation")) {
-                    Situation situation = params.get("situation").required().asEnum(Situation.class);
+                    Situation situation = params.get("situation").required().as(enumConstant(Situation.class));
                     if (!situation.equals(op.situation)) {
                         throw new SynchronizationException("Expected situation does not match. Expected: " 
                                 + situation.name()
@@ -878,7 +882,7 @@ class ObjectMapping {
                 op.action = action;
                 op.performAction();
             } catch (SynchronizationException se) {
-                if (op.action != ReconAction.EXCEPTION) {
+                if (op != null && op.action != ReconAction.EXCEPTION) {
                     // exception was not intentional
                     status = Status.FAILURE;
                     if (reconId != null) {
@@ -981,7 +985,8 @@ class ObjectMapping {
 
             // If we will handle a target phase, pre-load all relevant target identifiers
             Collection<String> remainingTargetIds = new ArrayList<String>();
-            ResultIterable targetIterable = null;
+            ResultIterable targetIterable =
+                    new ResultIterable(Collections.<String>emptyList(), Collections.<JsonValue>emptyList());
             if (reconContext.getReconHandler().isRunTargetPhase()) {
                 reconContext.getStatistics().targetQueryStart();
                 targetIterable = reconContext.queryTarget();
@@ -1037,7 +1042,7 @@ class ObjectMapping {
 
             if (reconContext.getReconHandler().isRunTargetPhase()) {
                 EventEntry measureTarget = Publisher.start(EVENT_RECON_TARGET, reconId, null);
-                reconContext.setStage(ReconStage.ACTIVE_RECONCILING_TARGET);       
+                reconContext.setStage(ReconStage.ACTIVE_RECONCILING_TARGET);
                 targetIterable = targetIterable.removeNotMatchingEntries(remainingTargetIds);
                 reconContext.getStatistics().targetPhaseStart();
                 ReconPhase targetPhase = new ReconPhase(targetIterable.iterator(), reconContext, context,
@@ -1115,7 +1120,7 @@ class ObjectMapping {
      * @param entry the LogEntry
      * @param syncException the Exception
      */
-    public void setLogEntryMessage(AbstractSyncAuditEventLogger entry, Exception syncException) {
+    public <T extends AbstractSyncAuditEventBuilder<T>> void setLogEntryMessage(AbstractSyncAuditEventLogger<T> entry, Exception syncException) {
         JsonValue messageDetail = null;  // top level ResourceException
         Throwable cause = syncException; // Root cause
         entry.setException(syncException);
@@ -1344,7 +1349,7 @@ class ObjectMapping {
             this.reconById = reconById;
         }
         @Override
-        Callable createTask(ResultEntry objectEntry) throws SynchronizationException {
+        Callable<Void> createTask(ResultEntry objectEntry) throws SynchronizationException {
             return new ReconTask(objectEntry, reconContext, parentContext,
                     allLinks, remainingIds, reconById);
         }
@@ -1364,7 +1369,8 @@ class ObjectMapping {
      * @param entry the entry to create
      * @throws SynchronizationException
      */
-    private void logEntry(AbstractSyncAuditEventLogger entry) throws SynchronizationException {
+    private <T extends AbstractSyncAuditEventBuilder<T>> void logEntry(AbstractSyncAuditEventLogger<T> entry)
+            throws SynchronizationException {
         try {
             entry.log(connectionFactory);
         } catch (ResourceException e) {
@@ -1865,7 +1871,7 @@ class ObjectMapping {
                                             linkObject.linkQualifier);
                                     execScript("onUpdate", onUpdateScript, oldTarget);
                                     // only update if target changes
-                                    if (JsonPatch.diff(oldTarget, getTargetObject()).size() > 0) {
+                                    if (!oldTarget.isEqualTo(getTargetObject())) {
                                         updateTargetObject(context, getTargetObject(), targetId);
                                     }
                                 }
@@ -2168,6 +2174,7 @@ class ObjectMapping {
                 } catch (SynchronizationException e) {
                     LOGGER.debug("Unable to find link for explicit sync operation UNLINK");
                 }
+                break;
             default:
                 break;
             }
@@ -2204,9 +2211,6 @@ class ObjectMapping {
                     assessSituation();
                 } finally {
                     measureSituation.end();
-                    if (targetObjectAccessor != null) {
-                        oldTargetValue = targetObjectAccessor.getObject();
-                    }
                 }
                 EventEntry measureDetermine = Publisher.start(EVENT_SOURCE_DETERMINE_ACTION, getSourceObjectId(), null);
                 boolean linkExisted = (getLinkId() != null);
@@ -2215,6 +2219,11 @@ class ObjectMapping {
                     determineAction(getContext());
                 } finally {
                     measureDetermine.end();
+                    
+                    // Retain oldTargetValue before performing any actions
+                    if (targetObjectAccessor != null && action != ReconAction.IGNORE) {
+                        oldTargetValue = targetObjectAccessor.getObject();
+                    }
                 }
                 EventEntry measurePerform = Publisher.start(EVENT_SOURCE_PERFORM_ACTION, getSourceObjectId(), null);
                 try {
@@ -2262,7 +2271,7 @@ class ObjectMapping {
         /**
          * @return the ambiguous target identifier(s), or an empty list if no ambiguous entries are present
          */
-        public List getAmbiguousTargetIds() {
+        public List<String> getAmbiguousTargetIds() {
             return ambiguousTargetIds;
         }
 
@@ -2508,6 +2517,13 @@ class ObjectMapping {
                 }
             }
             return false;
+        }
+
+        @Override
+        public JsonValue toJsonValue() throws SynchronizationException {
+            JsonValue jsonValue = super.toJsonValue();
+            jsonValue.put("ambiguousTargetIds", getAmbiguousTargetIds());
+            return jsonValue;
         }
     }
     

@@ -14,9 +14,7 @@
  * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
+define([
     "jquery",
     "underscore",
     "form2js",
@@ -47,9 +45,8 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
     var AddEditConnectorView = AbstractConnectorView.extend({
         template: "templates/admin/connector/AddConnectorTemplate.html",
         events: {
-            "change #connectorType" : "loadConnectorTemplate",
-            "onValidate": "onValidate",
-            "change .toggleBoolean" : connectorUtils.toggleValue
+            "change #connectorType": "loadConnectorTemplate",
+            "onValidate": "onValidate"
         },
         data: {
 
@@ -68,7 +65,7 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
             this.connectorList = null;
             this.name = null;
 
-            ConnectorDelegate.availableConnectors().then(_.bind(function(connectors){
+            ConnectorDelegate.availableConnectors().then(_.bind(function(connectors) {
                 this.data.connectors = connectors.connectorRef;
 
                 //Build Connector type selection
@@ -80,24 +77,29 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
                     .sortBy(function(connectorRef) {
                         return connectorRef[0];
                     })
-                    .map(function(connectorRef){
+                    .map(function(connectorRef) {
                         connectorRef[1].displayName = connectorRef[0];
 
                         return {
-                            "groupName" : connectorRef[0],
-                            "versions" : connectorRef[1]
+                            "groupName": connectorRef[0],
+                            "versions": connectorRef[1]
                         };
                     })
                     .value();
 
-                this.data.versionDisplay = _.filter(this.data.versionDisplay, function(version){
-                    return version.versions[0].bundleName !== "org.forgerock.openicf.connectors.groovy-connector";
+                this.data.versionDisplay = _.filter(this.data.versionDisplay, function(version) {
+                    var bundleName = version.versions[0].bundleName,
+                        excludes = [
+                            "org.forgerock.openicf.connectors.ssh-connector",
+                            "org.forgerock.openicf.connectors.groovy-connector"
+                        ];
+                    return !_.includes(excludes, bundleName);
                 }, this);
 
                 this.data.editState = false;
                 this.data.connectorName = "";
 
-                this.parentRender(_.bind(function () {
+                this.parentRender(_.bind(function() {
                     validatorsManager.bindValidators(this.$el);
 
                     this.loadConnectorTemplate(callback);
@@ -106,6 +108,7 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
         },
 
         getProvisioner: function() {
+
             var connectorData,
                 connDetails = this.connectorTypeRef.data.connectorDefaults,
                 mergedResult = {},
@@ -113,17 +116,11 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
                 tempKeys,
                 arrayComponents = $(".connector-array-component");
 
-            connectorData = form2js('connectorForm', '.', true);
+            connectorData = form2js("connectorForm", ".", true);
 
-            if(this.connectorTypeRef.getGenericState()) {
+            if (this.connectorTypeRef.getGenericState()) {
                 delete connectorData.root;
                 connectorData.configurationProperties = this.connectorTypeRef.getGenericConnector();
-            }
-
-            if (connectorData.enabled === "true") {
-                connectorData.enabled = true;
-            } else {
-                connectorData.enabled = false;
             }
 
             delete connectorData.connectorType;
@@ -133,16 +130,16 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
             $.extend(true, mergedResult, connDetails, connectorData);
 
             //Added logic to ensure array parts correctly add and delete what is set
-            _.each(arrayComponents, function(component){
+            _.each(arrayComponents, function(component) {
                 tempArrayObject = form2js($(component).prop("id"), ".", true);
                 tempKeys = _.keys(tempArrayObject.configurationProperties);
 
-                if(tempKeys.length) {
+                if (tempKeys.length) {
                     mergedResult.configurationProperties[tempKeys[0]] = tempArrayObject.configurationProperties[tempKeys[0]];
                 }
 
             }, this);
-            
+
             return mergedResult;
         },
 
@@ -152,21 +149,26 @@ define("org/forgerock/openidm/ui/admin/connector/AddConnectorView", [
                 urlName = mergedResult.name;
 
             //Checks for connector specific save function to do any additional changes to data
-            if(this.connectorTypeRef.connectorSaved) {
+            if (this.connectorTypeRef.connectorSaved) {
                 mergedResult = this.connectorTypeRef.connectorSaved(mergedResult);
             }
 
             ConnectorDelegate.deleteCurrentConnectorsCache();
 
-            ConnectorDelegate.testConnector(mergedResult).then(_.bind(function (testResult) {
+            ConnectorDelegate.testConnector(mergedResult).then(
+                _.bind(function(testResult) {
+                    
                     eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "connectorSaved");
 
-                    if(!mergedResult.objectTypes) {
+                    if (!mergedResult.objectTypes) {
                         mergedResult.objectTypes = testResult.objectTypes;
                     }
 
-                    ConfigDelegate.createEntity(this.data.systemType + "/" + urlName, mergedResult).then(_.bind(function () {
-                        eventManager.sendEvent(constants.EVENT_CHANGE_VIEW, {route: router.configuration.routes.editConnectorView, args: [this.data.systemType +"_" +urlName,""]});
+                    ConfigDelegate.createEntity(this.data.systemType + "/" + urlName, mergedResult).then(_.bind(function() {
+                        eventManager.sendEvent(constants.EVENT_CHANGE_VIEW, {
+                            route: router.configuration.routes.editConnectorView,
+                            args: [this.data.systemType + "_" + urlName, ""]
+                        });
                     }, this));
 
                 }, this),

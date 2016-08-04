@@ -114,7 +114,9 @@ import org.slf4j.LoggerFactory;
 @Properties({
     @Property(name = Constants.SERVICE_VENDOR, value = ServerConstants.SERVER_VENDOR_NAME),
     @Property(name = Constants.SERVICE_DESCRIPTION, value = "OpenIDM Script Registry Service"),
-    @Property(name = ServerConstants.ROUTER_PREFIX, value = "/script*") })
+    @Property(name = ServerConstants.ROUTER_PREFIX, value = "/script*"),
+    @Property(name = ServerConstants.SCHEDULED_SERVICE_INVOKE_SERVICE, value = "script")
+})
 @References({
     @Reference(name = "CryptoServiceReference", referenceInterface = CryptoService.class,
             bind = "bindCryptoService", unbind = "unbindCryptoService",
@@ -208,6 +210,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         }
         Map<String, Object> console = new HashMap<String, Object>();
         console.put("log", new Function<Void>() {
+            static final long serialVersionUID = 1L;
             @Override
             public Void call(Parameter scope, Function<?> callback, Object... arguments) throws ResourceException, NoSuchMethodException {
                 if (arguments.length > 0) {
@@ -237,7 +240,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
             JsonValue sources = configuration.get("sources");
             if (!sources.isNull()) {
                 // Must reverse default-first config since ScriptRegistryImpl loads scripts from the first dir it hits.
-                List<String> keys = new ArrayList(sources.keys());
+                List<String> keys = new ArrayList<>(sources.keys());
                 Collections.reverse(keys);
 
                 for (String key : keys) {
@@ -532,19 +535,21 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         logger.info("Crypto functions are disabled");
     }
 
-    protected void bindFunction(final Function function, Map properties) {
-        Object name = properties.get(SCRIPT_NAME);
-        if (name instanceof String && StringUtils.isNotBlank((String) name)
-                && !reservedNames.contains((String) name)) {
-            openidm.put((String) name, function);
+    @SuppressWarnings("rawtypes")
+    protected void bindFunction(final Function<?> function, Map properties) {
+        String name = (String) properties.get(SCRIPT_NAME);
+        if (name instanceof String && StringUtils.isNotBlank(name)
+                && !reservedNames.contains(name)) {
+            openidm.put(name, function);
             logger.info("openidm.{} function is enabled", name);
         }
     }
 
-    protected void unbindFunction(final Function function, Map properties) {
-        Object name = properties.get(SCRIPT_NAME);
-        if (name instanceof String && StringUtils.isNotBlank((String) name)
-                && !reservedNames.contains((String) name)) {
+    @SuppressWarnings("rawtypes")
+    protected void unbindFunction(final Function<?> function, Map properties) {
+        String name = (String) properties.get(SCRIPT_NAME);
+        if (name instanceof String && StringUtils.isNotBlank(name)
+                && !reservedNames.contains(name)) {
             openidm.remove(name, function);
             logger.info("openidm.{} function is disabled", name);
         }
@@ -628,7 +633,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         },
 
         getWorkingLocation {
-            public Object call(Parameter scope, Function callback, Object... arguments)
+            public Object call(Parameter scope, Function<?> callback, Object... arguments)
                     throws ResourceException, NoSuchMethodException {
                 if (arguments.length != 0) {
                     throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage(this.name(), arguments));
@@ -638,7 +643,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
         },
 
         getProjectLocation {
-            public Object call(Parameter scope, Function callback, Object... arguments)
+            public Object call(Parameter scope, Function<?> callback, Object... arguments)
                     throws ResourceException, NoSuchMethodException {
                 if (arguments.length != 0) {
                     throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage(this
@@ -648,7 +653,7 @@ public class ScriptRegistryService extends ScriptRegistryImpl implements Request
             }
         },
         getInstallLocation {
-            public Object call(Parameter scope, Function callback, Object... arguments)
+            public Object call(Parameter scope, Function<?> callback, Object... arguments)
                     throws ResourceException, NoSuchMethodException {
                 if (arguments.length != 0) {
                     throw new NoSuchMethodException(FunctionFactory.getNoSuchMethodMessage(this

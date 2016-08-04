@@ -14,8 +14,7 @@
  * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define */
-define("config/routes/AdminRoutesConfig", [
+define([
     "config/routes/CommonRoutesConfig"
 ], function(commonRoutes) {
 
@@ -135,6 +134,13 @@ define("config/routes/AdminRoutesConfig", [
             url: /^schedule\/(.+)\/$/,
             pattern: "schedule/?/"
         },
+        "advancedView" : {
+            childView: "org/forgerock/openidm/ui/admin/mapping/AdvancedView",
+            view: "org/forgerock/openidm/ui/admin/mapping/MappingBaseView",
+            role: "ui-admin",
+            url: /^advanced\/(.+)\/$/,
+            pattern: "advanced/?/"
+        },
         "adminListSystemObjectView" : {
             view: "org/forgerock/openidm/ui/common/resource/ListResourceView",
             role: "ui-admin",
@@ -206,6 +212,12 @@ define("config/routes/AdminRoutesConfig", [
             role: "ui-admin",
             url: /^workflow\/processdefinition\/(.+)$/,
             pattern: "workflow/processdefinition/?"
+        },
+        "apiExplorerView" : {
+            view: "org/forgerock/openidm/ui/admin/api/ApiExplorerView",
+            role: "ui-admin",
+            url: /^apiExplorer$/,
+            pattern: "apiExplorer"
         }
     };
 

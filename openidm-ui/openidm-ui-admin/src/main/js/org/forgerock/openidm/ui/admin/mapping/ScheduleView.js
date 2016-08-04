@@ -11,18 +11,15 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014-2015 ForgeRock AS.
+ * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/mapping/ScheduleView", [
+define([
     "underscore",
     "org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView",
     "org/forgerock/openidm/ui/admin/mapping/scheduling/SchedulerView",
     "org/forgerock/openidm/ui/admin/mapping/scheduling/LiveSyncView",
     "org/forgerock/openidm/ui/admin/delegates/SchedulerDelegate"
-
 ], function(_,
             MappingAdminAbstractView,
             SchedulerView,

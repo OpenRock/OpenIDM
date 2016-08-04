@@ -14,162 +14,170 @@
  * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/util/ConnectorUtils", [
+define([
     "jquery",
     "underscore",
+    "handlebars",
     "org/forgerock/openidm/ui/admin/delegates/ConnectorDelegate",
-    "org/forgerock/openidm/ui/common/delegates/ConfigDelegate"
-], function ($, _, ConnectorDelegate, ConfigDelegate) {
+    "org/forgerock/openidm/ui/common/delegates/ConfigDelegate",
+    "org/forgerock/commons/ui/common/util/UIUtils",
+    "org/forgerock/openidm/ui/admin/mapping/util/MappingUtils",
+    "org/forgerock/commons/ui/common/main/EventManager",
+    "org/forgerock/openidm/ui/common/delegates/ResourceDelegate",
+    "org/forgerock/commons/ui/common/util/Constants",
+    "org/forgerock/openidm/ui/admin/util/AdminUtils"
+], function ($, _, Handlebars, ConnectorDelegate, ConfigDelegate, UIUtils, MappingUtils, eventManager, ResourceDelegate, constants, AdminUtils) {
 
-    var obj = {};
-
-    obj.iconListDefaults = {
-        "icons" : [
-            {
-                "type" : "org.identityconnectors.ldap.LdapConnector",
-                "iconClass" : "icon-ldap",
-                "src" : "img/icon-ldap.png"
-            },
-            {
-                "type" : "org.forgerock.openicf.connectors.xml.XMLConnector",
-                "iconClass" : "icon-xml",
-                "src": "img/icon-xml.png"
-            },
-            {
-                "type" : "org.forgerock.openidm.salesforce",
-                "iconClass" : "icon-cloud",
-                "src": "img/icon-cloud.png"
-            },
-            {
-                "type" : "org.identityconnectors.databasetable.DatabaseTableConnector",
-                "iconClass" : "icon-database",
-                "src": "img/icon-managedobject.png"
-            },
-            {
-                "type" : "org.forgerock.openicf.csvfile.CSVFileConnector",
-                "iconClass" : "icon-csv",
-                "src": "img/icon-csv.png"
-            },
-            {
-                "type" : "org.forgerock.openicf.connectors.googleapps.GoogleAppsConnector",
-                "iconClass" : "icon-cloud",
-                "src": "img/icon-cloud.png"
-            },
-            {
-                "type" : "org.forgerock.openidm.salesforce.Salesforce",
-                "iconClass" : "icon-cloud",
-                "src": "img/icon-cloud.png"
-            },
-            {
-                "type" : "org.forgerock.openicf.connectors.scriptedsql.ScriptedSQLConnector",
-                "iconClass" : "icon-scriptedsql",
-                "src": "img/icon-scriptedsql.png"
-            },
-            {
-                "type" : "managedobject",
-                "iconClass" : "icon-database",
-                "src": "img/icon-managedobject.png"
-            }
-
-        ]
-    };
-
-    obj.configPromise = null;
-    obj.iconPromise = null;
+    var obj = {},
+        iconMapping = {
+            "org.identityconnectors.ldap.LdapConnector" : "fa fa-book",
+            "org.forgerock.openicf.connectors.xml.XMLConnector" : "fa fa-code",
+            "org.forgerock.openidm.salesforce": "fa fa-cloud",
+            "org.identityconnectors.databasetable.DatabaseTableConnector" : "fa fa-table",
+            "org.forgerock.openicf.csvfile.CSVFileConnector" : "fa fa-quote-right",
+            "org.forgerock.openicf.connectors.googleapps.GoogleAppsConnector" : "fa fa-google",
+            "org.forgerock.openidm.salesforce.Salesforce": "fa fa-cloud",
+            "org.forgerock.openicf.connectors.scriptedsql.ScriptedSQLConnector": "fa fa-file-code-o",
+            "managedobject": "fa fa-database",
+            "missing" : "fa fa-question",
+            "default" : "fa fa-cubes"
+        };
 
     obj.cleanConnectorName = function(name) {
         var clearName = name.split(".");
-        clearName = clearName[clearName.length - 2] + "_" +clearName[clearName.length - 1];
-
+        clearName = clearName[clearName.length - 2] + "_" + clearName[clearName.length - 1];
         return clearName;
     };
 
     obj.getMappingDetails = function(sourceName, targetName) {
-        var iconList = obj.getIconList(),
-            currentConnectors = ConnectorDelegate.currentConnectors(),
-            deferred = $.Deferred(),
-            details = null;
+        return ConnectorDelegate.currentConnectors().then(function(connectors){
+            var details = {};
 
-        $.when(iconList, currentConnectors).then(function(icons, connectors){
-            details = {};
+            details.targetConnector = _.find(connectors, function (connector) {
+                return connector.name === targetName;
+            }, this);
+            details.sourceConnector = _.find(connectors, function (connector) {
+                return connector.name === sourceName;
+            }, this);
 
-            if(targetName !== "managed") {
-                details.targetConnector = _.find(connectors, function (connector) {
-                    return connector.name === targetName;
-                }, this);
-
-                details.targetIcon = obj.getIcon(details.targetConnector.connectorRef.connectorName, icons);
+            if(targetName === "managed") {
+                details.targetIcon = obj.getIcon("managedobject");
             } else {
-                details.targetConnector = null;
-                details.targetIcon = obj.getIcon("managedobject", icons);
+                if (details.targetConnector) {
+                    details.targetIcon = obj.getIcon(details.targetConnector.connectorRef.connectorName);
+                } else {
+                    details.targetIcon = obj.getIcon("missing");
+                }
             }
-
-            if(sourceName !== "managed") {
-                details.sourceConnector = _.find(connectors, function (connector) {
-                    return connector.name === sourceName;
-                }, this);
-
-                details.sourceIcon = obj.getIcon(details.sourceConnector.connectorRef.connectorName, icons);
+            if(sourceName === "managed") {
+                details.sourceIcon = obj.getIcon("managedobject");
             } else {
-                details.sourceConnector = null;
-                details.sourceIcon = obj.getIcon("managedobject", icons);
+                if (details.sourceConnector) {
+                    details.sourceIcon = obj.getIcon(details.sourceConnector.connectorRef.connectorName);
+                } else {
+                    details.sourceIcon = obj.getIcon("missing");
+                }
             }
 
             details.sourceName = sourceName;
             details.targetName = targetName;
 
-            deferred.resolve(details);
+            return details;
         });
-
-        return deferred;
     };
 
-    obj.getIconList = function() {
-        if(_.isNull(obj.configPromise)) {
-            obj.iconPromise = $.Deferred();
-            obj.configPromise = ConfigDelegate.readEntity("ui/iconlist");
-
-            obj.configPromise.then(function (result) {
-                    obj.configPromise = null;
-                    obj.iconPromise.resolve(result.icons);
-                },
-                _.bind(function () {
-                    obj.configPromise = null;
-                    obj.iconPromise.resolve(this.iconListDefaults.icons);
-
-                    ConfigDelegate.createEntity("ui/iconlist", obj.iconListDefaults);
-                }, this));
+    obj.getIcon = function (type) {
+        var iconClass = iconMapping[type];
+        if(!iconClass) {
+            iconClass = iconMapping["default"];
         }
-
-        return obj.iconPromise;
+        return {
+            "iconClass": iconClass
+        };
     };
 
-    obj.getIcon = function (iconType, iconList) {
-        var foundIcon = null;
+    obj.deleteConnector = function(connectorName, connectorPath, successCallback) {
+        var partialPromise = UIUtils.preloadPartial("partials/connector/_connectorMappings.html"),
+            connectorMappingsPromise = obj.getConnectorMappings(connectorName);
 
-        foundIcon = _.find(iconList, function(icon){
-            return icon.type === iconType;
+
+        $.when(connectorMappingsPromise, partialPromise).then((connectorMappings) => {
+            var connectorMappingsDisplay = Handlebars.compile("{{> connector/_connectorMappings}}")({ connectorMappings: connectorMappings }),
+                dialogText = $("<div>").append($.t("templates.connector.connectorDelete", {"connectorName": connectorName, "connectorChildren": connectorMappingsDisplay}));
+
+            AdminUtils.confirmDeleteDialog(dialogText, () => {
+                var promise;
+
+                if (connectorMappings.length) {
+                    //delete all the connector's mappings
+                    _.each(connectorMappings, (mapping) => {
+                        if (!promise) {
+                            //no promise exists so create it
+                            promise = obj.deleteConnectorMapping(mapping);
+                        } else {
+                            //promise exists now "concat" a new "then" onto the original promise
+                            promise = promise.then(() => {
+                                return obj.deleteConnectorMapping(mapping);
+                            });
+                        }
+                    });
+                } else {
+                    promise = $.Deferred().resolve();
+                }
+
+                promise.then(function () {
+                    var url = connectorPath.split("/");
+
+                    ConfigDelegate.deleteEntity(url[1] +"/" +url[2]).then(function(){
+                        ConnectorDelegate.deleteCurrentConnectorsCache();
+
+                        if (successCallback) {
+                            successCallback();
+                        }
+
+                        eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "deleteConnectorSuccess");
+                    },
+                    function(){
+                        eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "deleteConnectorFail");
+                    });
+                });
+            });
         });
-
-        if(!foundIcon) {
-            foundIcon = {
-                "iconClass" : "connector-icon-default",
-                "src": "img/icon-default-01.png"
-            };
-        }
-
-        return foundIcon;
     };
 
-    obj.toggleValue = function(e) {
-        var toggle = this.$el.find(e.target);
-        if (toggle.val() === "true") {
-            toggle.val(false);
-        } else {
-            toggle.val(true);
-        }
+    obj.deleteConnectorMapping = function(mapping) {
+        return ConfigDelegate.readEntity("sync").then(function (syncConfig) {
+            return MappingUtils.deleteMapping(mapping.name, mapping.children, syncConfig.mappings);
+        });
+    };
+
+    obj.getConnectorMappings = function (connectorName) {
+        return ConfigDelegate.readEntity("sync").then(function (syncConfig) {
+            var promArray = [],
+                connectorMappings = _.filter(syncConfig.mappings, function (mapping) {
+                    var target = mapping.target.split("/"),
+                        source = mapping.source.split("/"),
+                        sourceMatch = source[0] === "system" && source[1] === connectorName,
+                        targetMatch = target[0] === "system" && target[1] === connectorName;
+
+                    return targetMatch || sourceMatch;
+                });
+
+            _.each(connectorMappings, function (mapping) {
+                promArray.push(
+                    MappingUtils.getMappingChildren(mapping.name).then( function (mappingChildren) {
+                        return {
+                            name: mapping.name,
+                            children: mappingChildren
+                        };
+                    })
+                );
+            });
+
+            return $.when.apply($, promArray).then(function () {
+                return _.toArray(arguments);
+            });
+        });
     };
 
     return obj;

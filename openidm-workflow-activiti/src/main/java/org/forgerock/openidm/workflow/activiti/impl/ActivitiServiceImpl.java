@@ -15,19 +15,23 @@
  */
 package org.forgerock.openidm.workflow.activiti.impl;
 
+import static org.forgerock.json.JsonValueFunctions.enumConstant;
 import static org.forgerock.openidm.util.ResourceUtil.notSupported;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URLDecoder;
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Dictionary;
-import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import javax.sql.DataSource;
 import javax.transaction.TransactionManager;
@@ -127,7 +131,7 @@ public class ActivitiServiceImpl implements RequestHandler {
     @Reference(name = "processEngine", referenceInterface = ProcessEngine.class,
             bind = "bindProcessEngine", unbind = "unbindProcessEngine",
             cardinality = ReferenceCardinality.OPTIONAL_UNARY, policy = ReferencePolicy.STATIC,
-            target = "(!openidm.activiti.engine=true)") //avoid registering the self made service
+            target = "(!(openidm.activiti.engine=true))") //avoid registering the self made service
     private ProcessEngine processEngine;
 
     /**
@@ -154,13 +158,13 @@ public class ActivitiServiceImpl implements RequestHandler {
             unbind = "unbindDataSourceService",
             policy = ReferencePolicy.DYNAMIC,
             strategy = ReferenceStrategy.EVENT)
-    private Map<String, DataSourceService> dataSourceServices = new HashMap<>();
+    private final Map<String, DataSourceService> dataSourceServices = new ConcurrentHashMap<>();
 
-    protected void bindDataSourceService(DataSourceService service, Map properties) {
+    protected void bindDataSourceService(DataSourceService service, Map<String, Object> properties) {
         dataSourceServices.put(properties.get(ServerConstants.CONFIG_FACTORY_PID).toString(), service);
     }
 
-    protected void unbindDataSourceService(DataSourceService service, Map properties) {
+    protected void unbindDataSourceService(DataSourceService service, Map<String, Object> properties) {
         for (Map.Entry<String, DataSourceService> entry : dataSourceServices.entrySet()) {
             if (service.equals(entry.getValue())) {
                 dataSourceServices.remove(entry.getKey());
@@ -174,14 +178,14 @@ public class ActivitiServiceImpl implements RequestHandler {
 
     @Reference(policy = ReferencePolicy.DYNAMIC,
             bind = "bindCryptoService", unbind = "unbindCryptoService")
-    CryptoService cryptoService;
+    volatile CryptoService cryptoService;
 
     @Reference(policy = ReferencePolicy.STATIC)
     IDMConnectionFactory connectionFactory;
 
     /** Enhanced configuration service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
-    private EnhancedConfig enhancedConfig;
+    private volatile EnhancedConfig enhancedConfig;
 
     private final OpenIDMExpressionManager expressionManager = new OpenIDMExpressionManager();
     private final SharedIdentityService identityService = new SharedIdentityService();
@@ -253,13 +257,11 @@ public class ActivitiServiceImpl implements RequestHandler {
             switch (location) {
                 case embedded: //start our embedded ProcessEngine
 
-                    // see if we have the DataSourceService bound
-                    final DataSourceService dataSourceService = dataSourceServices.get(useDataSource);
-
                     //we need a TransactionManager to use this
                     JtaProcessEngineConfiguration configuration = new JtaProcessEngineConfiguration();
 
-                    if (null == dataSourceService) {
+                    if (!dataSourceServices.containsKey(useDataSource)) {
+                        //no data source specified - use embedded h2
                         //initialise the default h2 DataSource
                         //Implement it here. There are examples in the JDBCRepoService
                         JdbcDataSource jdbcDataSource = new org.h2.jdbcx.JdbcDataSource();
@@ -270,8 +272,8 @@ public class ActivitiServiceImpl implements RequestHandler {
                         configuration.setDatabaseType("h2");
                         configuration.setDataSource(jdbcDataSource);
                     } else {
-                        // use DataSourceService as source of DataSource
-                        configuration.setDataSource(dataSourceService.getDataSource());
+                        // use DataSource that proxies to appropriate DataSourceService
+                        configuration.setDataSource(new DataSourceProxy());
                     }
                     configuration.setIdentityService(identityService);
 
@@ -329,9 +331,9 @@ public class ActivitiServiceImpl implements RequestHandler {
                     if (null != configurationAdmin) {
                         try {
                             barInstallerConfiguration = configurationAdmin.createFactoryConfiguration("org.apache.felix.fileinstall", null);
-                            Dictionary<String, String> props = barInstallerConfiguration.getProperties();
+                            Dictionary<String, Object> props = barInstallerConfiguration.getProperties();
                             if (props == null) {
-                                props = new Hashtable<String, String>();
+                                props = new Hashtable<String, Object>();
                             }
                             props.put("felix.fileinstall.poll", "2000");
                             props.put("felix.fileinstall.noInitialDelay", "true");
@@ -417,8 +419,10 @@ public class ActivitiServiceImpl implements RequestHandler {
     private void readConfiguration(ComponentContext compContext) {
         JsonValue config = enhancedConfig.getConfigurationAsJson(compContext);
         if (!config.isNull()) {
-            location = config.get(CONFIG_LOCATION).defaultTo(EngineLocation.embedded.name()).asEnum(EngineLocation.class);
-            useDataSource = config.get(CONFIG_USE_DATASOURCE).asString();
+            location = config.get(CONFIG_LOCATION)
+                    .defaultTo(EngineLocation.embedded.name())
+                    .as(enumConstant(EngineLocation.class));
+            useDataSource = config.get(CONFIG_USE_DATASOURCE).defaultTo("default").asString();
             JsonValue mailconfig = config.get(CONFIG_MAIL);
             if (mailconfig.isNotNull()) {
                 mailhost = mailconfig.get(CONFIG_MAIL_HOST).defaultTo(LOCALHOST).asString();
@@ -465,11 +469,11 @@ public class ActivitiServiceImpl implements RequestHandler {
         this.idmSessionFactory.setScriptRegistry(null);
     }
 
-    public void bindService(JavaDelegate delegate, Map props) {
+    public void bindService(JavaDelegate delegate, Map<String, Object> props) {
         expressionManager.bindService(delegate, props);
     }
 
-    public void unbindService(JavaDelegate delegate, Map props) {
+    public void unbindService(JavaDelegate delegate, Map<String, Object> props) {
         expressionManager.unbindService(delegate, props);
     }
 
@@ -509,4 +513,64 @@ public class ActivitiServiceImpl implements RequestHandler {
         this.identityService.setConnectionFactory(null);
     }
 
+    /**
+     * DataSource implementation that proxies all requests to the chosen DataSource referenced by the
+     * <em>useDataSource</em> configuration setting.
+     */
+    private class DataSourceProxy implements DataSource {
+
+        private DataSource getDataSource() {
+            if (useDataSource == null) {
+                throw new IllegalStateException("No datasource service specified!");
+            } else if (!dataSourceServices.containsKey(useDataSource)) {
+                throw new IllegalStateException("Datasource \"" + useDataSource + "\" does not exist!");
+            }
+            return dataSourceServices.get(useDataSource).getDataSource();
+        }
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            return getDataSource().getConnection();
+        }
+
+        @Override
+        public Connection getConnection(String username, String password) throws SQLException {
+            return getConnection();
+        }
+
+        @Override
+        public PrintWriter getLogWriter() throws SQLException {
+            return getDataSource().getLogWriter();
+        }
+
+        @Override
+        public void setLogWriter(PrintWriter out) throws SQLException {
+            getDataSource().setLogWriter(out);
+        }
+
+        @Override
+        public void setLoginTimeout(int seconds) throws SQLException {
+            getDataSource().setLoginTimeout(seconds);
+        }
+
+        @Override
+        public int getLoginTimeout() throws SQLException {
+            return getDataSource().getLoginTimeout();
+        }
+
+        @Override
+        public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
+            return getDataSource().getParentLogger();
+        }
+
+        @Override
+        public <T> T unwrap(Class<T> clazz) throws SQLException {
+            return getDataSource().unwrap(clazz);
+        }
+
+        @Override
+        public boolean isWrapperFor(Class<?> clazz) throws SQLException {
+            return getDataSource().isWrapperFor(clazz);
+        }
+    }
 }

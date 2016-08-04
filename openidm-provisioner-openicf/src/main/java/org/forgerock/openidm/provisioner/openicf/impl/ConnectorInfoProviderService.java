@@ -11,7 +11,7 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 package org.forgerock.openidm.provisioner.openicf.impl;
 
@@ -65,6 +65,7 @@ import org.forgerock.openicf.framework.ConnectorFrameworkFactory;
 import org.forgerock.openicf.framework.async.AsyncConnectorInfoManager;
 import org.forgerock.openicf.framework.client.RemoteWSFrameworkConnectionInfo;
 import org.forgerock.openicf.framework.local.AsyncLocalConnectorInfoManager;
+import org.forgerock.openicf.framework.remote.LoadBalancingAlgorithmFactory;
 import org.forgerock.openicf.framework.remote.ReferenceCountedObject;
 import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.core.IdentityServer;
@@ -77,6 +78,7 @@ import org.forgerock.openidm.provisioner.ConnectorConfigurationHelper;
 import org.forgerock.openidm.provisioner.openicf.ConnectorInfoProvider;
 import org.forgerock.openidm.provisioner.openicf.ConnectorReference;
 import org.forgerock.openidm.provisioner.openicf.commons.ConnectorUtil;
+import org.forgerock.openidm.util.Utils;
 import org.forgerock.util.Pair;
 import org.forgerock.util.promise.Promise;
 import org.forgerock.util.promise.Promises;
@@ -122,7 +124,9 @@ import org.slf4j.LoggerFactory;
 @Service
 @Properties({
     @Property(name = Constants.SERVICE_VENDOR, value = ServerConstants.SERVER_VENDOR_NAME),
-    @Property(name = Constants.SERVICE_DESCRIPTION, value = "OpenICF Connector Info Service") })
+    @Property(name = Constants.SERVICE_DESCRIPTION, value = "OpenICF Connector Info Service"),
+    @Property(name = "suppressMetatypeWarning", value = "true")
+})
 public class ConnectorInfoProviderService implements ConnectorInfoProvider, MetaDataProvider, ConnectorConfigurationHelper {
     /**
      * Setup logging for the {@link ConnectorInfoProviderService}.
@@ -157,19 +161,19 @@ public class ConnectorInfoProviderService implements ConnectorInfoProvider, Meta
      */
     @Reference(referenceInterface = ConnectorFrameworkFactory.class,
             cardinality = ReferenceCardinality.MANDATORY_UNARY, policy = ReferencePolicy.DYNAMIC)
-    protected ConnectorFrameworkFactory connectorFrameworkFactory = null;
+    protected volatile ConnectorFrameworkFactory connectorFrameworkFactory = null;
 
     /**
      * Cryptographic service.
      */
     @Reference(policy = ReferencePolicy.DYNAMIC)
-    protected CryptoService cryptoService = null;
+    protected volatile CryptoService cryptoService = null;
 
     /**
      * Enhanced configuration service.
      */
     @Reference(policy = ReferencePolicy.DYNAMIC)
-    private EnhancedConfig enhancedConfig;
+    private volatile EnhancedConfig enhancedConfig;
 
     @Activate
     public void activate(ComponentContext context) {
@@ -209,12 +213,27 @@ public class ConnectorInfoProviderService implements ConnectorInfoProvider, Meta
                     remoteConnectorHosts, e);
             throw new ComponentException("Invalid configuration, service can not be started", e);
         }
+
+        JsonValue remoteConnectorGroups = null;
+        try {
+            remoteConnectorGroups = configuration.get(ConnectorUtil.OPENICF_REMOTE_CONNECTOR_GROUPS).expect(List.class);
+            if (remoteConnectorGroups.isNotNull()) {
+                initialiseGroups(remoteConnectorGroups);
+            }
+        } catch (JsonValueException e) {
+            logger.error("Invalid configuration remoteConnectorServersGroups must be list or null. {}",
+                    remoteConnectorGroups, e);
+            throw new ComponentException("Invalid configuration, service can not be started", e);
+        }
+
+
         isOSGiServiceInstance = true;
         logger.info("ConnectorInfoProviderService with OpenICF {} is activated.", FrameworkUtil
                 .getFrameworkVersion());
     }
 
     protected void initialiseRemoteManager(JsonValue remoteConnectorHosts) throws JsonValueException {
+        logger.debug("Initialising remote managers");
         for (JsonValue info : remoteConnectorHosts) {
             try {
                 RemoteFrameworkConnectionInfo rfi =
@@ -225,10 +244,12 @@ public class ConnectorInfoProviderService implements ConnectorInfoProvider, Meta
                     if (info.expect(Map.class).isDefined("protocol")
                             && "websocket".equalsIgnoreCase(info.get("protocol").asString())) {
                         // uses protocol from ICF 1.5.x to connect
+                        logger.debug("Initialising {} with websocket", name);
                         remoteFrameworkConnectionInfo.put(name, connectorFramework.get()
                                 .getRemoteManager(RemoteWSFrameworkConnectionInfo.newBuilderFrom(rfi).build()));
                     } else {
                         // uses protocol from ICF 1.4.x to connect
+                        logger.debug("Initialising {}", name);
                         remoteFrameworkConnectionInfo.put(name, connectorFramework.get().getRemoteManager(rfi));
                     }
                     final Pair<String, Integer> key =
@@ -237,6 +258,22 @@ public class ConnectorInfoProviderService implements ConnectorInfoProvider, Meta
                 } else {
                     logger.error("RemoteFrameworkConnectionInfo has no name");
                 }
+            } catch (IllegalArgumentException e) {
+                logger.error("RemoteFrameworkConnectionInfo can not be read", e);
+            }
+        }
+    }
+
+    protected void initialiseGroups(JsonValue remoteConnectorGroups) throws JsonValueException {
+        logger.debug("Initialising remote connector groups");
+        for (JsonValue info : remoteConnectorGroups) {
+            try {
+                LoadBalancingAlgorithmFactory algorithmFactory =
+                        ConnectorUtil.getLoadBalancingInfo(info.expect(Map.class), remoteFrameworkConnectionInfo);
+
+                final String name = info.get("name").required().asString();
+                logger.debug("Initialising {}", name);
+                remoteFrameworkConnectionInfo.put(name, connectorFramework.get().getRemoteManager(algorithmFactory));
             } catch (IllegalArgumentException e) {
                 logger.error("RemoteFrameworkConnectionInfo can not be read", e);
             }
@@ -276,9 +313,9 @@ public class ConnectorInfoProviderService implements ConnectorInfoProvider, Meta
         } catch (UnsupportedEncodingException e) {
             // Should never happen.
             throw new UndeclaredThrowableException(e);
-        } catch (Throwable t) {
-            logger.error("LocalManager initialisation for {} failed.", connectorsArea, t);
-            throw new ComponentException("LocalManager initialisation failed.", t);
+        } catch (Exception e) {
+            logger.error("LocalManager initialisation for {} failed.", connectorsArea, e);
+            throw new ComponentException("LocalManager initialisation failed.", e);
         }
     }
 
@@ -415,7 +452,7 @@ public class ConnectorInfoProviderService implements ConnectorInfoProvider, Meta
                 } catch (UnsupportedOperationException e) {
                     jv.put("reason", "TEST UnsupportedOperation");
                     jv.put("ok", true);
-                } catch (Throwable e) {
+                } catch (Exception e) {
                     jv.put("error", e.toString());
                     // exception -- leave "ok" : false
                 }
@@ -607,8 +644,8 @@ public class ConnectorInfoProviderService implements ConnectorInfoProvider, Meta
                     return;
                 }
             }
-        } catch (Throwable t) {
-            // TODO Use the utility to adopt the exception
+        } catch (Exception e) {
+            throw Utils.adapt(e);
         }
         throw new ServiceUnavailableException("ConnectorFacade can not be initialised");
     }

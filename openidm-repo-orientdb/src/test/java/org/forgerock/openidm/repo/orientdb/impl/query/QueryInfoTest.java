@@ -23,12 +23,14 @@
  */
 package org.forgerock.openidm.repo.orientdb.impl.query;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery;
 
 import org.forgerock.json.resource.BadRequestException;
 
-import org.testng.annotations.*;
-import static org.testng.Assert.*;
+import org.testng.annotations.Test;
 
 public class QueryInfoTest {
 
@@ -36,21 +38,21 @@ public class QueryInfoTest {
     public void fullQueryInfo() throws BadRequestException {
         boolean usePrepared = true;
         String queryString = "select * from managed/user";
-        OSQLSynchQuery preparedQuery = new OSQLSynchQuery(queryString);
-        QueryInfo<OSQLSynchQuery> queryInfo = new QueryInfo<OSQLSynchQuery>(usePrepared, preparedQuery, queryString);
-        assertTrue(queryInfo.isUsePrepared());
-        assertEquals(queryInfo.getPreparedQuery(), preparedQuery);
-        assertEquals(queryInfo.getQueryString(), queryString);
+        OSQLSynchQuery<ODocument> preparedQuery = new OSQLSynchQuery<>(queryString);
+        QueryInfo<OSQLSynchQuery<ODocument>> queryInfo = new QueryInfo<>(usePrepared, preparedQuery, queryString);
+        assertThat(queryInfo.isUsePrepared()).isTrue();
+        assertThat(queryInfo.getPreparedQuery()).isEqualTo(preparedQuery);
+        assertThat(queryInfo.getQueryString()).isEqualTo(queryString);
     }
     
     @Test
     public void partialQueryInfo() throws BadRequestException {
         boolean usePrepared = false;
         String queryString = "select ${_fields} from managed/user";
-        OSQLSynchQuery preparedQuery = null;
-        QueryInfo<OSQLSynchQuery> queryInfo = new QueryInfo<OSQLSynchQuery>(usePrepared, preparedQuery, queryString);
-        assertFalse(queryInfo.isUsePrepared());
-        assertEquals(queryInfo.getPreparedQuery(), preparedQuery);
-        assertEquals(queryInfo.getQueryString(), queryString);
+        OSQLSynchQuery<ODocument> preparedQuery = null;
+        QueryInfo<OSQLSynchQuery<ODocument>> queryInfo = new QueryInfo<>(usePrepared, preparedQuery, queryString);
+        assertThat(queryInfo.isUsePrepared()).isFalse();
+        assertThat(queryInfo.getPreparedQuery()).isEqualTo(preparedQuery);
+        assertThat(queryInfo.getQueryString()).isEqualTo(queryString);
     }    
 }

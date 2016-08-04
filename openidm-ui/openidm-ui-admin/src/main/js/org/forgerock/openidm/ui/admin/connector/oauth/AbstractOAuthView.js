@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014-2015 ForgeRock AS.
+ * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define, window */
-
-define("org/forgerock/openidm/ui/admin/connector/oauth/AbstractOAuthView", [
+define([
     "underscore",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/commons/ui/common/main/ValidatorsManager",
@@ -41,10 +39,16 @@ define("org/forgerock/openidm/ui/admin/connector/oauth/AbstractOAuthView", [
 
             return builtUrl;
         },
+
         submitOAuth: function(mergedResult, editConnector) {
             var name = mergedResult.name,
-                id = mergedResult.configurationProperties.clientId,
-                url = this.buildReturnUrl(id, name);
+                id,
+                url;
+
+            mergedResult = this.cleanSpacing(mergedResult);
+
+            id = mergedResult.configurationProperties.clientId;
+            url = this.buildReturnUrl(id, name);
 
             mergedResult.configurationProperties.domain = window.location.protocol+"//"+window.location.host;
 
@@ -85,6 +89,18 @@ define("org/forgerock/openidm/ui/admin/connector/oauth/AbstractOAuthView", [
         //This check is needed to match the existing functionality in other connectors
         getGenericState: function() {
             return false;
+        },
+
+        cleanSpacing : function(mergedResult) {
+            if(mergedResult.configurationProperties.clientId) {
+                mergedResult.configurationProperties.clientId = mergedResult.configurationProperties.clientId.trim();
+            }
+
+            if(mergedResult.configurationProperties.clientSecret && _.isString(mergedResult.configurationProperties.clientSecret)) {
+                mergedResult.configurationProperties.clientSecret = mergedResult.configurationProperties.clientSecret.trim();
+            }
+
+            return mergedResult;
         }
     });
 

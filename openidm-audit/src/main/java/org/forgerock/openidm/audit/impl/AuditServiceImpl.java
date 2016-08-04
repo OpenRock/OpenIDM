@@ -23,8 +23,8 @@
  */
 package org.forgerock.openidm.audit.impl;
 
-import static org.forgerock.http.handler.HttpClientHandler.OPTION_LOADER;
 import static org.forgerock.json.JsonValue.*;
+import static org.forgerock.json.JsonValueFunctions.listOf;
 import static org.forgerock.json.resource.Responses.*;
 import static org.forgerock.openidm.audit.impl.AuditLogFilters.*;
 
@@ -58,14 +58,8 @@ import org.forgerock.audit.providers.DefaultKeyStoreHandlerProvider;
 import org.forgerock.audit.providers.KeyStoreHandlerProvider;
 import org.forgerock.audit.secure.JcaKeyStoreHandler;
 import org.forgerock.audit.secure.KeyStoreHandler;
-import org.forgerock.http.Client;
-import org.forgerock.http.HttpApplicationException;
-import org.forgerock.http.apache.sync.SyncHttpClientProvider;
-import org.forgerock.http.handler.HttpClientHandler;
-import org.forgerock.http.spi.Loader;
 import org.forgerock.json.JsonPointer;
 import org.forgerock.json.JsonValue;
-import org.forgerock.json.patch.JsonPatch;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
@@ -90,12 +84,12 @@ import org.forgerock.openidm.crypto.factory.CryptoServiceFactory;
 import org.forgerock.openidm.crypto.util.JettyPropertyUtil;
 import org.forgerock.openidm.router.IDMConnectionFactory;
 import org.forgerock.openidm.router.RouteService;
+import org.forgerock.openidm.util.JsonUtil;
 import org.forgerock.script.Script;
 import org.forgerock.script.ScriptEntry;
 import org.forgerock.script.ScriptRegistry;
 import org.forgerock.services.context.Context;
 import org.forgerock.services.context.RootContext;
-import org.forgerock.util.Options;
 import org.forgerock.util.annotations.VisibleForTesting;
 import org.forgerock.util.promise.Promise;
 import org.osgi.service.component.ComponentContext;
@@ -144,7 +138,7 @@ public class AuditServiceImpl implements AuditService {
 
     /** Enhanced configuration service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
-    private EnhancedConfig enhancedConfig;
+    private volatile EnhancedConfig enhancedConfig;
 
     /** the script to execute to format exceptions */
     private static ScriptEntry exceptionFormatterScript = null;
@@ -165,7 +159,6 @@ public class AuditServiceImpl implements AuditService {
             EVENT_TOPICS + "/activity/watchedFields");
 
     private KeyStoreHandlerProvider keyStoreHandlerProvider;
-    private Client httpClient;
 
     private final JsonValueObjectConverter<AuditLogFilter> fieldJsonValueObjectConverter =
             new JsonValueObjectConverter<AuditLogFilter>() {
@@ -179,8 +172,7 @@ public class AuditServiceImpl implements AuditService {
                 // "summary" ] }
                 JsonValue fieldConfig = fieldsConfig.get(eventType);
                 filters.add(newEventTypeFilter(eventType,
-                        newAndCompositeFilter(fieldConfig.asList
-                                (AS_SINGLE_FIELD_VALUES_FILTER))));
+                        newAndCompositeFilter(fieldConfig.as(listOf(AS_SINGLE_FIELD_VALUES_FILTER)))));
             }
             return newOrCompositeFilter(filters);
         }
@@ -282,7 +274,6 @@ public class AuditServiceImpl implements AuditService {
             config = enhancedConfig.getConfigurationAsJson(compContext);
             auditFilter = auditLogFilterBuilder.build(config);
             keyStoreHandlerProvider = createKeyStoreHandlerProvider();
-            httpClient = createHttpClient();
 
             final DependencyProvider dependencyProvider = new DependencyProvider() {
                     @SuppressWarnings("unchecked")
@@ -292,8 +283,6 @@ public class AuditServiceImpl implements AuditService {
                             return (T) connectionFactory;
                         } else if (KeyStoreHandlerProvider.class.isAssignableFrom(clazz)) {
                             return (T) keyStoreHandlerProvider;
-                        } else if (Client.class.isAssignableFrom(clazz)) {
-                            return (T) httpClient;
                         } else {
                             throw new ClassNotFoundException("No instance registered for class: " + clazz.getName());
                         }
@@ -389,7 +378,7 @@ public class AuditServiceImpl implements AuditService {
     }
 
     private boolean hasConfigChanged(JsonValue existingConfig, JsonValue newConfig) {
-        return JsonPatch.diff(existingConfig, newConfig).size() > 0;
+        return !existingConfig.isEqualTo(newConfig);
     }
 
     @Deactivate
@@ -693,25 +682,6 @@ public class AuditServiceImpl implements AuditService {
                 JettyPropertyUtil.getProperty(OPENIDM_KEYSTORE_LOCATION, false),
                 JettyPropertyUtil.getProperty(OPENIDM_KEYSTORE_PASSWORD, false)));
         return new DefaultKeyStoreHandlerProvider(keystoreHandlers);
-    }
-
-    /**
-     * Creates a new HTTP client.
-     *
-     * @return HTTP client instance
-     * @throws HttpApplicationException failure to create HTTP client
-     */
-    @VisibleForTesting
-    protected Client createHttpClient() throws HttpApplicationException {
-        return new Client(
-                new HttpClientHandler(
-                        Options.defaultOptions()
-                                .set(OPTION_LOADER, new Loader() {
-                                    @Override
-                                    public <S> S load(Class<S> service, Options options) {
-                                        return service.cast(new SyncHttpClientProvider());
-                                    }
-                                })));
     }
 
     private void createDummyAuditEventHandlers(final Map<String, EventHandlerConfiguration> handlers)

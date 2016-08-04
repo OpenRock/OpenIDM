@@ -16,6 +16,8 @@
 
 package org.forgerock.openidm.managed;
 
+import static org.forgerock.json.JsonValueFunctions.enumConstant;
+
 import javax.script.ScriptException;
 
 import org.forgerock.json.JsonException;
@@ -52,6 +54,11 @@ public class SchemaField {
     public static JsonPointer FIELD_PROPERTIES = new JsonPointer(RelationshipUtil.REFERENCE_PROPERTIES);
     public static JsonPointer FIELD_ALL = new JsonPointer("*");
     public static JsonPointer FIELD_EMPTY = new JsonPointer("");
+
+    /**
+     * Custom {@code relationship} JSON Schema type, which is essentially a sub-type of {@code object}.
+     */
+    public static final String TYPE_RELATIONSHIP = "relationship";
 
     /** Schema field types */
     enum SchemaFieldType {
@@ -93,10 +100,7 @@ public class SchemaField {
     
     /** The CryptoService implementation */
     private CryptoService cryptoService;
-    
-    /** The encryption configuration */
-    private JsonValue encryptionValue;
-    
+
     /** The hashing configuration */
     private JsonValue hashingValue;
 
@@ -110,7 +114,7 @@ public class SchemaField {
     private final ScriptEntry onStore;
 
     /** The encryptor to use for encrypting JSON values */
-    private JsonEncryptor encryptor;
+    private final JsonEncryptor encryptor;
 
     /** String that indicates the privacy level of the property. */
     private final Scope scope;
@@ -122,7 +126,7 @@ public class SchemaField {
             final CryptoService cryptoService) throws JsonValueException, ScriptException {
         this.name = name;
         this.cryptoService = cryptoService;
-        this.scope = schema.get("scope").defaultTo(Scope.PUBLIC.name()).asEnum(Scope.class);
+        this.scope = schema.get("scope").defaultTo(Scope.PUBLIC.name()).as(enumConstant(Scope.class));
         
         // Initialize the type
         initializeType(schema);
@@ -150,11 +154,17 @@ public class SchemaField {
         }
 
         // Initialize the encryptor if encryption is defined.
-        encryptionValue = schema.get("encryption");
-        if (encryptionValue.isNotNull()) {
-            setEncryptor();
+        JsonValue encrypttionValue = schema.get("encryption");
+        try {
+            encryptor = encrypttionValue.isNotNull()
+                    ? cryptoService.getEncryptor(
+                        encrypttionValue.get("cipher").defaultTo("AES/CBC/PKCS5Padding").asString(),
+                        encrypttionValue.get("key").required().asString())
+                    : null;
+        } catch (JsonCryptoException e) {
+            throw new JsonValueException(encrypttionValue, "Failed to create encryptor from cryptoService", e);
         }
-        
+
         // Set the hashing value, if a secure hash is defined, and make sure the hashing algorithm is defined.
         hashingValue = schema.get("secureHash");
         if (hashingValue.isNotNull()) {
@@ -197,28 +207,12 @@ public class SchemaField {
     }
     
     /**
-     * A synchronized method for setting the encryptor is if hasn't already been set and there exists an encryption 
-     * configuration.
-     */
-    private synchronized void setEncryptor() {
-        if (encryptor == null && encryptionValue.isNotNull()) {
-            try {
-                encryptor = cryptoService.getEncryptor(
-                        encryptionValue.get("cipher").defaultTo("AES/CBC/PKCS5Padding").asString(),
-                        encryptionValue.get("key").required().asString());
-            } catch (JsonCryptoException jce) {
-                logger.warn("Unable to set encryptor");
-            }
-        }
-    }
-    
-    /**
      * Sets the type of the schema field.
      * 
      * @param type the type of this schema field
      */
     private void setType(String type) {
-        if (type.equals("relationship")) {
+        if (type.equals(TYPE_RELATIONSHIP)) {
             this.type = SchemaFieldType.RELATIONSHIP;
         } else if (type.equals("null")) {
             this.nullable = true;
@@ -402,7 +396,6 @@ public class SchemaField {
      */
     void onStore(Context context, JsonValue value) throws InternalServerErrorException {
         execScript(context, "onStore", onStore, value);
-        setEncryptor();
         try {
             if (value.isDefined(name)) {
                 JsonValue propValue = value.get(name);

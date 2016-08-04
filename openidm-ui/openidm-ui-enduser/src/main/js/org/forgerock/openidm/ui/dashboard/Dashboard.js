@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/dashboard/Dashboard", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/commons/ui/common/main/AbstractView",
@@ -52,10 +50,10 @@ define("org/forgerock/openidm/ui/dashboard/Dashboard", [
             if (conf.loggedUser) {
                 var roles = conf.loggedUser.uiroles;
 
-                ConfigDelegate.readEntity("ui/dashboard").then(_.bind(function(dashboardConfig) {
+                ConfigDelegate.readEntity("ui/dashboard").then((dashboardConfig) => {
                     this.model.dashboard = dashboardConfig.dashboard;
 
-                    this.parentRender(_.bind(function () {
+                    this.parentRender(() => {
                         var templElement;
 
                         if (!_.isUndefined(this.model.dashboard.widgets) && this.model.dashboard.widgets.length > 0) {
@@ -86,8 +84,8 @@ define("org/forgerock/openidm/ui/dashboard/Dashboard", [
                         } else {
                             this.loadWorkflow(roles, callback);
                         }
-                    }, this));
-                }, this));
+                    });
+                });
             }
         },
 

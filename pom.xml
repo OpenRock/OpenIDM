@@ -23,7 +23,7 @@
     </parent>
     <groupId>org.forgerock.openidm</groupId>
     <artifactId>openidm-project</artifactId>
-    <version>4.1.0-SNAPSHOT</version>
+    <version>5.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>OpenIDM project</name>
     <description>OpenIDM is an open standards based Identity Management, Provisioning and Compliance solution.
@@ -208,55 +208,81 @@
 
     <properties>
         <!-- Version management -->
-        <commons.forgerock-bom.version>7.0</commons.forgerock-bom.version>
-
-        <forgerock-audit.version>6.1.0</forgerock-audit.version>
+        <commons.commons-bom.version>21.0.0-alpha-5</commons.commons-bom.version>
 
         <!-- Commons versions -->
-        <commons.forgerock-script.version>3.2.0</commons.forgerock-script.version>
+        <commons.forgerock-script.version>4.0.0-SNAPSHOT</commons.forgerock-script.version>
         <commons.forgerock-i18n.version>1.4.2</commons.forgerock-i18n.version>
-        <commons.forgerock-launcher.version>1.2.2</commons.forgerock-launcher.version>
+        <commons.forgerock-launcher.version>2.0.2-SNAPSHOT</commons.forgerock-launcher.version>
 
-        <!-- Third party dependencies -->
+        <!-- Third party dependency versions -->
         <orientdb.version>1.7.10</orientdb.version>
         <orientdb.studio.version>1.7.10</orientdb.studio.version>
-        <restlet.version>2.3.5</restlet.version>
+        <restlet.version>2.3.1</restlet.version>
         <javascript.maven.plugin.version>2.0.0-alpha-1</javascript.maven.plugin.version>
-        <joda-time.version>2.1</joda-time.version>
-        <h2.version>1.4.191</h2.version>
-        <paxweb.version>4.2.4</paxweb.version>
+        <joda-time.version>2.9.4</joda-time.version>
+        <h2.version>1.4.192</h2.version>
+        <paxweb.version>4.2.7</paxweb.version>
         <javax.inject.version>1_2</javax.inject.version>
         <xbean.version>4.5</xbean.version>
         <asm.version>5.0.4</asm.version>
+        <!-- quartz 2.x is not compatible yet -->
+        <quartz.version>1.8.6_1</quartz.version>
+        <rhino.version>1.7R4_1</rhino.version>
+        <groovy.version>2.2.2</groovy.version>
+
+        <!-- OSGi/Felix versions -->
+        <!-- Felix 5.4 Framework implements OSGi R6 specification -->
+        <osgi.core.version>6.0.0</osgi.core.version>
+        <osgi.compendium.version>6.0.0</osgi.compendium.version>
+        <osgi.enterprise.version>6.0.0</osgi.enterprise.version>
+
+        <felix.framework.version>5.4.0</felix.framework.version>
+        <felix.configadmin.version>1.8.8</felix.configadmin.version>
+        <felix.eventadmin.version>1.4.6</felix.eventadmin.version>
+        <felix.gogo.shell.version>0.12.0</felix.gogo.shell.version>
+        <felix.inventory.version>1.0.4</felix.inventory.version>
+        <felix.metatype.version>1.1.2</felix.metatype.version>
+        <felix.fileinstall.version>3.5.4</felix.fileinstall.version>
+        <felix.log.version>1.0.1</felix.log.version>
+        <felix.scr.version>2.0.2</felix.scr.version>
+        <felix.scr.annotations.version>1.10.0</felix.scr.annotations.version>
+        <felix.shell.version>1.4.3</felix.shell.version>
+        <felix.shell.tui.version>1.4.1</felix.shell.tui.version>
+        <felix.webconsole.version>4.2.16</felix.webconsole.version>
+        <felix.webconsole.ds.version>2.0.2</felix.webconsole.ds.version>
+        <felix.webconsole.event.version>1.1.4</felix.webconsole.event.version>
+        <felix.webconsole.memoryusage.version>1.0.6</felix.webconsole.memoryusage.version>
+        <felix.webconsole.obr.version>1.0.2</felix.webconsole.obr.version>
+        <felix.webconsole.packageadmin.version>1.0.2</felix.webconsole.packageadmin.version>
+
+        <!-- OpenICF Framework and Connector versions -->
+        <openicf.framework.version>1.5.2.0-SNAPSHOT</openicf.framework.version>
+        <openicf.xmlconnector.version>1.1.0.3</openicf.xmlconnector.version>
+        <openicf.csvconnector.version>1.5.1.4</openicf.csvconnector.version>
+        <openicf.dbtableconnector.version>1.1.0.2</openicf.dbtableconnector.version>
+        <openicf.remoteconnectorserver.version />
+        <openicf.ldapconnector.version>1.4.1.2</openicf.ldapconnector.version>
+        <openicf.googleconnector.version>1.4.1.0</openicf.googleconnector.version>
+        <openicf.groovyconnector.version>1.4.2.1</openicf.groovyconnector.version>
+        <openicf.sshconnector.version>1.4.0.0</openicf.sshconnector.version>
+        <openicf.kerberosconnector.version>1.4.0.0</openicf.kerberosconnector.version>
+        <salesforce.api.version>29</salesforce.api.version>
+        <provisioner.salesforcemodule.version>2.0.${salesforce.api.version}.3-SNAPSHOT</provisioner.salesforcemodule.version>
+
+        <!-- Site properties -->
+        <siteDistributionURL>scp://community.internal.forgerock.com/var/www/vhosts/openidm.forgerock.org/httpdocs</siteDistributionURL>
 
         <!-- OSGi bundles properties -->
         <openidm.osgi.import.before.defaults />
         <openidm.osgi.import.defaults />
         <openidm.osgi.import.additional />
         <openidm.osgi.import>
-            org.forgerock.openidm.*;provide:=true,
-            org.forgerock.json.*,
             ${openidm.osgi.import.before.defaults},
             ${openidm.osgi.import.defaults},
             ${openidm.osgi.import.additional},
             *
         </openidm.osgi.import>
-
-        <!-- OpenICF Framework and Connector versions -->
-        <openicf.framework.version>1.5.0.0</openicf.framework.version>
-        <openicf.xmlconnector.version>1.1.0.2</openicf.xmlconnector.version>
-        <openicf.csvconnector.version>1.5.1.0</openicf.csvconnector.version>
-        <openicf.dbtableconnector.version>1.1.0.1</openicf.dbtableconnector.version>
-        <openicf.remoteconnectorserver.version />
-        <openicf.ldapconnector.version>1.4.1.0</openicf.ldapconnector.version>
-        <openicf.googleconnector.version>1.4.1.0</openicf.googleconnector.version>
-        <openicf.groovyconnector.version>1.4.2.0</openicf.groovyconnector.version>
-        <salesforce.api.version>29</salesforce.api.version>
-        <provisioner.salesforcemodule.version>2.0.${salesforce.api.version}.2-SNAPSHOT</provisioner.salesforcemodule.version>
-
-        <!-- Site properties -->
-        <siteDistributionURL>scp://community.internal.forgerock.com/var/www/vhosts/openidm.forgerock.org/httpdocs</siteDistributionURL>
-
     </properties>
 
     <modules>
@@ -269,9 +295,11 @@
         <module>openidm-external-email</module>
         <module>openidm-external-rest</module>
         <module>openidm-httpcontext</module>
+        <module>openidm-identity-provider</module>
         <module>openidm-infoservice</module>
         <module>openidm-customendpoint</module>
         <module>openidm-jetty-fragment</module>
+        <module>openidm-messaging</module>
         <module>openidm-policy</module>
         <module>openidm-provisioner-openicf</module>
         <module>openidm-provisioner</module>
@@ -404,36 +432,10 @@
             <!-- Main ForgeRock Bill of Materials pom -->
             <dependency>
               <groupId>org.forgerock.commons</groupId>
-              <artifactId>forgerock-bom</artifactId>
-              <version>${commons.forgerock-bom.version}</version>
+              <artifactId>commons-bom</artifactId>
+              <version>${commons.commons-bom.version}</version>
               <scope>import</scope>
               <type>pom</type>
-            </dependency>
-
-            <dependency>
-                <groupId>org.forgerock.commons</groupId>
-                <artifactId>forgerock-audit-handler-elasticsearch</artifactId>
-                <version>${forgerock-audit.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.forgerock.commons</groupId>
-                <artifactId>forgerock-audit-handler-jms</artifactId>
-                <version>${forgerock-audit.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.forgerock.commons</groupId>
-                <artifactId>forgerock-audit-handler-csv</artifactId>
-                <version>${forgerock-audit.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.forgerock.commons</groupId>
-                <artifactId>forgerock-audit-core</artifactId>
-                <version>${forgerock-audit.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.forgerock.commons</groupId>
-                <artifactId>forgerock-audit-json</artifactId>
-                <version>${forgerock-audit.version}</version>
             </dependency>
 
             <!-- Non-BOM ForgeRock Commons artifacts -->
@@ -509,6 +511,17 @@
                 <groupId>org.restlet.osgi</groupId>
                 <artifactId>org.restlet</artifactId>
                 <version>${restlet.version}</version>
+                <exclusions>
+                    <!-- ignore some old versions of osgi -->
+                    <exclusion>
+                        <groupId>org.osgi</groupId>
+                        <artifactId>org.osgi.core</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.osgi</groupId>
+                        <artifactId>org.osgi.compendium</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.restlet.osgi</groupId>
@@ -546,176 +559,172 @@
                     </exclusion>
                 </exclusions>
             </dependency>
-            <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpclient-osgi</artifactId>
-                <version>4.4.1</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpcore-osgi</artifactId>
-                <version>4.4.1</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpasyncclient-osgi</artifactId>
-                <version>4.1.1</version>
-            </dependency>
 
             <!-- Core OSGi -->
-            <!-- Felix 4.2.1 Framework is packed with 4.3 -->
             <dependency>
                 <groupId>org.osgi</groupId>
-                <artifactId>org.osgi.core</artifactId>
-                <version>4.3.1</version>
+                <artifactId>osgi.core</artifactId>
+                <version>${osgi.core.version}</version>
                 <scope>provided</scope>
             </dependency>
-            <!--
-                Compendium 4.3 is not compatible with current SCR
-                org.apache.felix.scr 1.6.x implements SCR 1.1
-                org.apache.felix.scr 1.7-SNAPSHOT implements SCR 1.2
-            -->
             <dependency>
                 <groupId>org.osgi</groupId>
-                <artifactId>org.osgi.compendium</artifactId>
-                <version>4.2.0</version>
-                <!--scope>provided</scope-->
+                <artifactId>osgi.cmpn</artifactId>
+                <version>${osgi.compendium.version}</version>
             </dependency>
-
             <dependency>
                 <groupId>org.osgi</groupId>
-                <artifactId>org.osgi.enterprise</artifactId>
-                <version>4.2.0</version>
+                <artifactId>osgi.enterprise</artifactId>
+                <version>${osgi.enterprise.version}</version>
             </dependency>
 
-            <!--
-            Ignore installing these old jars in ZIP assembly
-            <dependency>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>org.osgi.compendium</artifactId>
-                <version>1.4.0</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.apache.felix</groupId>
-                        <artifactId>javax.servlet</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.apache.felix</groupId>
-                        <artifactId>org.osgi.foundation</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.apache.felix</groupId>
-                        <artifactId>org.osgi.core</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            -->
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.framework</artifactId>
-                <version>4.2.1</version>
+                <version>${felix.framework.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.inventory</artifactId>
+                <version>${felix.inventory.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.shell</artifactId>
-                <version>1.4.3</version>
+                <version>${felix.shell.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.osgi</groupId>
+                        <artifactId>org.osgi.core</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.osgi</groupId>
+                        <artifactId>org.osgi.compendium</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.shell.tui</artifactId>
-                <version>1.4.1</version>
+                <version>${felix.shell.tui.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.osgi</groupId>
+                        <artifactId>org.osgi.core</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.osgi</groupId>
+                        <artifactId>org.osgi.compendium</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.webconsole</artifactId>
-                <version>4.2.12</version>
+                <version>${felix.webconsole.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.webconsole.plugins.ds</artifactId>
-                <version>1.0.0</version>
+                <version>${felix.webconsole.ds.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.webconsole.plugins.event</artifactId>
-                <version>1.0.2</version>
+                <version>${felix.webconsole.event.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.webconsole.plugins.memoryusage</artifactId>
-                <version>1.0.4</version>
+                <version>${felix.webconsole.memoryusage.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.webconsole.plugins.obr</artifactId>
-                <version>1.0.0</version>
+                <version>${felix.webconsole.obr.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.webconsole.plugins.packageadmin</artifactId>
-                <version>1.0.0</version>
+                <version>${felix.webconsole.packageadmin.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.configadmin</artifactId>
-                <version>1.8.0</version>
+                <version>${felix.configadmin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.gogo.shell</artifactId>
+                <version>${felix.gogo.shell.version}</version>
+                <!-- The spring repository currently serves up a pom with false dependency on this file. Remove it. -->
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.eclipse.osgi</groupId>
+                        <artifactId>org.eclipse.osgi</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.eventadmin</artifactId>
+                <version>${felix.eventadmin.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.log</artifactId>
-                <version>1.0.1</version>
+                <version>${felix.log.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.osgi</groupId>
+                        <artifactId>org.osgi.core</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.osgi</groupId>
+                        <artifactId>org.osgi.compendium</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.fileinstall</artifactId>
-                <version>3.2.6</version>
+                <version>${felix.fileinstall.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.metatype</artifactId>
+                <version>${felix.metatype.version}</version>
             </dependency>
 
             <!-- Declarative Services support -->
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.scr</artifactId>
-                <!-- avoid 1.6.2, it has issues -->
-                <version>1.6.0</version>
-                <!--<version>1.7-SNAPSHOT</version>-->
+                <version>${felix.scr.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>org.apache.felix.scr.annotations</artifactId>
-                <version>1.9.6</version>
+                <version>${felix.scr.annotations.version}</version>
                 <!--<version>1.9.2</version>-->
                 <!-- The anotation @Retention(RetentionPolicy.SOURCE) changed to @Retention(RetentionPolicy.CLASS) -->
                 <scope>provided</scope>
             </dependency>
-            <!-- Prefer this to org.apache.felix.scr.annotations:1.7.0
-            See: http://www.aqute.biz/Bnd/MetaType
-            <dependency>
-                <groupId>biz.aQute</groupId>
-                <artifactId>annotation</artifactId>
-                <version>1.50.0</version>
-            </dependency>
-            -->
 
             <!-- Quartz based scheduler OSGi bundle.
-             This version wraps the original jar which is not a bundle
-             2.0.* is not compatible yet -->
+                 This version wraps the original jar which is not a bundle
+            -->
             <dependency>
                 <groupId>org.apache.servicemix.bundles</groupId>
                 <artifactId>org.apache.servicemix.bundles.quartz</artifactId>
-                <version>1.8.6_1</version>
-                <!--<version>2.1.7_1</version>-->
+                <version>${quartz.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.servicemix.bundles</groupId>
                 <artifactId>org.apache.servicemix.bundles.rhino</artifactId>
-                <version>1.7R4_1</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.servicemix.bundles</groupId>
-                <artifactId>org.apache.servicemix.bundles.commons-configuration</artifactId>
-                <version>1.9_1</version>
+                <version>${rhino.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.servicemix.bundles</groupId>
@@ -726,7 +735,7 @@
             <dependency>
                 <groupId>org.codehaus.groovy</groupId>
                 <artifactId>groovy-all</artifactId>
-                <version>2.2.2</version>
+                <version>${groovy.version}</version>
             </dependency>
 
             <!-- Pax Web Dependencies -->
@@ -766,18 +775,6 @@
             </dependency>
 
             <!-- Test Dependencies -->
-            <dependency>
-                <groupId>org.easytesting</groupId>
-                <artifactId>fest-assert-core</artifactId>
-                <version>2.0M10</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>4.11</version>
-                <scope>test</scope>
-            </dependency>
             <dependency>
                 <groupId>org.codehaus.jstestrunner</groupId>
                 <artifactId>jstestrunner-junit</artifactId>
@@ -829,16 +826,13 @@
                 <plugin>
                     <groupId>org.apache.felix</groupId>
                     <artifactId>maven-scr-plugin</artifactId>
-                    <!--<version>1.10.0</version>-->
-                    <version>1.15.0</version>
-                    <!--<configuration>
-                        <generateAccessors>false</generateAccessors>
-                    </configuration>-->
+                    <version>1.22.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.felix</groupId>
                     <artifactId>maven-bundle-plugin</artifactId>
-                    <version>2.4.0</version>
+                    <!-- version >= 2.5.4 introduces timestamp bug on UI files - see OPENIDM-5264 -->
+                    <version>2.5.3</version>
                     <extensions>true</extensions>
                     <configuration>
                         <instructions>

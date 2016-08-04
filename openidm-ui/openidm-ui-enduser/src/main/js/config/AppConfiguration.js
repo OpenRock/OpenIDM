@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define*/
-
-define("config/AppConfiguration", [
+define([
     "org/forgerock/openidm/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/EventManager"
 ], function(constants, eventManager) {

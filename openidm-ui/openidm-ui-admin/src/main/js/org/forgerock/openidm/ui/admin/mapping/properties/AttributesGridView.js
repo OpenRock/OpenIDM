@@ -14,9 +14,7 @@
  * Copyright 2016 ForgeRock AS.
  */
 
-/*global define, $, _, Handlebars, form2js, window */
-
-define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
+define([
     "jquery",
     "underscore",
     "handlebars",
@@ -68,8 +66,8 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             "click #missingRequiredPropertiesButton": "addRequiredProperties"
         },
         partials: [
-          "partials/mapping/properties/_IconContainerPartial.html",
-          "partials/mapping/properties/_PropertyContainerPartial.html"
+            "partials/mapping/properties/_IconContainerPartial.html",
+            "partials/mapping/properties/_PropertyContainerPartial.html"
         ],
         model: {
             availableObjects: {},
@@ -95,7 +93,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             this.currentLinkQualifier = this.data.linkQualifiers[0];
             this.data.hasLinkQualifiers = this.mapping.linkQualifiers;
 
-            if (conf.globalData.sampleSource && this.mapping.properties.length) {
+            if (conf.globalData.sampleSource && conf.globalData.sampleSource.IDMSampleMappingName === this.mapping.name && this.mapping.properties.length) {
                 this.data.sampleSource_txt = conf.globalData.sampleSource[this.mapping.properties[0].source];
             }
 
@@ -352,7 +350,9 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                                 }
 
                                 if(!attributes.evalResult || !attributes.evalResult.conditionResults || attributes.evalResult.conditionResults.result) {
-                                    if (attributes.sample !== null) {
+                                    if (attributes.evalResult){
+                                        locals.textMuted = attributes.evalResult.transformResults;
+                                    } else if (attributes.sample !== null) {
                                         if (attributes.evalResult && attributes.evalResult.transformResults) {
                                             locals.textMuted = attributes.evalResult.transformResults;
                                         } else {
@@ -434,6 +434,13 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
             this.initSort();
         },
 
+        /**
+            Produces grid data from mapping transform properties. After every property is processed
+            (conditional and transform logic applied) the full set of details is provided to this.loadGrid.
+
+            @param {array} props - array of maps, each of which represent the mapping logic necessary for a single target property
+            @return {array} promises that will be resolved for each property in need of transformation
+        */
         gridFromMapProps : function (props) {
             var propertyDetails = _.clone(props),
                 evalPromises = [],
@@ -443,6 +450,10 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                 evalCheck,
                 tempDetails = {},
                 sampleSource = conf.globalData.sampleSource || {};
+
+            if (sampleSource.IDMSampleMappingName !== this.mapping.name) {
+                sampleSource = {};
+            }
 
             this.sampleDisplay = [];
 
@@ -455,14 +466,12 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
 
                     tempDetails = {};
 
-                    if (item.condition || item.transform) {
-                        globals.linkQualifier = this.currentLinkQualifier;
+                    globals.linkQualifier = this.currentLinkQualifier;
 
-                        if (sampleSource[item.source]) {
-                            globals.source = sampleSource[item.source];
-                        } else {
-                            globals.source = sampleSource;
-                        }
+                    if (item.source !== "") {
+                        globals.source = sampleSource[item.source];
+                    } else {
+                        globals.source = sampleSource;
                     }
 
                     if (item.condition) {
@@ -508,17 +517,21 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                 filterCheck,
                 sampleSource = conf.globalData.sampleSource || {};
 
+            if (sampleSource.IDMSampleMappingName !== this.mapping.name) {
+                return samplePromise.resolve(null);
+            }
+
             if (sampleDetails.hasCondition) {
                 if (_.isString(sampleDetails.condition)) {
                     ScriptDelegate.parseQueryFilter(sampleDetails.condition)
                     .then(function (queryFilterTree) {
                         var qfe = new QueryFilterEditor();
                         return FilterEvaluator.evaluate(
-                                qfe.transform(queryFilterTree),
-                                {
-                                    "linkQualifier": globals.linkQualifier,
-                                    "object": sampleSource
-                                }
+                            qfe.transform(queryFilterTree),
+                            {
+                                "linkQualifier": globals.linkQualifier,
+                                "object": sampleSource
+                            }
                         );
                     })
                     .then(function (filterCheck) {
@@ -552,28 +565,36 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                     });
                 } else {
                     ScriptDelegate.evalScript(sampleDetails.condition, { "linkQualifier": globals.linkQualifier, "object": sampleSource}).then(function(conditionResults) {
-                            if (sampleDetails.hasTransform && conditionResults === true) {
-                                ScriptDelegate.evalScript(sampleDetails.transform, globals).then(function(transformResults) {
-                                    samplePromise.resolve({
-                                        conditionResults: {
-                                            result: conditionResults
-                                        },
-                                        transformResults: transformResults
-                                    });
-                                }, function(e) {
-                                    eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "mappingEvalError");
-                                });
-                            } else {
+                        if (sampleDetails.hasTransform && conditionResults === true) {
+                            ScriptDelegate.evalScript(sampleDetails.transform, globals).then(function(transformResults) {
                                 samplePromise.resolve({
                                     conditionResults: {
                                         result: conditionResults
-                                    }
+                                    },
+                                    transformResults: transformResults
                                 });
-                            }
-                        },
-                        function(e) {
-                            eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "mappingEvalError");
-                        });
+                            }, function(e) {
+                                let errorResponse = JSON.parse(e.responseText);
+
+                                eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "mappingEvalError");
+
+                                samplePromise.resolve({
+                                    conditionResults: {
+                                        result: conditionResults
+                                    },
+                                    transformResults:  $.t("templates.mapping.errorEvalTransform") +" " +errorResponse.message
+                                });
+                            });
+                        } else {
+                            samplePromise.resolve({
+                                conditionResults: {
+                                    result: conditionResults
+                                }
+                            });
+                        }
+                    }, function(e) {
+                        eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "mappingEvalError");
+                    });
                 }
             } else if (sampleDetails.hasTransform) {
                 ScriptDelegate.evalScript(sampleDetails.transform, globals).then(function(transformResults) {
@@ -581,7 +602,13 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/AttributesGridView", [
                         transformResults: transformResults
                     });
                 }, function(e) {
+                    let errorResponse = JSON.parse(e.responseText);
+
                     eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "mappingEvalError");
+
+                    samplePromise.resolve({
+                        transformResults: $.t("templates.mapping.errorEvalTransform") +" " +errorResponse.message
+                    });
                 });
             } else {
                 samplePromise.resolve(null);

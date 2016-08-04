@@ -43,11 +43,12 @@ import org.osgi.framework.Constants;
 /**
  * Config object patching utility.
  */
-@Component(name = ConfigUpdater.PID, policy = ConfigurationPolicy.IGNORE, metatype = false,
-        description = "OpenIDM Config Update", immediate = true)
+@Component(name = ConfigUpdater.PID, policy = ConfigurationPolicy.IGNORE, immediate = true,
+    description = "OpenIDM Config Update", metatype = true)
 @Properties({
         @Property(name = Constants.SERVICE_VENDOR, value = ServerConstants.SERVER_VENDOR_NAME),
-        @Property(name = Constants.SERVICE_DESCRIPTION, value = "Config Update")
+        @Property(name = Constants.SERVICE_DESCRIPTION, value = "Config Update"),
+        @Property(name = "suppressMetatypeWarning", value = "true")
 })
 public class ConfigUpdater {
     /** The PID for this component. */
@@ -58,11 +59,11 @@ public class ConfigUpdater {
     protected IDMConnectionFactory connectionFactory;
 
     /**
-     * Apply a JsonPatch to a config object on the router.
+     * Apply a json-patch to a config object on the router.
      *
      * @param context the context for the patch request.
      * @param resourceName the name of the resource to be patched.
-     * @param patch a JsonPatch to be applied to the named config resource.
+     * @param patch a json-patch to be applied to the named config resource.
      * @throws UpdateException
      */
     public void patchConfig(Context context, String resourceName, JsonValue patch) throws UpdateException {

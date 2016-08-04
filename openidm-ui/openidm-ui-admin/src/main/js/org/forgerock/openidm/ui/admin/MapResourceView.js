@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014-2015 ForgeRock AS.
+ * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/MapResourceView", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/commons/ui/common/main/AbstractView",
@@ -61,7 +59,8 @@ define("org/forgerock/openidm/ui/admin/MapResourceView", [
             this.removeCallback = args.removeCallback;
             this.addCallback = args.addCallback;
 
-            ConfigDelegate.readEntity("sync").then(_.bind(function(sync) {
+            ConfigDelegate.readEntity("sync").then(
+                _.bind(function(sync) {
                     this.mappingList = sync.mappings;
                     this.syncExist = true;
                     this.parentRender(_.bind(function(){

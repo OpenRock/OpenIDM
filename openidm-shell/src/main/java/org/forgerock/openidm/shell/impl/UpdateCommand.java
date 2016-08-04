@@ -32,6 +32,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.Iterator;
+import java.util.Arrays;
 import static java.util.Arrays.asList;
 
 import org.apache.felix.service.command.CommandSession;
@@ -66,6 +68,7 @@ public class UpdateCommand {
     static final String UPDATE_STATUS_COMPLETE = "COMPLETE";
     static final String UPDATE_STATUS_PENDING_REPO_UPDATES = "PENDING_REPO_UPDATES";
     static final String UPDATE_STATUS_IN_PROGRESS = "IN_PROGRESS";
+    static final String ACCEPT_LICENSE_PARAMETER = "acceptLicense";
     static final List<String> TERMINAL_STATE = asList(UPDATE_STATUS_COMPLETE, UPDATE_STATUS_FAILED,
             UPDATE_STATUS_PENDING_REPO_UPDATES);
 
@@ -239,14 +242,18 @@ public class UpdateCommand {
             log("ERROR: Error during execution. Last Attempted step was " + executionResults.getLastAttemptedStep() +
                     ". Will now attempt recovery steps.", e);
         } finally {
-            for (UpdateStep nextStep : recoverySequence) {
+            final Iterator<UpdateStep> it = Arrays.asList(recoverySequence).iterator();
+            boolean abortRecovery = false;
+            while (it.hasNext() && !abortRecovery) {
+                final UpdateStep nextStep = it.next();
                 try {
                     StepExecutor executor = executorRegistry.get(nextStep);
                     if (null != executor && executor.onCondition(executionResults)) {
                         executionResults.setLastRecoveryStep(nextStep);
                         ExecutorStatus status = executor.execute(context, executionResults);
                         if (status.equals(ExecutorStatus.ABORT)) {
-                            return executionResults;
+                            log("WARN: Aborted from a recovery step " + nextStep + ".");
+                            abortRecovery = true;
                         } else if (status.equals(ExecutorStatus.FAIL)) {
                             log("WARN: Failed a recovery step " + nextStep + ", continuing on with recovery.");
                         }
@@ -660,7 +667,8 @@ public class UpdateCommand {
                 // Invoke the installation process.
                 ActionResponse response = resource.action(context,
                         Requests.newActionRequest(UPDATE_ROUTE, UPDATE_ACTION_UPDATE)
-                                .setAdditionalParameter(UPDATE_PARAM_ARCHIVE, config.getUpdateArchive()));
+                                .setAdditionalParameter(UPDATE_PARAM_ARCHIVE, config.getUpdateArchive())
+                                .setAdditionalParameter(ACCEPT_LICENSE_PARAMETER, "true"));
                 // Read response from install call.
                 JsonValue installResponse = response.getJsonContent();
                 if (installResponse.get("status").isNull()) {

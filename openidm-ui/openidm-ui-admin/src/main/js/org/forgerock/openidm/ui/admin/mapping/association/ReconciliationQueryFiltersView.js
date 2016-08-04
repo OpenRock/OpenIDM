@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/mapping/association/ReconciliationQueryFiltersView", [
+define([
     "underscore",
     "org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView",
     "org/forgerock/commons/ui/common/main/EventManager",
@@ -84,6 +82,8 @@ define("org/forgerock/openidm/ui/admin/mapping/association/ReconciliationQueryFi
             var queries;
 
             e.preventDefault();
+
+            this.model.mapping = this.getCurrentMapping();
 
             queries =  _.chain(this.model.queryEditors)
                 .filter(function (qe) {

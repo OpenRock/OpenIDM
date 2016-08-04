@@ -14,9 +14,7 @@
  * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define*/
-
-define("org/forgerock/openidm/ui/admin/settings/UpdateView", [
+define([
     "jquery",
     "underscore",
     "backgrid",
@@ -95,18 +93,18 @@ define("org/forgerock/openidm/ui/admin/settings/UpdateView", [
                                     }.bind(this));
                                     if (updateLogData.resultCount > 0 ) {
                                         HistoryView.render({
-                                             "errorMsg": args.errorMessage,
-                                             "previousUpdates": updateLogData.result,
-                                             "viewDetails": _.bind(function (runningID, response, version, isHistoricalInstall) {
-                                                 this.render({
-                                                     "step": "installationReport",
-                                                     "runningID": runningID,
-                                                     "response": response,
-                                                     "version": version,
-                                                     "isHistoricalInstall": true
-                                                 });
-                                             }, this)
-                                         }, _.noop);
+                                            "errorMsg": args.errorMessage,
+                                            "previousUpdates": updateLogData.result,
+                                            "viewDetails": _.bind(function (runningID, response, version, isHistoricalInstall) {
+                                                this.render({
+                                                    "step": "installationReport",
+                                                    "runningID": runningID,
+                                                    "response": response,
+                                                    "version": version,
+                                                    "isHistoricalInstall": true
+                                                });
+                                            }, this)
+                                        }, _.noop);
                                     }
                                 }
                             }, this));
@@ -245,9 +243,7 @@ define("org/forgerock/openidm/ui/admin/settings/UpdateView", [
                         }, _.noop);
 
                         break;
-
-
-
+                    
                     default:
                         this.render({"step": "version", "errorMessage": "Update state unfound."});
                         break;

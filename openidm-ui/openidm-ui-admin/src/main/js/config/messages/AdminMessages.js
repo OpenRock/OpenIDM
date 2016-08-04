@@ -14,9 +14,7 @@
  * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define*/
-
-define("config/messages/AdminMessages", [
+define([
 ], function() {
 
     var obj = {
@@ -62,6 +60,10 @@ define("config/messages/AdminMessages", [
         },
         "objectTypeSaved": {
             msg: "config.messages.ConnectorMessages.objectTypeSaved",
+            type: "info"
+        },
+        "advancedSaved": {
+            msg: "config.messages.ConnectorMessages.advancedSaved",
             type: "info"
         },
         "liveSyncSaved": {
@@ -234,6 +236,14 @@ define("config/messages/AdminMessages", [
         },
         "deleteAssignmentFail": {
             msg: "config.messages.assignmentMessages.deleteAssignmentFail",
+            type: "error"
+        },
+        "saveSocialProvider" : {
+            msg: "config.messages.socialProviders.save",
+            type: "info"
+        },
+        "deleteSocialProvider" : {
+            msg: "config.messages.socialProviders.delete",
             type: "error"
         }
     };

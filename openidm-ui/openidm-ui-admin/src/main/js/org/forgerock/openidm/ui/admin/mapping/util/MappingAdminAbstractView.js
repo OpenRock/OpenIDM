@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView", [
+define([
     "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
     "org/forgerock/openidm/ui/admin/delegates/SyncDelegate",
@@ -31,11 +29,15 @@ define("org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView", [
         syncConfig = {},
         numRepresentativeProps = 4,
         recon = null,
-        syncCancelled = null,
+        syncCanceled = null,
         runSync = _.noop(),
 
         MappingAdminAbstractView = AdminAbstractView.extend({
             getCurrentMapping: function() {
+                if(currentMapping.recon) {
+                    delete currentMapping.recon;
+                }
+
                 return _.clone(currentMapping, true);
             },
 
@@ -51,8 +53,8 @@ define("org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView", [
                 return runSync;
             },
 
-            getSyncCancelled: function() {
-                return _.clone(syncCancelled, true);
+            getSyncCanceled: function() {
+                return _.clone(syncCanceled, true);
             },
 
             getMappingName: function() {
@@ -73,6 +75,10 @@ define("org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView", [
             },
 
             setCurrentMapping: function(mapping) {
+                if(mapping.recon) {
+                    delete mapping.recon;
+                }
+
                 currentMapping = mapping;
                 return mapping;
             },
@@ -92,9 +98,9 @@ define("org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView", [
                 return syncNow;
             },
 
-            setSyncCancelled: function(cancelled) {
-                syncCancelled = cancelled;
-                return cancelled;
+            setSyncCanceled: function(canceled) {
+                syncCanceled = canceled;
+                return canceled;
             },
 
             AbstractMappingSave: function(mapping, callback) {

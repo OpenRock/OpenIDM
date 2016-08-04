@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define*/
-
-define("org/forgerock/openidm/ui/common/util/Constants", [
+define([
     "org/forgerock/commons/ui/common/util/Constants"
 ], function (commonConstants) {
     commonConstants.context = "openidm";
@@ -24,6 +22,7 @@ define("org/forgerock/openidm/ui/common/util/Constants", [
     commonConstants.HEADER_PARAM_PASSWORD = "X-OpenIDM-Password";
     commonConstants.HEADER_PARAM_USERNAME = "X-OpenIDM-Username";
     commonConstants.HEADER_PARAM_NO_SESSION = "X-OpenIDM-NoSession";
+    commonConstants.HEADER_PARAM_AUTH_TOKEN = "oidc_id_token";
     commonConstants.HEADER_PARAM_REAUTH = "X-OpenIDM-Reauth-Password";
 
     commonConstants.DOC_URL = "https://forgerock.org/openidm/doc/bootstrap/";

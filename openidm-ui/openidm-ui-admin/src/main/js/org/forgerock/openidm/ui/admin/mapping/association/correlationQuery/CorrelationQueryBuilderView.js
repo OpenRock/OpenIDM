@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/mapping/association/correlationQuery/CorrelationQueryBuilderView", [
+define([
     "jquery",
     "underscore",
     "handlebars",
@@ -24,7 +22,9 @@ define("org/forgerock/openidm/ui/admin/mapping/association/correlationQuery/Corr
     "org/forgerock/openidm/ui/admin/util/InlineScriptEditor"
 ], function($, _, Handlebars, AdminAbstractView, InlineScriptEditor) {
 
-    var CorrelationQueryBuilderView = AdminAbstractView.extend({
+    var CorrelationQueryBuilderView, expressionClosure;
+    
+    CorrelationQueryBuilderView = AdminAbstractView.extend({
         template: "templates/admin/mapping/association/correlationQuery/CorrelationQueryBuilderTemplate.html",
         element: "#correlationQueryBuilderView",
         noBaseTemplate: true,
@@ -345,7 +345,7 @@ define("org/forgerock/openidm/ui/admin/mapping/association/correlationQuery/Corr
 
             this.renderExpressionTree();
         }
-    }), expressionClosure;
+    });
 
     Handlebars.registerHelper("expressionDisplay", function (rules, fieldNames, options) {
         var returnVal = '';

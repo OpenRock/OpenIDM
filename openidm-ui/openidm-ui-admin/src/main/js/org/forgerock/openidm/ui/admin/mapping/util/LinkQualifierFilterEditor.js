@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/mapping/util/LinkQualifierFilterEditor", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/openidm/ui/admin/mapping/util/QueryFilterEditor",
@@ -93,7 +91,7 @@ define("org/forgerock/openidm/ui/admin/mapping/util/LinkQualifierFilterEditor", 
             }, this));
         },
         addLinkQualifierNode : function(event) {
-            this.addNode(event, _.bind(function() {
+            this.addNodeAndReRender(event, _.bind(function() {
                 this.changeToDropdown();
             }, this));
         },

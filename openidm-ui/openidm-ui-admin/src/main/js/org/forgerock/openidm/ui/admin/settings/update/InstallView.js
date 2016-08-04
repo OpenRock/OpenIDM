@@ -14,9 +14,7 @@
  * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define, window*/
-
-define("org/forgerock/openidm/ui/admin/settings/update/InstallView", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
@@ -31,7 +29,7 @@ define("org/forgerock/openidm/ui/admin/settings/update/InstallView", [
         element: "#install",
         noBaseTemplate: true,
         events: {
-          "click .restartNow": "restartNow"
+            "click .restartNow": "restartNow"
         },
         data: {
             "successful": false,
@@ -61,12 +59,13 @@ define("org/forgerock/openidm/ui/admin/settings/update/InstallView", [
 
                 this.parentRender(_.bind(function() {
                     if (this.data.successful && this.model.archiveModel.get("restartRequired")) {
-                        this.restarting();
+                        this.restartNow();
                     } else if (this.data.successful && !this.model.archiveModel.get("restartRequired")) {
                         this.installationReport();
                     } else if (this.data.repoUpdates) {
                         this.showRepoUpdates(this.data.lastID);
                     } else if (this.model.runningID) {
+                        this.model.failedOnce = 0;
                         this.pollInstall(this.model.runningID);
                     }
 
@@ -119,52 +118,19 @@ define("org/forgerock/openidm/ui/admin/settings/update/InstallView", [
         },
 
         /**
-         * Restarts IDM if it wasn't triggered naturally through the countdown. Then waits for the last update id.
-         * @param e
+         * Restarts IDM then waits for the last update id.
          */
-        restartNow: function(e) {
-            if (e) {
-                e.preventDefault();
-            }
+        restartNow: function() {
 
             if (!this.model.restarted) {
                 this.$el.find(".restart").text($.t("templates.update.install.restarting"));
 
                 MaintenanceDelegate.restartIDM().then(_.bind(function() {
-                    this.waitForLastUpdateID(_.bind(this.installationReport, this));
+                    this.waitForLastUpdateID(
+                        _.bind(this.installationReport, this));
                 }, this));
 
             }
-        },
-
-        /**
-         * Counts down from 30, once the countdown completes we begin to wait for the last update ID
-         */
-        restarting: function () {
-            var countDown;
-
-            countDown = function(seconds) {
-                this.$el.find(".restart span").text(seconds);
-
-                if (seconds > 0 && !this.model.restarted) {
-                    _.delay(_.bind(function () {
-                        _.bind(countDown, this)(seconds - 1);
-                    }, this), 1000);
-
-                } else {
-                    if (!this.model.restarted) {
-                        this.$el.find(".restart").text($.t("templates.update.install.restarting"));
-
-                        MaintenanceDelegate.restartIDM().then(_.bind(function() {
-                            this.waitForLastUpdateID(_.bind(this.installationReport, this));
-                        }, this));
-
-
-                    }
-                }
-            };
-
-            _.bind(countDown, this)(30);
         },
 
         installationReport: function() {
@@ -196,7 +162,7 @@ define("org/forgerock/openidm/ui/admin/settings/update/InstallView", [
             }
 
             if (!this.model.timeout) {
-                // Poll endpoint once a second so don't bog down the ui with AJAX calls.
+                // Poll endpoint once every five seconds so don't bog down the ui with AJAX calls.
                 _.delay(_.bind(function() {
                     MaintenanceDelegate.getLastUpdateId().then(_.bind(function (response) {
 
@@ -209,7 +175,7 @@ define("org/forgerock/openidm/ui/admin/settings/update/InstallView", [
                     }, this), _.bind(function () {
                         this.waitForLastUpdateID(callback);
                     }, this));
-                }, this), 1000);
+                }, this), 5000);
             } else {
                 this.model.error("Restart timed out.");
             }
@@ -231,8 +197,7 @@ define("org/forgerock/openidm/ui/admin/settings/update/InstallView", [
                             "msg": response.statusMessage,
                             "version": this.model.version
                         }));
-                    }, this), 500);
-
+                    }, this), 5000);
                 } else if (response && response.status === "COMPLETE") {
                     this.$el.find("#updateInstallerContainer .progress-bar").css("width", "100%");
 
@@ -245,7 +210,7 @@ define("org/forgerock/openidm/ui/admin/settings/update/InstallView", [
                             "response": response,
                             "version": this.model.version
                         }));
-                    }, this), 1000);
+                    }, this), 5000);
                 } else if (response && response.status === "PENDING_REPO_UPDATES") {
                     this.data.repoUpdates = true;
                     this.data.repoUpdatesList = this.model.repoUpdatesList;
@@ -255,10 +220,12 @@ define("org/forgerock/openidm/ui/admin/settings/update/InstallView", [
                 } else if (response && response.status === "REVERTED") {
                     this.showUI();
                     this.model.error($.t("templates.update.install.reverted"));
-
+                } else if ((!response || !response.status) && this.model.failedOnce === 0) {
+                    this.model.failedOnce = 1;
+                    _.delay(_.bind(this.pollInstall, this, id), 5000);
                 } else {
                     this.showUI();
-                    this.model.error($.t("templates.update.install.failedStatus"));
+                    this.model.error($.t("templates.update.install.failedStatus") + " " + id);
                 }
 
             }, this), _.bind(function() {

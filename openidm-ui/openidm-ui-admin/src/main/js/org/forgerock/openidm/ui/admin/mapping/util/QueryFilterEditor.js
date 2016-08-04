@@ -11,23 +11,21 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014-2015 ForgeRock AS.
+ * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/mapping/util/QueryFilterEditor", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/openidm/ui/admin/util/FilterEditor",
     "org/forgerock/openidm/ui/admin/delegates/ScriptDelegate"
 ], function ($, _, FilterEditor, ScriptDelegate) {
     var tagMap = {
-                    "equalityMatch" : "eq",
-                    "greaterOrEqual" : "ge",
-                    "lessOrEqual" : "le",
-                    "approxMatch" : "sw"
-                },
+            "equalityMatch" : "eq",
+            "greaterOrEqual" : "ge",
+            "lessOrEqual" : "le",
+            "approxMatch" : "sw"
+        },
         invertedTagMap = _.invert(tagMap),
         QueryFilterEditor = FilterEditor.extend({
             transform: function (queryFilterTree) {
@@ -46,25 +44,28 @@ define("org/forgerock/openidm/ui/admin/mapping/util/QueryFilterEditor", [
                         "name" : queryFilterTree.field,
                         "op" : "expr",
                         "tag" : invertedTagMap[queryFilterTree.operator] || queryFilterTree.operator,
-                        "value" : queryFilterTree.value
+                        "value" : queryFilterTree.value,
+                        "children" : []
                     };
                 }
             },
-            serialize: function (node) {
+            serialize: function(node) {
                 if (node) {
                     switch (node.op) {
                         case "expr":
                             if (node.tag === "pr") {
-                                return node.name + ' pr';
+                                return [node.name, "pr"].join(" ");
                             } else {
-                                return node.name + ' ' + (tagMap[node.tag] || node.tag) + ' "' + node.value + '"';
+                                return [node.name, (tagMap[node.tag] || node.tag), '"' + node.value + '"'].join(" ").trim();
                             }
                         case "not":
-                            return "!(" + this.serialize(node.children[0]) + " )";
+                            return "!(" + this.serialize(node.children[0]) + ")";
                         case "none":
                             return "";
                         default:
-                            return "(" + _.map(node.children, this.serialize, this).join(" " + node.op) + " )";
+                            var sc = _.map(node.children, this.serialize, this),
+                                string = "(" + sc.join(" " + node.op + " ") + ")";
+                            return string;
                     }
                 } else {
                     return "";

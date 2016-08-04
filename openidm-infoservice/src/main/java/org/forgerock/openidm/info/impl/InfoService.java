@@ -54,7 +54,9 @@ import org.slf4j.LoggerFactory;
         description = "OpenIDM Info Service", immediate = true)
 @Properties({
     @Property(name = Constants.SERVICE_VENDOR, value = ServerConstants.SERVER_VENDOR_NAME),
-    @Property(name = Constants.SERVICE_DESCRIPTION, value = "OpenIDM Info Service") })
+    @Property(name = Constants.SERVICE_DESCRIPTION, value = "OpenIDM Info Service"),
+    @Property(name = "suppressMetatypeWarning", value = "true")
+})
 public class InfoService extends AbstractScriptedService {
 
     public static final String PID = "org.forgerock.openidm.info";
@@ -66,11 +68,11 @@ public class InfoService extends AbstractScriptedService {
 
     /** HealthInfo service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
-    private HealthInfo healthInfoSvc;
+    private volatile HealthInfo healthInfoSvc;
 
     /** Enhanced configuration service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
-    private EnhancedConfig enhancedConfig;
+    private volatile EnhancedConfig enhancedConfig;
 
     /** The connection factory */
     @Reference(policy = ReferencePolicy.STATIC)

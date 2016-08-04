@@ -11,19 +11,16 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define*/
-/*jslint es5: true */
-define("org/forgerock/openidm/ui/admin/settings/audit/AuditEventHandlersView", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/openidm/ui/admin/settings/audit/AuditAdminAbstractView",
     "org/forgerock/openidm/ui/admin/settings/audit/AuditEventHandlersDialog",
     "org/forgerock/openidm/ui/admin/delegates/AuditDelegate",
     "org/forgerock/commons/ui/common/components/ChangesPending"
-
 ], function ($, _,
              AuditAdminAbstractView,
              AuditEventHandlersDialog,
@@ -80,11 +77,10 @@ define("org/forgerock/openidm/ui/admin/settings/audit/AuditEventHandlersView", [
                                 return event.class;
                             }),
                             usableForQueriesClasses =  _.map(_.filter(this.model.availableHandlers, function(event) {
-                                    return event.isUsableForQueries;
-                                }),
-                                function(event) {
-                                    return event.class;
-                                }),
+                                return event.isUsableForQueries;
+                            }), function(event) {
+                                return event.class;
+                            }),
                             usableForQueriesCount = 0;
 
                         _.each(allUsedClasses, function(classTest){
@@ -232,11 +228,13 @@ define("org/forgerock/openidm/ui/admin/settings/audit/AuditEventHandlersView", [
 
         editEventHandler: function (e) {
             e.preventDefault();
-            var eventHandlerName = $(e.currentTarget).attr("data-name"),
-                event = _.findWhere(this.model.auditData.eventHandlers, {"config": {"name": eventHandlerName}});
+            var eventHandlerName = {"config": {"name": $(e.currentTarget).attr("data-name")}},
+                event = _.findWhere(this.model.auditData.eventHandlers, eventHandlerName),
+                canDisable = !_.findWhere(this.data.definedEventHandlers, eventHandlerName).useForQueries;
 
             AuditEventHandlersDialog.render(
                 {
+                    "canDisable": canDisable,
                     "eventHandlerType": event.class,
                     "eventHandler": _.clone(event, true),
                     "newEventHandler": false,
@@ -254,10 +252,13 @@ define("org/forgerock/openidm/ui/admin/settings/audit/AuditEventHandlersView", [
         addEventHandler: function (e) {
             e.preventDefault();
             var newHandler = this.$el.find("#addAuditModuleSelect").val(),
-                found = false;
+                found = false,
+                // If this is the first event handler then it must be enabled
+                canDisable = this.data.eventHandlers.length >= 1;
             if (newHandler !== null) {
                 AuditEventHandlersDialog.render(
                     {
+                        "canDisable": canDisable,
                         "eventHandlerType": newHandler,
                         "eventHandler": {},
                         "newEventHandler": true,

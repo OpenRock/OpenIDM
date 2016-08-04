@@ -11,10 +11,8 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014-2015 ForgeRock AS.
+ * Copyright 2014-2016 ForgeRock AS.
  */
-
-/*global require, define, window */
 
 require.config({
     map: {
@@ -38,8 +36,8 @@ require.config({
         "backgrid-paginator": "libs/backgrid-paginator.min-0.3.5-min",
         "backgrid-selectall": "libs/backgrid-select-all-0.3.5-min",
         lodash: "libs/lodash-3.10.1-min",
-        js2form: "libs/js2form-2.0",
-        form2js: "libs/form2js-2.0",
+        js2form: "libs/js2form-2.0-769718a",
+        form2js: "libs/form2js-2.0-769718a",
         spin: "libs/spin-2.0.1-min",
         jquery: "libs/jquery-2.1.1-min",
         gentleSelect: "libs/jquery-gentleSelect-0.1.3.1-min",
@@ -55,6 +53,7 @@ require.config({
         selectize : "libs/selectize-0.12.1-min",
         d3 : "libs/d3-3.5.5-min",
         moment: "libs/moment-2.8.1-min",
+        "moment-timezone": "libs/moment-timezone-with-data-0.5.4-min",
         jsonEditor: "libs/jsoneditor-0.7.9-min",
         "ldapjs-filter": "libs/ldapjs-filter-2253-min",
         faiconpicker: "libs/fontawesome-iconpicker-1.0.0-min",
@@ -122,10 +121,14 @@ require.config({
         },
         i18next: {
             deps: ["jquery", "handlebars"],
-            exports: "i18next"
+            exports: "i18n"
         },
         moment: {
             exports: "moment"
+        },
+        "moment-timezone": {
+            deps: ["moment"],
+            exports: "moment-timezone"
         },
         selectize: {
             deps: ["jquery"]

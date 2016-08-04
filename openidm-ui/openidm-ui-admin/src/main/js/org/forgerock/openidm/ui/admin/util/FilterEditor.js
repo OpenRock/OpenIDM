@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define  */
-
-define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
+define([
     "jquery",
     "underscore",
     "handlebars",
@@ -49,7 +47,6 @@ define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
                     previousNode = null,
                     node = this.data.filter;
 
-
                 _.each(objectPath, function (index) {
                     if (index.length) {
                         previousNode = node;
@@ -60,69 +57,124 @@ define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
 
                 return {current: node, parent: previousNode, path: objectPath};
             },
-            removeNode: function (e, callback) {
-                var context = this.getExpressionContext(e);
 
-                if (!_.isNull(context.parent)) {
-                    context.parent.children = _.reject(context.parent.children, function (c) { return c === context.current; });
-                    if (context.parent.children.length !== 0) {
-                        this.data.filterString = this.getFilterString();
-                    } else {
-                        e.target = $(":input:first", $(e.target).parents(".node[index]")[1])[0];
-                        return this.removeNode(e);
-                    }
-                } else {
-                    this.data.filter = { "op": "none", "children": []};
-                    this.data.filterString = "";
-                }
-
-                this.renderExpressionTree(callback);
+            createNode: function(options) {
+                var node = { name: "", value: "", tag: "equalityMatch", children: [], op: "expr" };
+                return _.merge(node, options);
             },
-            createNode: function (e) {
-                var context = this.getExpressionContext(e),
-                    node = context.current;
-                if (!node.children) {
-                    node.children = [];
+
+            deleteNode: function(tree, contextPath) {
+                var path = _.chain(contextPath).takeRight(contextPath.length - 1).map((val) => Number(val)).value();
+
+                if (path.length >= 1) {
+                    // if parent and should remove the calling node from parent children collection
+                    // get the parent
+                    let parent = this.getNode(tree, path, -1);
+                    if (parent.children.length > 1) {
+                        parent.children = parent.children.filter((child, index) => index !== _.last(path));
+                    }
+                    // prune tree
+                    tree = this.pruneStrandedNodes(tree);
+
+                } else {
+                    // if no parent then modify root node
+                    tree = { "op": "none", "children": [] };
                 }
-                node.children.push({name: "", value: "", tag: "equalityMatch", children: [], op: "expr"});
-                this.data.filterString = this.getFilterString();
+                return tree;
+            },
+
+            getNode(tree, path, level) {
+                if (_.some(path, (p) => typeof p !== "number")) {
+                    throw "expected array of numbers but got " + path;
+                }
+                level = level || 0;
+                return _.take(path, path.length + level).reduce((branch, p) => {
+                    return branch.children[Number(p)];
+                }, tree);
+            },
+
+            insertChildNode: function(parentNode, options) {
+                var node = this.createNode(options);
+
+                if (!parentNode.children) {
+                    parentNode.children = [];
+                }
+                parentNode.children.push(node);
+                return parentNode;
+            },
+
+            pruneStrandedNodes(node, parent, debug) {
+                if (node.children.length > 1) {
+                    node.children.forEach( (child) => {
+                        this.pruneStrandedNodes(child, node);
+                    });
+                } else if (node.children.length === 1) {
+                    if (parent) {
+                        parent.children[parent.children.indexOf(node)] = node.children[0];
+                    } else {
+                        node = node.children[0];
+                    }
+                }
+                return node;
+            },
+
+            removeNode: function(e, callback) {
+                var context = this.getExpressionContext(e);
+                this.data.filter = this.deleteNode(this.data.filter, context.path);
+                this.setFilterString();
+                this.renderExpressionTree(callback);
             },
 
             addNodeAndReRender: function(e, callback) {
-                this.createNode(e);
+                var context = this.getExpressionContext(e),
+                    node = context.current;
+
+                this.insertChildNode(node);
+                this.setFilterString();
                 this.renderExpressionTree(callback);
             },
 
-            updateNodeValue: function (e, callback) {
+            updateNodeValue: function(e, callback) {
+
                 var context = this.getExpressionContext(e),
                     node = context.current,
                     field = $(e.target),
+                    insertChildNode = this.insertChildNode.bind(this, node),
                     redrawContainer = false;
 
+                // handle field types
                 if (field.hasClass("op")) {
                     redrawContainer = true;
                     node.op = field.val();
-                    if (node.op === "expr") {
+
+                    if (node.op === "none") {
+                        this.data.filter = { "op": "none", "children": [] };
+                    } else if (node.op === "expr") {
                         node.name = "";
                         node.value = "";
                         node.tag = "equalityMatch";
                         node.children = [];
-                    } else if (node.op === "none") {
-                        node.children = [];
-                    } else if (!node.children || !node.children.length) {
-                        // create 2 nodes for 'and'/'or' comparisons
-                        if (node.op === "and" || node.op === "or") {
-                            this.createNode(e);
-                            this.createNode(e);
-                        // create 1 node for other types of comparisons
+                    } else if (node.op === "not") {
+                        if (!node.children || !node.children.length) {
+                            insertChildNode();
                         } else {
-                            this.createNode(e);
+                            node.children = [];
+                            insertChildNode();
+                        }
+                    } else if (node.op === "and" || node.op === "or") {
+                        if (node.children) {
+                            if (node.children.length < 2) {
+                                // add as many as it takes to get to 2 nodes
+                                _.times(2 - node.children.length, insertChildNode);
+                            }
+                        } else {
+                            _.times(2, insertChildNode);
                         }
                     }
+                // end of op handlers
                 } else if (field.hasClass("name")) {
-
                     if (field.parent().siblings(".tag-body").find(".tag").val() === "extensibleMatchAND") {
-                        node.extensible.matchType=field.val();
+                        node.extensible.matchType = field.val();
                         node.name = field.val() + ":1.2.840.113556.1.4.803";
                     } else if (field.parent().siblings(".tag-body").find(".tag").val() === "extensibleMatchOR") {
                         node.extensible.matchType = field.val();
@@ -132,7 +184,7 @@ define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
                             node.name = field.val();
                         }
                     }
-
+                // end of name handlers
                 } else if (field.hasClass("tag")) {
 
                     switch (field.val()) {
@@ -171,7 +223,7 @@ define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
                             node.name = field.parent().siblings(".name-body").find(".name").val();
                             node.tag = field.val();
                     }
-
+                // end of tag handlers
                 } else if (field.hasClass("value")) {
                     if (field.parent().siblings(".tag-body").find(".tag").val().match(/^extensibleMatch/)) {
                         node.extensible.value = field.val();
@@ -179,11 +231,12 @@ define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
 
                     node.value = field.val();
                 }
+                // end of field type control flow.
 
                 if (node && node.op !== "none") {
-                    this.data.filterString = this.getFilterString();
+                    this.setFilterString();
                 } else {
-                    this.data.filterString = "";
+                    this.setFilterString("");
                 }
 
                 if (redrawContainer) {
@@ -193,11 +246,19 @@ define("org/forgerock/openidm/ui/admin/util/FilterEditor", [
                 }
             },
 
-            renderExpressionTree: function (callback) {
-                if(callback) {
+            renderExpressionTree: function(callback) {
+                if (callback) {
                     uiUtils.renderTemplate(this.template, this.$el, _.extend({}, conf.globalData, this.data), callback, "replace");
                 } else {
                     uiUtils.renderTemplate(this.template, this.$el, _.extend({}, conf.globalData, this.data), $.noop(), "replace");
+                }
+            },
+
+            setFilterString: function(string) {
+                if (string) {
+                    this.data.filterString = string;
+                } else {
+                    this.data.filterString = this.getFilterString();
                 }
             }
         }),

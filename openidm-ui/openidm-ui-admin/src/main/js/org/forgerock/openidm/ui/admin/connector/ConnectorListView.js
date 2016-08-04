@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/connector/ConnectorListView", [
+define([
     "jquery",
     "underscore",
     "backbone",
@@ -55,9 +53,7 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorListView", [
         },
         render: function(args, callback) {
             var connectorPromise,
-                iconPromise,
                 splitConfig,
-                tempIconClass,
                 ConnectorModel = Backbone.Model.extend({}),
                 Connectors = Backbone.Collection.extend({ model: ConnectorModel }),
                 connectorGrid,
@@ -80,11 +76,11 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorListView", [
             this.model.connectorCollection = new Connectors();
 
             connectorPromise = ConnectorDelegate.currentConnectors();
-            iconPromise = connectorUtils.getIconList();
 
-            $.when(connectorPromise, iconPromise).then(_.bind(function(connectors, iconList){
+            $.when(connectorPromise).then(_.bind(function(connectors){
                 _.each(connectors, _.bind(function(connector){
-                    tempIconClass = connectorUtils.getIcon(connector.connectorRef.connectorName, iconList);
+                    let tempIconClass = connectorUtils.getIcon(connector.connectorRef.connectorName);
+
                     connector.iconClass = tempIconClass.iconClass;
                     connector.iconSrc = tempIconClass.src;
 
@@ -97,6 +93,9 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorListView", [
                     connector.objectTypes = _.reject(connector.objectTypes, function(ot) { return ot === "__ALL__"; });
 
                     connector.displayData = this.versionCheck(connector.connectorRef.bundleVersion);
+
+                    //remove data links from connector toggle
+                    this.pruneObjectTypes.bind(this, connector);
 
                     this.model.connectorCollection.add(connector);
                 }, this));
@@ -188,6 +187,13 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorListView", [
             }, this));
         },
 
+        pruneObjectTypes: function(connector) {
+            if(!connector.ok) {
+                connector.objectTypes = [];
+            }
+            return connector;
+        },
+
         /**
          * Checks the current version to ensure proper ICF support exists for resource view to properly work.
          *
@@ -214,7 +220,10 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorListView", [
         deleteConnections: function(event) {
             var selectedItem = $(event.currentTarget).parents(".card-spacer"),
                 alternateItem,
-                tempConnector = _.clone(this.data.currentConnectors);
+                tempConnector = _.clone(this.data.currentConnectors),
+                connectorPath,
+                connectorName,
+                connectorIndex;
 
             if(selectedItem.length > 0) {
                 _.each(this.$el.find(".backgrid tbody tr"), function(row) {
@@ -232,27 +241,19 @@ define("org/forgerock/openidm/ui/admin/connector/ConnectorListView", [
                 });
             }
 
-            UIUtils.confirmDialog($.t("templates.connector.connectorDelete"), "danger", _.bind(function(){
-                var url;
+            _.each(tempConnector, function(connectorObject, index){
+                if(connectorObject.cleanUrlName === selectedItem.attr("data-connector-title")) {
+                    connectorPath = this.data.currentConnectors[index].config;
+                    connectorName = this.data.currentConnectors[index].name;
+                    connectorIndex = index;
+                }
+            }, this);
 
-                _.each(tempConnector, function(connectorObject, index){
-                    if(connectorObject.cleanUrlName === selectedItem.attr("data-connector-title")) {
-                        url = this.data.currentConnectors[index].config.split("/");
-
-                        this.data.currentConnectors.splice(index, 1);
-                    }
-                }, this);
-
-                ConfigDelegate.deleteEntity(url[1] +"/" +url[2]).then(function(){
-                        ConnectorDelegate.deleteCurrentConnectorsCache();
-                        selectedItem.remove();
-                        alternateItem.remove();
-                        eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "deleteConnectorSuccess");
-                    },
-                    function(){
-                        eventManager.sendEvent(constants.EVENT_DISPLAY_MESSAGE_REQUEST, "deleteConnectorFail");
-                    });
-            }, this));
+            connectorUtils.deleteConnector(connectorName, connectorPath, () => {
+                this.data.currentConnectors.splice(connectorIndex, 1);
+                selectedItem.remove();
+                alternateItem.remove();
+            });
         },
 
         toggleButtonChange: function(event) {

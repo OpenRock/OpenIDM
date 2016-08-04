@@ -28,6 +28,8 @@ import static org.forgerock.openidm.util.ResourceUtil.*;
 import static org.forgerock.util.promise.Promises.newResultPromise;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -755,14 +757,16 @@ public abstract class RelationshipProvider {
         // Do activity logging.
         activityLogger.log(context, request, "update", getManagedObjectPath(context), beforeValue, null, 
                 Status.SUCCESS);
-
-        // Execute the postUpdate script of the managed object
-        managedObjectSetService.executePostUpdate(context, newUpdateRequest(managedId, afterValue), managedId, 
-                beforeValue, afterValue);
         
-        // Changes to the relationship will trigger sync on the managed object that this field belongs to.
-        managedObjectSetService.performSyncAction(context, request, managedId, notifyUpdate, 
-                beforeValue, afterValue);
+        // Perform an update on the managed object
+        // Note that the second-to-last parameter corresponds to the to-be-created relationships according to the
+        // javadocs in ManagedObjectSet#update, but that this relationship has already been added. If this value is
+        // empty however, the diff between the new and old objects in ManagedObjectSet#updateRelationshipFields will add
+        // this relationship back to the set of to-be-persisted relationships. Thus this field is retained here, as
+        // a slight performance enhancement. Note that this semantic impurity will be addressed when the RelationshipProvider
+        // class is refactored. TODO
+        managedObjectSetService.update(context, newUpdateRequest(managedId, afterValue), managedId, null, beforeValue, 
+                afterValue, new HashSet<>(Arrays.asList(propertyPtr)), new HashSet<>(Arrays.asList(propertyPtr)));
     }
 
     /**
@@ -835,13 +839,18 @@ public abstract class RelationshipProvider {
      * @return A new JsonValue containing the converted object in a format accepted by the repo
      * @see #formatResponseNoException(Context, Request)
      */
-    protected JsonValue convertToRepoObject(final ResourcePath firstResourcePath, final JsonValue object) {
+    protected JsonValue convertToRepoObject(final ResourcePath firstResourcePath, final JsonValue object) throws BadRequestException {
         final JsonValue properties = object.get(FIELD_PROPERTIES);
 
         if (properties != null) {
             // Remove "soft" fields that were placed in properties for the ResourceResponse
             properties.remove(FIELD_CONTENT_ID);
             properties.remove(FIELD_CONTENT_REVISION);
+            // Currently only 1 temporal constraint is allowed per grant
+            if (properties.get("temporalConstraints").isNotNull()
+                    && properties.get("temporalConstraints").expect(List.class).asList().size() > 1) {
+                throw new BadRequestException("Only 1 temporal constraint is supported per grant.");
+            }
         }
 
         if (schemaField.isReverseRelationship()) {

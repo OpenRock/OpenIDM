@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/workflow/TaskListView", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",
@@ -30,7 +28,6 @@ define("org/forgerock/openidm/ui/admin/workflow/TaskListView", [
     "org/forgerock/commons/ui/common/main/Router",
     "org/forgerock/openidm/ui/admin/util/WorkflowUtils",
     "backgrid"
-
 ], function($, _,
             AdminAbstractView,
             ModuleLoader,
@@ -194,12 +191,10 @@ define("org/forgerock/openidm/ui/admin/workflow/TaskListView", [
                         }
 
                         ResourceDelegate.searchResource(queryFilter, "managed/user").then(function (search) {
-                                callback(search.result);
-                            },
-                            function() {
-                                callback();
-                            }
-                        );
+                            callback(search.result);
+                        }, function() {
+                            callback();
+                        });
                     }, this)
                 });
 

@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/common/delegates/OpenAMProxyDelegate", [
+define([
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/AbstractDelegate",
     "org/forgerock/commons/ui/common/util/CookieHelper",
@@ -35,7 +33,10 @@ define("org/forgerock/openidm/ui/common/delegates/OpenAMProxyDelegate", [
             data: "{}",
             url: "/json/sessions?_action=logout",
             headers : headers,
-            errorsHandlers: {"Bad Request": {status: 400}}
+            errorsHandlers: {
+                "Bad Request": {status: 400},
+                "Unauthorized": {status: 401}
+            }
         });
 
     };

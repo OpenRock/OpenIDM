@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define, window */
-
-define("org/forgerock/openidm/ui/admin/mapping/association/DataAssociationManagementView", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView",
@@ -75,7 +73,7 @@ define("org/forgerock/openidm/ui/admin/mapping/association/DataAssociationManage
 
             this.data.reconAvailable = false;
             this.parentRender(_.bind(function() {
-                if(this.data.recon && !this.getSyncCancelled()){
+                if(this.data.recon && !this.getSyncCanceled()){
                     this.renderReconResults(null, callback);
 
                 } else if(callback) {
@@ -211,78 +209,78 @@ define("org/forgerock/openidm/ui/admin/mapping/association/DataAssociationManage
             var _this = this;
 
             return [
-                    {
-                        "name": "sourceObjectDisplay",
-                        "label": $.t("templates.mapping.source"),
-                        "sortable": false,
-                        "editable": false,
-                        "headerCell": BackgridUtils.FilterHeaderCell,
-                        "cell": Backgrid.Cell.extend({
-                            render: function () {
-                                var sourceObject = this.model.get("sourceObject"),
-                                    translatedObject,
-                                    txt;
+                {
+                    "name": "sourceObjectDisplay",
+                    "label": $.t("templates.mapping.source"),
+                    "sortable": false,
+                    "editable": false,
+                    "headerCell": BackgridUtils.FilterHeaderCell,
+                    "cell": Backgrid.Cell.extend({
+                        render: function () {
+                            var sourceObject = this.model.get("sourceObject"),
+                                translatedObject,
+                                txt;
 
-                                if (sourceObject) {
-                                    translatedObject= syncDelegate.translateToTarget(sourceObject, _this.mapping);
-                                    txt =  mappingUtils.buildObjectRepresentation(translatedObject, _this.data.targetProps);
+                            if (sourceObject) {
+                                translatedObject= syncDelegate.translateToTarget(sourceObject, _this.mapping);
+                                txt =  mappingUtils.buildObjectRepresentation(translatedObject, _this.data.targetProps);
 
-                                    if (_.contains(_this.data.newLinkIds,sourceObject._id)) {
-                                        txt = "<span class='newLinkWarning errorMessage fa fa-exclamation-triangle' title='" + $.t("templates.mapping.analysis.newLinkCreated") + "'></span> " + txt;
-                                    }
-                                } else {
-                                    txt = "Not Found";
+                                if (_.contains(_this.data.newLinkIds,sourceObject._id)) {
+                                    txt = "<span class='newLinkWarning errorMessage fa fa-exclamation-triangle' title='" + $.t("templates.mapping.analysis.newLinkCreated") + "'></span> " + txt;
                                 }
-
-                                this.$el.html(txt);
-
-                                this.delegateEvents();
-
-                                return this;
+                            } else {
+                                txt = "Not Found";
                             }
-                        })
-                    },
-                    {
-                        "name":"linkQualifier",
-                        "label": $.t("templates.mapping.linkQualifier"),
-                        "sortable": false,
-                        "editable": false,
-                        "cell": "string"
-                    },
-                    {
-                        "name": "targetObjectDisplay",
-                        "label": $.t("templates.mapping.target"),
-                        "sortable": false,
-                        "editable": false,
-                        "headerCell": BackgridUtils.FilterHeaderCell,
-                        "cell": Backgrid.Cell.extend({
-                            render: function () {
-                                var sourceObject = this.model.get("sourceObject"),
-                                    targetObject = this.model.get("targetObject"),
-                                    ambiguousTargetObjectIds = this.model.get("ambiguousTargetObjectIds"),
-                                    txt;
 
-                                if (sourceObject && _.contains(_this.data.newLinkIds, sourceObject._id)) {
-                                    txt = mappingUtils.buildObjectRepresentation(_.filter(_this.data.newLinks, function(link){
-                                        return link.sourceObjectId.replace(_this.mapping.source + "/","") === sourceObject._id;
-                                    })[0].targetObject, _this.data.targetProps);
-                                } else if (targetObject) {
-                                    txt =  mappingUtils.buildObjectRepresentation(targetObject, _this.data.targetProps);
-                                } else if (ambiguousTargetObjectIds && ambiguousTargetObjectIds.length) {
-                                    txt = $.t("templates.correlation.multipleMatchesFound");
-                                } else {
-                                    txt = $.t("templates.correlation.notFound");
-                                }
+                            this.$el.html(txt);
 
-                                this.$el.html(txt);
+                            this.delegateEvents();
 
-                                this.delegateEvents();
+                            return this;
+                        }
+                    })
+                },
+                {
+                    "name":"linkQualifier",
+                    "label": $.t("templates.mapping.linkQualifier"),
+                    "sortable": false,
+                    "editable": false,
+                    "cell": "string"
+                },
+                {
+                    "name": "targetObjectDisplay",
+                    "label": $.t("templates.mapping.target"),
+                    "sortable": false,
+                    "editable": false,
+                    "headerCell": BackgridUtils.FilterHeaderCell,
+                    "cell": Backgrid.Cell.extend({
+                        render: function () {
+                            var sourceObject = this.model.get("sourceObject"),
+                                targetObject = this.model.get("targetObject"),
+                                ambiguousTargetObjectIds = this.model.get("ambiguousTargetObjectIds"),
+                                txt;
 
-                                return this;
+                            if (sourceObject && _.contains(_this.data.newLinkIds, sourceObject._id)) {
+                                txt = mappingUtils.buildObjectRepresentation(_.filter(_this.data.newLinks, function(link){
+                                    return link.sourceObjectId.replace(_this.mapping.source + "/","") === sourceObject._id;
+                                })[0].targetObject, _this.data.targetProps);
+                            } else if (targetObject) {
+                                txt =  mappingUtils.buildObjectRepresentation(targetObject, _this.data.targetProps);
+                            } else if (ambiguousTargetObjectIds && ambiguousTargetObjectIds.length) {
+                                txt = $.t("templates.correlation.multipleMatchesFound");
+                            } else {
+                                txt = $.t("templates.correlation.notFound");
                             }
-                        })
-                    }
-                ];
+
+                            this.$el.html(txt);
+
+                            this.delegateEvents();
+
+                            return this;
+                        }
+                    })
+                }
+            ];
         },
         buildAnalysisGrid: function (situations, totalRecords) {
             var _this = this,
@@ -305,21 +303,21 @@ define("org/forgerock/openidm/ui/admin/mapping/association/DataAssociationManage
                         var params = [];
 
                         _.forIn(options.data, function (val, key) {
-                                switch(key) {
-                                    case "per_page":
-                                        key = "rows";
-                                        break;
-                                    case "page":
-                                        val += 1;
-                                        break;
-                                    case "sourceObjectDisplay":
-                                    case "targetObjectDisplay":
-                                        if (params.indexOf("search=true") === -1) {
-                                            params.push("search=true");
-                                        }
-                                        break;
-                                }
-                                params.push(key + "=" + val);
+                            switch(key) {
+                                case "per_page":
+                                    key = "rows";
+                                    break;
+                                case "page":
+                                    val += 1;
+                                    break;
+                                case "sourceObjectDisplay":
+                                case "targetObjectDisplay":
+                                    if (params.indexOf("search=true") === -1) {
+                                        params.push("search=true");
+                                    }
+                                    break;
+                            }
+                            params.push(key + "=" + val);
                         });
 
                         options.data = params.join("&");
@@ -348,7 +346,7 @@ define("org/forgerock/openidm/ui/admin/mapping/association/DataAssociationManage
                         return _this.checkNewLinks(resp.result[0].rows);
                     },
                     parseState: function (resp, queryParams, state, options) {
-                      return {totalRecords: totalRecords};
+                        return {totalRecords: totalRecords};
                     }
                 }),
                 reconGrid,

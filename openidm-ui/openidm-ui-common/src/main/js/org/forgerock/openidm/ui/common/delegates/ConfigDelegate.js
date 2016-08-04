@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/common/delegates/ConfigDelegate", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/commons/ui/common/util/Constants",
@@ -46,6 +44,10 @@ define("org/forgerock/openidm/ui/common/delegates/ConfigDelegate", [
         return obj.serviceCall({ url:"", type: "GET", success: successCallback, error: errorCallback});
     };
 
+    obj.configQuery = function(queryFilter, successCallback, errorCallback) {
+        return obj.serviceCall({ url:"?_queryFilter=" + encodeURIComponent(queryFilter), type: "GET", success: successCallback, error: errorCallback});
+    };
+
     obj.readEntity = function (id, successCallback, errorCallback) {
         var promise = $.Deferred(),
             clone;
@@ -71,6 +73,23 @@ define("org/forgerock/openidm/ui/common/delegates/ConfigDelegate", [
             }
             return promise;
         }
+    };
+
+    /**
+     *
+     * @param url {string}
+     * @returns promise {object}
+     *
+     * This should be used as an alternative to a simple readEntity when you need the results back regardless of success or failure.
+     */
+    obj.readEntityAlways = function (url) {
+        var promise = $.Deferred();
+
+        obj.readEntity(url).always(function(result) {
+            promise.resolve(result);
+        });
+
+        return promise.promise();
     };
 
     obj.updateEntity = function(id, objectParam, successCallback, errorCallback) {

@@ -11,23 +11,62 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/util/AdminUtils", [
+define([
     "jquery",
     "underscore",
+    "handlebars",
     "org/forgerock/commons/ui/common/main/AbstractConfigurationAware",
     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate",
-    "org/forgerock/openidm/ui/admin/delegates/ConnectorDelegate"
+    "org/forgerock/openidm/ui/admin/delegates/ConnectorDelegate",
+    "org/forgerock/commons/ui/common/util/ModuleLoader"
 ], function ($, _,
+             Handlebars,
              AbstractConfigurationAware,
              ConfigDelegate,
-             ConnectorDelegate) {
+             ConnectorDelegate,
+             ModuleLoader) {
 
     var obj = {};
+
+    /**
+     * Retrieves a list of connectors and managed objects and creates an array of resources
+     *
+     * @returns {promise} promise - resolves with an array of strings
+     */
+    obj.getAvailableResourceEndpoints = function() {
+        var connectorPromise = ConnectorDelegate.currentConnectors(),
+            managedPromise = ConfigDelegate.readEntity("managed"),
+            resources = [];
+
+        return $.when(connectorPromise, managedPromise).then(_.bind(function(connectors, managedObjects) {
+            _.each(managedObjects.objects, _.bind(function(managed){
+                resources.push("managed/" + managed.name);
+            }, this));
+
+            _.each(connectors, _.bind(function(connector) {
+                _.each(connector.objectTypes, _.bind(function(ot) {
+                    if (ot !== "__ALL__") {
+                        resources.push("system/" + connector.name + "/" + ot);
+                    }
+                }, this));
+            }, this));
+
+            return resources;
+        }, this));
+    };
+
+    /**
+     * @param name
+     * @returns {string}
+     *
+     * This function takes in a word and capitalizes the first letter
+     */
+    obj.capitalizeName = function(name) {
+        return name.charAt(0).toUpperCase() + name.substr(1);
+    };
 
     obj.findPropertiesList = function(type, required) {
         var connectorUrl,
@@ -58,7 +97,7 @@ define("org/forgerock/openidm/ui/admin/util/AdminUtils", [
                     propertiesPromise.resolve([]);
                 }
             }, this));
-        } else {
+        } else if (type[0] === "managed") {
             ConfigDelegate.readEntity("managed").then(_.bind(function(managed) {
                 properties = _.find(managed.objects, function(managedObject) {
                     return managedObject.name === type[1];
@@ -87,10 +126,115 @@ define("org/forgerock/openidm/ui/admin/util/AdminUtils", [
                     propertiesPromise.resolve([]);
                 }
             }, this));
+        } else {
+            propertiesPromise.resolve([]);
         }
 
         return propertiesPromise;
     };
+    
+    /**
+     * @param {string} message The text provided in the main body of the dialog
+     * @param {Function} confirmCallback Fired when the delete button is clicked
+     *
+     * @example
+     *  AdminUtils.confirmDeleteDialog($.t("templates.admin.ResourceEdit.confirmDelete"), _.bind(function(){
+     *      //Useful stuff here
+     *  }, this));
+     */
+    obj.confirmDeleteDialog = function(message, confirmCallback){
+        ModuleLoader.load("bootstrap-dialog").then(function (BootstrapDialog) {
+            var btnType = "btn-danger";
+
+            BootstrapDialog.show({
+                title: $.t('common.form.confirm') + " " + $.t('common.form.delete'),
+                type: "type-danger",
+                message: message,
+                id: "frConfirmationDialog",
+                buttons: [
+                    {
+                        label: $.t('common.form.cancel'),
+                        id: "frConfirmationDialogBtnClose",
+                        action: function(dialog){
+                            dialog.close();
+                        }
+                    },
+                    {
+                        label: $.t('common.form.delete'),
+                        cssClass: btnType,
+                        id: "frConfirmationDialogBtnDelete",
+                        action: function(dialog) {
+                            if(confirmCallback) {
+                                confirmCallback();
+                            }
+                            dialog.close();
+                        }
+                    }
+                ]
+            });
+        });
+    };
+
+    /**
+     * @param availableProps {array} - array of a resource's availableProps objects from findPropertiesList
+     * @param existingFields {array} - properties to be filtered out
+     * @returns {array}
+     *
+     * This function filters out the all props that are named "_id", are not of type string,
+     * are encrypted, or are already existing in the current list of availableProps
+     */
+    obj.filteredPropertiesList = function(availableProps, existingFields) {
+        return _.chain(availableProps)
+                    .omit((prop, key) => {
+                        return prop.type !== "string" ||
+                               key === "_id" ||
+                               _.has(prop, "encryption") ||
+                               _.contains(existingFields, key);
+                    })
+                    .keys()
+                    .sortBy()
+                    .value();
+    };
+
+    /**
+     * @description A handlebars helper checking if an item is contained in a list
+     *
+     * @example:
+     *
+     * {{#contains ["cat", "dog"]  "bird"}}
+     *      <span>DOES CONTAIN ITEM</span>
+     * {{else}}
+     *      <span>DOES NOT CONTAIN</span>
+     * {{/contains}}
+     */
+    Handlebars.registerHelper("contains", function(list, item, options) {
+        if (_.indexOf(list, item) >= 0) {
+            return options.fn(item);
+        } else {
+            return options.inverse(item);
+        }
+    });
+
+    /**
+     * @description A handlebars helper that "eaches" over the union of two lists
+     *
+     * @example:
+     *
+     * {{#eachTwoLists ["cat", "dog"]  ["bird", "cat", "bug"]}}
+     *      <span>{{this}}</span>
+     * {{/eachTwoLists}}
+     *
+     * Looks like: cat dog bird bug
+     */
+    Handlebars.registerHelper("eachTwoLists", function(list1, list2, options) {
+        var ret = "";
+
+        _.each(_.union(list1, list2), function(val) {
+            ret = ret + options.fn(val);
+        });
+
+        return ret;
+    });
 
     return obj;
 });

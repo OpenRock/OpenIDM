@@ -52,7 +52,7 @@
                                 <div class="form-group has-feedback">
                                     <label for="managedObjectName" class="col-sm-3 control-label">{{t "templates.managed.managedObjectName"}}</label>
                                     <div class="col-sm-8">
-                                        <input class="form-control" type="text" id="managedObjectName" name="name" value="{{currentManagedObject.name}}" data-validator="spaceCheck" data-validator-event="keyup blur" required autofocus/>
+                                        <input class="form-control" type="text" id="managedObjectName" name="name" value="{{currentManagedObject.name}}" data-validator="spaceCheck restrictedCharacters" restrictedCharacters=";-_%" data-validator-event="keyup blur" required autofocus/>
                                         <div class="validation-message"></div>
                                         <span class="error form-control-feedback"><i class='fa validation-icon'></i></span>
                                     </div>
@@ -121,20 +121,6 @@
                 </form>
             </div>
         </div>
-        <div role="tabpanel" class="tab-pane {{#if showSchema}}active{{/if}}" id="managedSchemaContainer">
-            <div class="panel no-margin-bottom">
-                <form id="managedObjectSchemaForm" role="form">
-                    <div id="managedSchema" class="panel-body">
-                        <div class="schemaEditor jsonEditor"></div>
-                    </div>
-                    <div class="panel-footer clearfix">
-                        <div class="pull-right">
-                            <a href="#managed/"><input type="button" name="cancel" value="{{t 'common.form.cancel'}}" class="btn btn-default"></a>
-                            <input type="submit" id="saveManagedSchema" value="{{t 'common.form.save'}}" class="btn btn-primary">
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
+        <div role="tabpanel" class="tab-pane {{#if showSchema}}active{{/if}}" id="managedSchemaContainer"></div>
     </div>
 </div>

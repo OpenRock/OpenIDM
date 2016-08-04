@@ -33,8 +33,6 @@ import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.forgerock.json.JsonValue.*;
-import static org.forgerock.json.JsonValue.field;
-import static org.forgerock.json.JsonValue.object;
 
 /**
  * Test ScriptedPatchValueTransformerFactory class.
@@ -83,7 +81,7 @@ public class ScriptedPatchValueTransformerFactoryTest {
                 field("value", object(
                         field("script",
                                 object(
-                                        field("source", "var source = content.key; var target = source + 'xformed'; target;"),
+                                        field("source", "var source = content; var target = source + 'xformed'; target;"),
                                         field("type", getLanguageName())
                                 ))
                 ))

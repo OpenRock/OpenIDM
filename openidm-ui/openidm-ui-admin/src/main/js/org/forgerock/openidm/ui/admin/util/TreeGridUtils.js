@@ -11,16 +11,13 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/util/TreeGridUtils", [
+define([
     "jquery",
     "underscore",
     "handlebars"
-
 ], function ($, _, Handlebars) {
 
     var obj ={};
@@ -96,11 +93,11 @@ define("org/forgerock/openidm/ui/admin/util/TreeGridUtils", [
         _.each(data, function (obj) {
 
             if (_.startsWith(obj.filePath, "/")) {
-              obj.filePath = obj.filePath.slice(1);
+                obj.filePath = obj.filePath.slice(1);
             }
 
             if (_.endsWith(obj.filePath, "/")) {
-              obj.filePath = obj.filePath.slice(0, -1);
+                obj.filePath = obj.filePath.slice(0, -1);
             }
 
 

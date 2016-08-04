@@ -14,9 +14,7 @@
  * Copyright 2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("config/process/AdminIDMConfig", [
+define([
     "underscore",
     "org/forgerock/openidm/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/EventManager"
@@ -260,6 +258,14 @@ define("config/process/AdminIDMConfig", [
                         "icon": "fa fa-random",
                         "inactive": false
                     });
+
+                    Navigation.configuration.helpLinks = [
+                        {
+                            "href" : "#apiExplorer",
+                            "icon-class" : "fa-code",
+                            "label" : "API Explorer"
+                        }
+                    ];
 
                     return Navigation.reload();
 

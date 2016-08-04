@@ -23,15 +23,15 @@
  */
 package org.forgerock.openidm.repo.orientdb.impl;
 
-import java.util.HashMap;
-import java.util.Map;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.forgerock.json.JsonValue.json;
+import static org.forgerock.json.JsonValue.object;
 
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentPool;
 
 import org.forgerock.json.JsonValue;
 import org.testng.annotations.*;
-import static org.testng.Assert.*;
 
 public class DBHelperTest {
 
@@ -43,10 +43,10 @@ public class DBHelperTest {
 
     @Test
     public void initPoolTest() throws Exception {
-        ODatabaseDocumentPool pool = DBHelper.getPool(dbURL, user, password, minSize, maxSize, new JsonValue(new HashMap()), true);
-        assertNotNull(pool);
+        ODatabaseDocumentPool pool = DBHelper.getPool(dbURL, user, password, minSize, maxSize, json(object()), true);
+        assertThat(pool).isNotNull();
         ODatabaseDocumentTx db = pool.acquire(dbURL, user, password);
-        assertNotNull(db);
+        assertThat(db).isNotNull();
         db.drop();
         db.close();
         DBHelper.closePools();
@@ -56,17 +56,16 @@ public class DBHelperTest {
     public void updateDbCredentialsTest() throws Exception {
         String newUser = "user1";
         String newPassword = "pass1";
-        Map map = new HashMap();
-        JsonValue completeConfig = new JsonValue(map);
+        JsonValue completeConfig = json(object());
         int minSize = 5;
         int maxSize = 20;
         ODatabaseDocumentPool pool = DBHelper.getPool(dbURL, user, password, minSize, maxSize, completeConfig, true);
-        assertNotNull(pool);
+        assertThat(pool).isNotNull();
         DBHelper.updateDbCredentials(dbURL, user, password, newUser, newPassword);
         pool = DBHelper.getPool(dbURL, newUser, newPassword, minSize, maxSize, completeConfig, true);
-        assertNotNull(pool);
+        assertThat(pool).isNotNull();
         ODatabaseDocumentTx db = pool.acquire(dbURL, newUser, newPassword);
-        assertNotNull(db);
+        assertThat(db).isNotNull();
         db.drop();
         db.close();
         DBHelper.closePools();

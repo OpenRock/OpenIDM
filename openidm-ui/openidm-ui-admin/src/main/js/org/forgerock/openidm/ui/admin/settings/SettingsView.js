@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/settings/SettingsView", [
+define([
     "underscore",
     "jquery",
     "handlebars",
@@ -26,6 +24,7 @@ define("org/forgerock/openidm/ui/admin/settings/SettingsView", [
     "org/forgerock/openidm/ui/admin/settings/SelfServiceView",
     "org/forgerock/openidm/ui/admin/settings/EmailConfigView",
     "org/forgerock/openidm/ui/admin/settings/UpdateView",
+    "org/forgerock/openidm/ui/admin/settings/SocialConfigView",
     "org/forgerock/commons/ui/common/main/Router",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/EventManager",
@@ -40,6 +39,7 @@ define("org/forgerock/openidm/ui/admin/settings/SettingsView", [
             SelfServiceView,
             EmailConfigView,
             UpdateView,
+            SocialConfigView,
             Router,
             Constants,
             EventManager,
@@ -80,6 +80,7 @@ define("org/forgerock/openidm/ui/admin/settings/SettingsView", [
                     AuditView.render();
                     SelfServiceView.render();
                     EmailConfigView.render({}, _.noop);
+                    SocialConfigView.render();
                 }
 
                 UpdateView.render({step: "version"}, _.bind(function() {
@@ -105,7 +106,7 @@ define("org/forgerock/openidm/ui/admin/settings/SettingsView", [
                 EventManager.sendEvent(Constants.ROUTE_REQUEST, {
                     routeName: "settingsView",
                     args: [route],
-                    trigger: false
+                    trigger: true
                 });
             }
         }

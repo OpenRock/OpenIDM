@@ -11,7 +11,7 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 package org.forgerock.openidm.repo.jdbc.impl;
 
@@ -19,6 +19,7 @@ import static org.forgerock.guava.common.base.Strings.isNullOrEmpty;
 import static org.forgerock.json.JsonValue.field;
 import static org.forgerock.json.JsonValue.json;
 import static org.forgerock.json.JsonValue.object;
+import static org.forgerock.json.JsonValueFunctions.enumConstant;
 import static org.forgerock.json.resource.QueryResponse.NO_COUNT;
 import static org.forgerock.json.resource.ResourceException.newResourceException;
 import static org.forgerock.json.resource.ResourceResponse.FIELD_CONTENT_ID;
@@ -41,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
@@ -55,9 +57,11 @@ import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.ReferenceStrategy;
 import org.apache.felix.scr.annotations.Service;
 import org.forgerock.openidm.datasource.DataSourceService;
+import org.forgerock.openidm.smartevent.EventEntry;
+import org.forgerock.openidm.smartevent.Name;
+import org.forgerock.openidm.smartevent.Publisher;
 import org.forgerock.services.context.Context;
 import org.forgerock.json.JsonValue;
-import org.forgerock.json.patch.JsonPatch;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
@@ -135,7 +139,7 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
      * Enhanced configuration service.
      */
     @Reference(policy = ReferencePolicy.DYNAMIC)
-    private EnhancedConfig enhancedConfig;
+    private volatile EnhancedConfig enhancedConfig;
 
     private DataSourceService dataSourceService;
 
@@ -147,11 +151,11 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
             strategy = ReferenceStrategy.EVENT)
     private Map<String, DataSourceService> dataSourceServices = new HashMap<>();
 
-    protected void bindDataSourceService(DataSourceService service, Map properties) {
+    protected void bindDataSourceService(DataSourceService service, Map<String, Object> properties) {
         dataSourceServices.put(properties.get(ServerConstants.CONFIG_FACTORY_PID).toString(), service);
     }
 
-    protected void unbindDataSourceService(DataSourceService service, Map properties) {
+    protected void unbindDataSourceService(DataSourceService service, Map<String, Object> properties) {
         for (Map.Entry<String, DataSourceService> entry : dataSourceServices.entrySet()) {
             if (service.equals(entry.getValue())) {
                 dataSourceServices.remove(entry.getKey());
@@ -347,12 +351,12 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                 if (handler.isRetryable(ex, connection)) {
                     if (tryCount <= maxTxRetry) {
                         retry = true;
-                        logger.debug("Retryable exception encountered, retry {}", ex.getMessage());
+                        logger.debug("Retryable exception encountered, retry attempt {} of {} : {}", tryCount, maxTxRetry, ex.getMessage());
                     }
                 }
                 if (!retry) {
-                    throw new InternalServerErrorException("Creating object failed " + "("
-                            + ex.getErrorCode() + "-" + ex.getSQLState() + ")" + ex.getMessage(),
+                    throw new InternalServerErrorException("Creating object failed after " + tryCount + " attempts ("
+                            + ex.getErrorCode() + "-" + ex.getSQLState() + "): " + ex.getMessage(),
                             ex);
                 }
             } catch (ResourceException ex) {
@@ -434,11 +438,11 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                 if (handler.isRetryable(ex, connection)) {
                     if (tryCount <= maxTxRetry) {
                         retry = true;
-                        logger.debug("Retryable exception encountered, retry {}", ex.getMessage());
+                        logger.debug("Retryable exception encountered, retry attempt {} of {} : {}", tryCount, maxTxRetry, ex.getMessage());
                     }
                 }
                 if (!retry) {
-                    throw new InternalServerErrorException("Updating object failed "
+                    throw new InternalServerErrorException("Updating object failed after " + tryCount + " attempts: "
                             + ex.getMessage(), ex);
                 }
             } catch (ResourceException ex) {
@@ -540,11 +544,11 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                 if (handler.isRetryable(ex, connection)) {
                     if (tryCount <= maxTxRetry) {
                         retry = true;
-                        logger.debug("Retryable exception encountered, retry {}", ex.getMessage());
+                        logger.debug("Retryable exception encountered, retry attempt {} of {} : {}", tryCount, maxTxRetry, ex.getMessage());
                     }
                 }
                 if (!retry) {
-                    throw new InternalServerErrorException("Deleting object failed "
+                    throw new InternalServerErrorException("Deleting object failed after " + tryCount + " attempts: "
                             + ex.getMessage(), ex);
                 }
             } catch (RuntimeException ex) {
@@ -739,24 +743,6 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
         }
     }
 
-    @Override
-    public String getDbDirname() {
-        switch (databaseType) {
-            case SQLSERVER:
-                return "mssql";
-            case MYSQL:
-            case POSTGRESQL:
-            case ORACLE:
-            case DB2:
-            case H2:
-                return databaseType.toString().toLowerCase();
-            case ANSI_SQL99:
-            case ODBC:
-            default:
-                return null;
-        }
-    }
-
     /**
      * Performs the repo command defined by the {@code request).
      *
@@ -796,11 +782,11 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
                 if (handler.isRetryable(ex, connection)) {
                     if (tryCount <= maxTxRetry) {
                         retry = true;
-                        logger.debug("Retryable exception encountered, retry {}", ex.getMessage());
+                        logger.debug("Retryable exception encountered, retry attempt {} of {} : {}", tryCount, maxTxRetry, ex.getMessage());
                     }
                 }
                 if (!retry) {
-                    throw new InternalServerErrorException("Command failed " + ex.getMessage(), ex);
+                    throw new InternalServerErrorException("Command failed after " + tryCount + " attempts: " + ex.getMessage(), ex);
                 }
             } catch (ResourceException ex) {
                 logger.debug("ResourceException in command on {}", request.getResourcePath(), ex);
@@ -839,7 +825,12 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
     }
 
     Connection getConnection() throws SQLException {
-        return dataSourceService.getDataSource().getConnection();
+        EventEntry measure = Publisher.start(Name.get("openidm/internal/JDBCRepoService/getConnection"), null, null);
+        try {
+            return dataSourceService.getDataSource().getConnection();
+        } finally {
+            measure.end();
+        }
     }
 
     TableHandler getTableHandler(String type) {
@@ -872,7 +863,7 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
      * @return true if the configurations differ, false otherwise
      */
     private boolean hasConfigChanged(JsonValue existingConfig, JsonValue newConfig) {
-        return JsonPatch.diff(existingConfig, newConfig).size() > 0;
+        return !existingConfig.isEqualTo(newConfig);
     }
 
     /**
@@ -894,11 +885,11 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
             JsonValue genericQueries = config.get("queries").get("genericTables");
             JsonValue genericCommands = config.get("commands").get("genericTables");
 
-            tableHandlers = new HashMap<>();
+            tableHandlers = new ConcurrentHashMap<>();
 
             databaseType = config.get(CONFIG_DB_TYPE)
                     .defaultTo(DatabaseType.ANSI_SQL99.name())
-                    .asEnum(DatabaseType.class);
+                    .as(enumConstant(DatabaseType.class));
             maxTxRetry = config.get(CONFIG_MAX_TX_RETRY).defaultTo(5).asInteger();
             int maxBatchSize = config.get(CONFIG_MAX_BATCH_SIZE).defaultTo(100).asInteger();
 
@@ -1018,7 +1009,7 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
         case SQLSERVER:
             return
                     new MSSQLTableHandler(tableConfig, dbSchemaName, queries, commands, maxBatchSize,
-                            new DefaultSQLExceptionHandler());
+                            new MSSQLExceptionHandler());
         case H2:
             return
                     new H2TableHandler(tableConfig, dbSchemaName, queries, commands, maxBatchSize,
@@ -1063,7 +1054,7 @@ public class JDBCRepoService implements RequestHandler, RepoBootService, Reposit
         case SQLSERVER:
             return
                     new MSSQLMappedTableHandler(table, objectToColumn, dbSchemaName,
-                            explicitQueries, explicitCommands, new DefaultSQLExceptionHandler(),
+                            explicitQueries, explicitCommands, new MSSQLExceptionHandler(),
                             cryptoServiceAccessor);
         default:
             return

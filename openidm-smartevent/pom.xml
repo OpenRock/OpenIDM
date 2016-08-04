@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.forgerock.openidm</groupId>
         <artifactId>openidm-project</artifactId>
-        <version>4.1.0-SNAPSHOT</version>
+        <version>5.0.0-SNAPSHOT</version>
     </parent>
     <artifactId>openidm-smartevent</artifactId>
     <packaging>bundle</packaging>
@@ -56,9 +56,8 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.easytesting</groupId>
-            <artifactId>fest-assert-core</artifactId>
-            <scope>test</scope>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.forgerock.commons</groupId>

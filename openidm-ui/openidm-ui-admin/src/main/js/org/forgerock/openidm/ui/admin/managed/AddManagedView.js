@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/managed/AddManagedView", [
+define([
     "jquery",
     "underscore",
     "form2js",
@@ -82,9 +80,7 @@ define("org/forgerock/openidm/ui/admin/managed/AddManagedView", [
             if(!nameCheck) {
                 this.model.managedObjects.objects.push(managedObject);
 
-                this.saveManagedObject(managedObject, this.model.managedObjects, function () {
-                    EventManager.sendEvent(Constants.EVENT_CHANGE_VIEW, {route: Router.configuration.routes.editManagedView, args: [managedObject.name]});
-                });
+                this.saveManagedObject(managedObject, this.model.managedObjects, true);
             } else {
                 this.$el.find("#managedErrorMessage .message").html($.t("templates.managed.duplicateNameError"));
                 this.$el.find("#managedErrorMessage").show();

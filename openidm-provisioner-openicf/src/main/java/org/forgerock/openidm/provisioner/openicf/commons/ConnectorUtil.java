@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright 2011-2015 ForgeRock AS. All Rights Reserved
+ * Copyright 2011-2016 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -33,6 +33,11 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.json.JsonValueException;
 import org.forgerock.json.schema.validator.Constants;
 import org.forgerock.json.schema.validator.exceptions.SchemaException;
+import org.forgerock.openicf.framework.async.AsyncConnectorInfoManager;
+import org.forgerock.openicf.framework.remote.AsyncRemoteConnectorInfoManager;
+import org.forgerock.openicf.framework.remote.FailoverLoadBalancingAlgorithmFactory;
+import org.forgerock.openicf.framework.remote.LoadBalancingAlgorithmFactory;
+import org.forgerock.openicf.framework.remote.RoundRobinLoadBalancingAlgorithmFactory;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.crypto.CryptoService;
@@ -99,7 +104,14 @@ public class ConnectorUtil {
     public static final String OPENICF_NATIVE_NAME = "nativeName";
     public static final String OPENICF_NATIVE_TYPE = "nativeType";
 
+    // remote connector server groups
+    private static final String OPENICF_GROUP_ALGORITHM = "algorithm";
+    private static final String OPENICF_GROUP_ALGORITHM_FAILOVER = "failover";
+    private static final String OPENICF_GROUP_ALGORITHM_ROUNDROBIN = "roundrobin";
+    private static final String OPENICF_GROUP_SERVERS_LIST = "serversList";
+
     public static final String OPENICF_REMOTE_CONNECTOR_SERVERS = "remoteConnectorServers";
+    public static final String OPENICF_REMOTE_CONNECTOR_GROUPS = "remoteConnectorServersGroups";
 
     public static final String JAVA_TYPE_BIGDECIMAL = "JAVA_TYPE_BIGDECIMAL";
     public static final String JAVA_TYPE_BIGINTEGER = "JAVA_TYPE_BIGINTEGER";
@@ -128,7 +140,7 @@ public class ConnectorUtil {
     public static final String JAVA_TYPE_PRIMITIVE_BYTE = "JAVA_TYPE_PRIMITIVE_BYTE";
 
 
-    private static final Map<String, Class> typeMap = new HashMap<String, Class>(43);
+    private static final Map<String, Class<?>> typeMap = new HashMap<>(43);
     public static final String OPENICF_CONNECTOR_REF = "connectorRef";
     public static final String OPENICF_OBJECT_TYPES = "objectTypes";
     public static final String OPENICF_OPERATION_OPTIONS = "operationOptions";
@@ -137,7 +149,7 @@ public class ConnectorUtil {
 
     static {
 
-        typeMap.put(Constants.TYPE_ANY, Object.class);
+        typeMap.put("any" /* Constants.TYPE_ANY */, Object.class); // avoid the deprecation warning
         //typeMap.put(Constants.TYPE_NULL, null);
         typeMap.put(Constants.TYPE_ARRAY, List.class);
         typeMap.put(Constants.TYPE_BOOLEAN, Boolean.class);
@@ -218,7 +230,7 @@ public class ConnectorUtil {
      * @param name
      * @return class if it has mapped to a type or null if not.
      */
-    public static Class findClassForName(String name) {
+    public static Class<?> findClassForName(String name) {
         return typeMap.get(name);
     }
 
@@ -231,8 +243,8 @@ public class ConnectorUtil {
      * @return
      * @see #findClassForName(String)
      */
-    public static String findNameForClass(Class clazz) {
-        for (Map.Entry<String, Class> entry : typeMap.entrySet()) {
+    public static String findNameForClass(Class<?> clazz) {
+        for (Map.Entry<String, Class<?>> entry : typeMap.entrySet()) {
             if (entry.getValue().equals(clazz)) {
                 return entry.getKey();
             }
@@ -248,7 +260,7 @@ public class ConnectorUtil {
      * @param clazz
      * @return
      */
-    public static String findJSONTypeForClass(Class clazz) {
+    public static String findJSONTypeForClass(Class<?> clazz) {
         if ((Integer.class.isAssignableFrom(clazz)) || (int.class == clazz)) {
             return Constants.TYPE_INTEGER;
         } else if ((Number.class.isAssignableFrom(clazz)) || (double.class == clazz) || (float.class == clazz) || (long.class == clazz)) {
@@ -377,13 +389,14 @@ public class ConnectorUtil {
         }
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked" })
     private static Object convertFromConfigurationProperty(ConfigurationProperty configurationProperty, CryptoService cryptoService) throws JsonCryptoException{
         Object sourceValue = configurationProperty.getValue();
         if (sourceValue == null) {
             return null;
         }
         boolean isArray = sourceValue.getClass().isArray();
-        Class sourceType = isArray ? sourceValue.getClass().getComponentType() : sourceValue.getClass();
+        Class<?> sourceType = isArray ? sourceValue.getClass().getComponentType() : sourceValue.getClass();
         Object result = null;
         if (isArray) {
             if (sourceType == byte.class) {
@@ -426,7 +439,7 @@ public class ConnectorUtil {
         return result;
     }
 
-
+    @SuppressWarnings({"rawtypes", "unchecked" })
     public static void  configureConfigurationProperties(JsonValue source, ConfigurationProperties target,
             CryptoService cryptoService) throws JsonValueException {
         source.required();
@@ -440,10 +453,10 @@ public class ConnectorUtil {
                     continue;
                 }
                 ConfigurationProperty property = target.getProperty(e.getKey());
-                Class targetType = property.getType();
+                Class<?> targetType = property.getType();
                 Object propertyValue = null;
                 if (targetType.isArray()) {
-                    Class targetBaseType = targetType.getComponentType();
+                    Class<?> targetBaseType = targetType.getComponentType();
                     if (targetBaseType == byte.class || targetBaseType == char.class) {
                         propertyValue = coercedTypeCasting(e.getValue(), targetType);
                     } else if (e.getValue() instanceof List) {
@@ -578,6 +591,43 @@ public class ConnectorUtil {
         return result;
     }
 
+    /**
+     * Get the load balancing information from the configuration. The algorithm
+     * used can be either "failover" or "roundrobin".
+     *
+     * failover: will always try to send the request to the first server in the list.
+     * If it fails, it will try with the second etc...
+     *
+     * rounrobin: will always distribute the request to the lists of servers
+     * in a round robin fashion.
+     *
+     * @param info
+     * @return
+     * @throws IllegalArgumentException if the configuration can not be read from {@code info}
+     */
+    public static LoadBalancingAlgorithmFactory getLoadBalancingInfo(JsonValue info,  Map <String, AsyncConnectorInfoManager> serverInfo) {
+        LoadBalancingAlgorithmFactory lbf;
+
+        final String algorithm = info.get(OPENICF_GROUP_ALGORITHM).required().asString();
+        if (OPENICF_GROUP_ALGORITHM_FAILOVER.equalsIgnoreCase(algorithm)){
+            lbf = new FailoverLoadBalancingAlgorithmFactory();
+        } else if (OPENICF_GROUP_ALGORITHM_ROUNDROBIN.equalsIgnoreCase(algorithm)) {
+            lbf = new RoundRobinLoadBalancingAlgorithmFactory();
+        } else {
+            throw new IllegalArgumentException("Bad algorithm name: " + algorithm);
+        }
+
+        for (JsonValue element : new JsonValue(info.get(OPENICF_GROUP_SERVERS_LIST).required().asList())) {
+            final String serverName = element.get("name").asString();
+            if (serverName != null) {
+                AsyncConnectorInfoManager aim = serverInfo.get(serverName);
+                if (null != aim && aim instanceof AsyncRemoteConnectorInfoManager) {
+                    lbf.addAsyncRemoteConnectorInfoManager((AsyncRemoteConnectorInfoManager) aim);
+                }
+            }
+        }
+        return lbf;
+    }
 
     public static ConnectorReference getConnectorReference(JsonValue configuration) throws JsonValueException {
         JsonValue connectorRef = configuration.get(OPENICF_CONNECTOR_REF).required().expect(Map.class);
@@ -758,7 +808,7 @@ public class ConnectorUtil {
 
     public static Map<String, Object> getOperationOptionInfoMap(OperationOptionInfo info) {
         Map<String, Object> schema = new LinkedHashMap<String, Object>();
-        Class clazz = info.getType().isArray() ? info.getType().getComponentType() : info.getType();
+        Class<?> clazz = info.getType().isArray() ? info.getType().getComponentType() : info.getType();
         if (info.getType().isArray()) {
             schema.put(Constants.TYPE, Constants.TYPE_ARRAY);
             Map<String, Object> itemSchema = new LinkedHashMap<String, Object>(2);
@@ -851,18 +901,17 @@ public class ConnectorUtil {
             throw new IllegalArgumentException("Target Class can not be null");
         }
         if (source instanceof JsonValue) {
-            source = ((JsonValue)source).getObject();
+            source = ((JsonValue) source).getObject();
+        }
+        if (source == null) {
+            return null;
         }
 
         Class<T> targetClazz = clazz;
-        Class sourceClass = (source == null ? null : source.getClass());
+        Class<?> sourceClass = source.getClass();
         boolean coerced = false;
         T result = null;
         try {
-            if (source == null) {
-                return null;
-            }
-
             //Default JSON Type conversion
             if (targetClazz.equals(Object.class)) {
                 if ((Number.class.isAssignableFrom(sourceClass)) || (int.class == clazz) || (double.class == clazz) || (float.class == clazz) || (long.class == clazz)) {
@@ -1234,9 +1283,16 @@ public class ConnectorUtil {
             }
         } catch (Exception e) {
             if (logger.isDebugEnabled()) {
-                logger.error("Failed to coerce {} from {} to {} ", new Object[]{source, sourceClass.getCanonicalName(), targetClazz.getCanonicalName()}, e);
+                logger.error("Failed to coerce {} from {} to {} ",
+                        source,
+                        sourceClass != null ? sourceClass.getCanonicalName() : "??",
+                        targetClazz.getCanonicalName(),
+                        e);
             } else {
-                logger.error("Failed to coerce from {} to {} ", new Object[]{sourceClass.getCanonicalName(), targetClazz.getCanonicalName()}, e);
+                logger.error("Failed to coerce from {} to {} ",
+                        sourceClass != null ? sourceClass.getCanonicalName() : "??",
+                        targetClazz.getCanonicalName(),
+                        e);
             }
             throw new IllegalArgumentException(source.getClass().getCanonicalName() + " to " + targetClazz.getCanonicalName(), e);
         }

@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014-2015 ForgeRock AS.
+ * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define, JSON */
-
-define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDialog", [
+define([
     "jquery",
     "underscore",
     "form2js",
@@ -229,7 +227,7 @@ define("org/forgerock/openidm/ui/admin/mapping/properties/EditPropertyMappingDia
             sourceType = this.data.currentMappingDetails.source.split("/");
 
             AdminUtils.findPropertiesList(sourceType).then(_.bind(function(properties){
-                this.data.resourceSchema = properties;
+                this.data.resourcePropertiesList = _.chain(properties).keys().sortBy().value();
 
                 this.renderEditProperty(callback);
             }, this));

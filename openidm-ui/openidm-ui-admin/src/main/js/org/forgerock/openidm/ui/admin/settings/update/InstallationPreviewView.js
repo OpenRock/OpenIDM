@@ -14,9 +14,7 @@
  * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define, window*/
-
-define("org/forgerock/openidm/ui/admin/settings/update/InstallationPreviewView", [
+define([
     "jquery",
     "underscore",
     "handlebars",
@@ -29,7 +27,6 @@ define("org/forgerock/openidm/ui/admin/settings/update/InstallationPreviewView",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/SpinnerManager",
     "org/forgerock/openidm/ui/admin/delegates/MaintenanceDelegate"
-
 ], function($, _, Handlebars,
             Backbone,
             Bootstrap,
@@ -259,7 +256,7 @@ define("org/forgerock/openidm/ui/admin/settings/update/InstallationPreviewView",
                 files = _.clone(this.model.files, true);
 
             if (all) {
-               formattedFileList = _.map(files, function (file) {
+                formattedFileList = _.map(files, function (file) {
                     var temp = file.filePath.split("/");
                     file.fileState = Handlebars.compile("{{> settings/_updateStatePopover}}")({
                         "desc": $.t("templates.update.preview.fileStates." + file.fileState + ".desc"),

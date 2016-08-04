@@ -44,9 +44,6 @@ import org.forgerock.openidm.config.enhanced.EnhancedConfig;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.PropertyUtil;
 import org.ops4j.pax.web.service.WebContainer;
-import org.osgi.framework.Bundle;
-import org.osgi.framework.BundleEvent;
-import org.osgi.framework.BundleListener;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.http.NamespaceException;
 import org.slf4j.Logger;
@@ -63,6 +60,8 @@ import org.slf4j.LoggerFactory;
         immediate = true,
         policy = ConfigurationPolicy.REQUIRE)
 public final class ResourceServlet extends HttpServlet {
+    private static final long serialVersionUID = 1;
+
     final static Logger logger = LoggerFactory.getLogger(ResourceServlet.class);
 
     /** config parameter keys */
@@ -78,13 +77,13 @@ public final class ResourceServlet extends HttpServlet {
     private String defaultDir;
     private String extensionDir;
     private String contextRoot;
-    
+
     @Reference
     private WebContainer webContainer;
 
     /**vn comEnhanced configuration service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
-    private EnhancedConfig enhancedConfig;
+    private volatile EnhancedConfig enhancedConfig;
 
     @Activate
     protected void activate(ComponentContext context) throws ServletException, NamespaceException {
@@ -120,6 +119,12 @@ public final class ResourceServlet extends HttpServlet {
             if ("/".equals(target)) {
                 target = "/index.html";
             }
+
+            // Never cache index.html to ensure we always have the current product version for asset requests
+            if (target.equals("/index.html")) {
+                res.setHeader("Cache-Control", "no-cache");
+            }
+
             target = prependSlash(target);
             if (target.startsWith(FELIX_WEB_CONSOLE)) {
                 // this request is not for us

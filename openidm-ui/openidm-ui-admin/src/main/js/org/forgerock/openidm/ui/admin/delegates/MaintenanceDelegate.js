@@ -14,9 +14,7 @@
  * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/delegates/MaintenanceDelegate", [
+define([
     "jquery",
     "lodash",
     "org/forgerock/commons/ui/common/util/Constants",
@@ -90,7 +88,7 @@ define("org/forgerock/openidm/ui/admin/delegates/MaintenanceDelegate", [
 
     obj.update = function (archive) {
         return obj.serviceCall({
-            url: "/update?_action=update&archive=" + archive,
+            url: "/update?_action=update&archive=" + archive + "&acceptLicense=true",
             type: "POST"
         });
     };

@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/mapping/association/dataAssociationManagement/ChangeAssociationDialog", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView",
@@ -64,10 +62,7 @@ define("org/forgerock/openidm/ui/admin/mapping/association/dataAssociationManage
             searchDelegate.searchResults(this.getCurrentMapping().target, this.data.targetProps, searchCriteria).then(_.bind(function(results) {
                 dialogData.results = _.chain(results)
                     .map(_.bind(function(result) {
-                        return {
-                            _id: result._id,
-                            objRep: mappingUtils.buildObjectRepresentation(result, this.data.targetProps)
-                        };
+                        return this.formatResult(result, this.data.targetProps);
                     },this))
                     .value();
                 this.reloadData(dialogData);
@@ -99,10 +94,7 @@ define("org/forgerock/openidm/ui/admin/mapping/association/dataAssociationManage
 
             _.each(ids,_.bind(function(id, i) {
                 searchDelegate.searchResults(this.getCurrentMapping().target, ["_id"], id, "eq").then(_.bind(function(result) {
-                    this.data.results.push({
-                        _id: result[0]._id,
-                        objRep: mappingUtils.buildObjectRepresentation(result[0], this.data.targetProps)
-                    });
+                    this.data.results.push(this.formatResult(result[0], this.data.targetProps));
                     if (i === ids.length - 1) {
                         prom.resolve();
                     }
@@ -120,9 +112,36 @@ define("org/forgerock/openidm/ui/admin/mapping/association/dataAssociationManage
             }
         },
 
-        render: function(args, callback) {
-            var _this = this;
+        /**
+            @param {object} form - container of input fields
+            @param {object} values - simple map of id:values
 
+            form object is modified to set the values provided,
+            using keys from the values map to find elements with
+            matching ids.
+        */
+        setFormValuesUsingIds: function (form, values) {
+            _.keys(values, function (id) {
+                form.find("#"+id).val(values[id]);
+            });
+        },
+
+        /**
+            @param {object} targetObject - original object from target system
+            @param {array} targetProperties - list of specific properties used to represent object
+        */
+        formatResult: function (targetObject, targetProperties) {
+            if (targetObject && targetObject._id !== undefined) {
+                return {
+                    _id: targetObject._id,
+                    objRep: mappingUtils.buildObjectRepresentation(targetObject, targetProperties)
+                };
+            } else {
+                return undefined;
+            }
+        },
+
+        render: function(args, callback) {
             this.dialogContent = $('<div id="changeAssociationDialog"></div>');
             this.setElement(this.dialogContent);
             $('#dialogs').append(this.dialogContent);
@@ -137,23 +156,21 @@ define("org/forgerock/openidm/ui/admin/mapping/association/dataAssociationManage
                         this.$el,
                         _.extend({}, conf.globalData, this.data),
                         _.bind(function() {
-                            this.$el.find("#linkTypeSelect").val(args.selectedLinkQualifier);
+                            this.setFormValuesUsingIds(this.$el, {
+                                "linkTypeSelect": args.selectedLinkQualifier
+                            });
 
                             if (callback) {
                                 callback();
                             }
                         }, this),
                         "replace");
-                }, _this)
+                }, this)
             });
 
             _.extend(this.data, args);
 
-            this.data.results = [];
-
-            if (this.data.targetObj !== null && this.data.targetObj._id !== undefined){
-                this.data.results.push({ _id: this.data.targetObj._id , objRep: this.data.targetObjRep });
-            }
+            this.data.results = _.filter([this.formatResult(args.targetObj, args.targetObjRep)]);
 
             if (this.data.ambiguousTargetObjectIds.length) {
                 this.getAmbiguousMatches();

@@ -14,9 +14,7 @@
  * Copyright 2016 ForgeRock AS.
  */
 
-/*global define, window */
-
-define("org/forgerock/openidm/ui/admin/dashboard/widgets/RelationshipWidget", [
+define([
     "jquery",
     "underscore",
     "bootstrap",
@@ -267,34 +265,34 @@ define("org/forgerock/openidm/ui/admin/dashboard/widgets/RelationshipWidget", [
                                 
                                 _.each(relProps, function (relProp) {
                                     var addSubNode = function (item) {
-                                            var subItemRef = item._ref.split("/"),
-                                                subItemType = subItemRef[0],
-                                                subItemObject = subItemRef[1],
-                                                subResourceCollections,
-                                                subNodeData,
-                                                refreshSettings;
-                                            
-                                            if (relProp.items) {
-                                                subResourceCollections = relProp.items.resourceCollection;
-                                            } else {
-                                                subResourceCollections = relProp.resourceCollection;
-                                            }
-                                        
-                                            subNodeData = getNodeData(item, subItemType, subItemObject, subResourceCollections);
-                                            refreshSettings = nodeData.refreshSettings;
-                                            
-                                            nodeSet.push({
-                                                id: "SN" + nodeCounter,
-                                                sourceId: secondarySourceId,
-                                                name: subNodeData.text,
-                                                type: (prop.title || prop.propName) + "-" + (relProp.title || relProp.propName),
-                                                hlink: "#",
-                                                resourceUrl: item._ref,
-                                                refreshSettings: subNodeData.refreshSettings
-                                            });
-                                            
-                                            nodeCounter++;
-                                        };
+                                        var subItemRef = item._ref.split("/"),
+                                            subItemType = subItemRef[0],
+                                            subItemObject = subItemRef[1],
+                                            subResourceCollections,
+                                            subNodeData,
+                                            refreshSettings;
+
+                                        if (relProp.items) {
+                                            subResourceCollections = relProp.items.resourceCollection;
+                                        } else {
+                                            subResourceCollections = relProp.resourceCollection;
+                                        }
+
+                                        subNodeData = getNodeData(item, subItemType, subItemObject, subResourceCollections);
+                                        refreshSettings = nodeData.refreshSettings;
+
+                                        nodeSet.push({
+                                            id: "SN" + nodeCounter,
+                                            sourceId: secondarySourceId,
+                                            name: subNodeData.text,
+                                            type: (prop.title || prop.propName) + "-" + (relProp.title || relProp.propName),
+                                            hlink: "#",
+                                            resourceUrl: item._ref,
+                                            refreshSettings: subNodeData.refreshSettings
+                                        });
+
+                                        nodeCounter++;
+                                    };
                                     
                                     if (item[relProp.propName]) {
                                         if (_.isArray(item[relProp.propName])) {
@@ -380,9 +378,7 @@ define("org/forgerock/openidm/ui/admin/dashboard/widgets/RelationshipWidget", [
                         linkType: item.type
                     });
                 });
-
-
-
+                
                 //Multi layer example keep for future development
                 /*
                 nodeSet.push({
@@ -699,12 +695,13 @@ define("org/forgerock/openidm/ui/admin/dashboard/widgets/RelationshipWidget", [
 
                 d3.select(this).select("circle").transition()
                     .duration(250)
-                    .attr("r", function(d, i) { if(d.id === focalNode) {
-                        return centerNodeSize;
-                    } else {
-                        return nodeSize;
-                    }
-                });
+                    .attr("r", function(d, i) {
+                        if(d.id === focalNode) {
+                            return centerNodeSize;
+                        } else {
+                            return nodeSize;
+                        }
+                    });
 
                 d3.select(this).select("text").transition()
                     .duration(250)
@@ -963,8 +960,8 @@ define("org/forgerock/openidm/ui/admin/dashboard/widgets/RelationshipWidget", [
                     .append("foreignObject")
                     .attr("x", -1 * (width/2 - 1))
                     .attr("y", function(d, i) { return (i * 20 - height/7 * 3 + 8); } )
-                    .attr("width", 10)
-                    .attr("height", 10)
+                    .attr("width", 15)
+                    .attr("height", 20)
                     .html(function (d) {
                         var str = d,
                             strippedString = str.replace(/ /g, "_"),
@@ -1013,8 +1010,6 @@ define("org/forgerock/openidm/ui/admin/dashboard/widgets/RelationshipWidget", [
                     })
                     .on('mouseover', _this.typeMouseOver)
                     .on("mouseout", _this.typeMouseOut);
-                
-                
 
                 //Create legend text that acts as label keys
                 svgCanvas.selectAll("a.legend_link")

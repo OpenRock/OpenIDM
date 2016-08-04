@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/common/workflow/processes/customview/SendNotificationProcess", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/openidm/ui/common/workflow/processes/AbstractProcessForm",
@@ -33,16 +31,16 @@ define("org/forgerock/openidm/ui/common/workflow/processes/customview/SendNotifi
         template: "templates/workflow/processes/customview/SendNotificationTemplate.html",
 
         prepareData: function(callback) {
-             var nTypes, notificationType;
-             _.extend(this.data, this.processDefinition);
-             this.data.loggedUser = conf.loggedUser.toJSON();
+            var nTypes, notificationType;
+            _.extend(this.data, this.processDefinition);
+            this.data.loggedUser = conf.loggedUser.toJSON();
 
-             nTypes = {};
-             for (notificationType in conf.globalData.notificationTypes) {
-                 nTypes[notificationType] = $.t(conf.globalData.notificationTypes[notificationType].name);
-             }
-             this.data.notificationTypes = nTypes;
-             this.data.defaultNotificationType = conf.globalData.notificationTypes.defaultType;
+            nTypes = {};
+            for (notificationType in conf.globalData.notificationTypes) {
+                nTypes[notificationType] = $.t(conf.globalData.notificationTypes[notificationType].name);
+            }
+            this.data.notificationTypes = nTypes;
+            this.data.defaultNotificationType = conf.globalData.notificationTypes.defaultType;
 
             _.bind(function() {
 

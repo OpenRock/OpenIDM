@@ -11,14 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define*/
-/*jslint es5: true */
-
-
-define("org/forgerock/openidm/ui/admin/settings/audit/AuditEventHandlersDialog", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/openidm/ui/admin/settings/audit/AuditAdminAbstractView",
@@ -32,7 +28,6 @@ define("org/forgerock/openidm/ui/admin/settings/audit/AuditEventHandlersDialog",
     "jsonEditor",
     "bootstrap-tabdrop",
     "selectize"
-
 ], function($, _, AuditAdminAbstractView,
             AuditDelegate,
             uiUtils,
@@ -229,6 +224,10 @@ define("org/forgerock/openidm/ui/admin/settings/audit/AuditEventHandlersDialog",
                         create: false,
                         items: this.data.selectedTopics
                     });
+
+                    if(_.isEmpty(schema.properties)) {
+                        this.$el.find(".jsonEditorContainer").hide();
+                    }
 
                     ValidatorsManager.bindValidators(this.$el.find("#auditEventHandlersForm"));
                     ValidatorsManager.validateAllFields(this.$el.find("#auditEventHandlersForm"));

@@ -1,3 +1,5 @@
+var config = require("./configHelper");
+
 module.exports = {
         baseUrl: "http://localhost:8080/admin/",
         login: {
@@ -43,5 +45,52 @@ module.exports = {
                         );
                 }
             }
-        }
+        },
+        user: {
+            //creates a single user with _id=dummyUser
+            createDummyUser: function (client, callback) {
+                client.executeAsync(
+                        function (args, done) {
+                            var resourceDelegate = require("org/forgerock/openidm/ui/common/delegates/ResourceDelegate");
+                            resourceDelegate.createResource(
+                                "/openidm/managed/user",
+                                "dummyUser",
+                                {
+                                    "mail":"dummy.user@example.com",
+                                    "sn":"user",
+                                    "givenName":"dummy",
+                                    "userName":"dummyUser"
+                                }
+                            ).then(function () {
+                                done();
+                            });
+                        },
+                        [{}],
+                        function (result) {
+                            callback();
+                        }
+                    );
+            },
+            //simple clean up of dummy user
+            removeDummyUser: function (client, callback) {
+                client.executeAsync(
+                        function (args, done) {
+                            var resourceDelegate = require("org/forgerock/openidm/ui/common/delegates/ResourceDelegate");
+
+                            resourceDelegate.deleteResource(
+                                "/openidm/managed/user",
+                                "dummyUser"
+                            ).then(function () {
+                                done();
+                            });
+                        },
+                        [{}],
+                        function (result) {
+                            callback();
+                        }
+                    );
+            }
+        },
+
+    config: config
 };

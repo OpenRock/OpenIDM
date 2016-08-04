@@ -42,19 +42,13 @@ import org.forgerock.json.resource.AbstractRequestHandler;
 import org.forgerock.json.resource.ActionRequest;
 import org.forgerock.json.resource.ActionResponse;
 import org.forgerock.json.resource.BadRequestException;
-import org.forgerock.json.resource.CreateRequest;
-import org.forgerock.json.resource.DeleteRequest;
 import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.NotSupportedException;
-import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResourceHandler;
-import org.forgerock.json.resource.QueryResponse;
-import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.ResourceResponse;
-import org.forgerock.json.resource.UpdateRequest;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.services.context.SecurityContext;
@@ -85,6 +79,7 @@ public class UpdateService extends AbstractRequestHandler {
     private static final String ARCHIVE_NAME = "archive";
     private static final String UPDATE_ID = "updateId";
     private static final String ARCHIVE_DIRECTORY = "/bin/update/";
+    private static final String ACCEPT_LICENSE_PARAMETER = "acceptLicense";
 
     @Reference(policy=ReferencePolicy.STATIC)
     private UpdateManager updateManager;
@@ -170,16 +165,14 @@ public class UpdateService extends AbstractRequestHandler {
 
     private Promise<ActionResponse, ResourceException> handleListRepoUpdates(
             Map<String, String> additionalParameters) {
-        final Path archive;
-
         if (!additionalParameters.containsKey(ARCHIVE_NAME)) {
-            archive = null;
-        } else {
-            archive = archivePath(additionalParameters.get(ARCHIVE_NAME));
+            return new BadRequestException("Archive name not specified.").asPromise();
         }
 
         try {
-            return newActionResponse(updateManager.listRepoUpdates(archive)).asPromise();
+            return newActionResponse(updateManager.listRepoUpdates(
+                    archivePath(additionalParameters.get(ARCHIVE_NAME))
+            )).asPromise();
         } catch (UpdateException e) {
             return new InternalServerErrorException(e).asPromise();
         }
@@ -218,6 +211,9 @@ public class UpdateService extends AbstractRequestHandler {
         try {
             if (!parameters.containsKey(ARCHIVE_NAME)) {
                 return new BadRequestException("Archive name not specified.").asPromise();
+            }
+            if (!Boolean.parseBoolean(parameters.get(ACCEPT_LICENSE_PARAMETER))) {
+                return new BadRequestException("This update requires accepting the license.").asPromise();
             }
 
             try {

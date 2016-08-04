@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.forgerock.openidm</groupId>
         <artifactId>openidm-project</artifactId>
-        <version>4.1.0-SNAPSHOT</version>
+        <version>5.0.0-SNAPSHOT</version>
     </parent>
     <artifactId>openidm-workflow-activiti</artifactId>
     <name>OpenIDM Activiti BPMN 2.0 Integration</name>
@@ -106,7 +106,21 @@
             <artifactId>activiti-osgi</artifactId>
             <version>5.15</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.apache.aries.blueprint</groupId>
+            <artifactId>org.apache.aries.blueprint</artifactId>
+            <version>1.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.aries.proxy</groupId>
+            <artifactId>org.apache.aries.proxy</artifactId>
+            <version>1.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.aries</groupId>
+            <artifactId>org.apache.aries.util</artifactId>
+            <version>1.1.1</version>
+        </dependency>
 
         <!-- This enhances the felix system bundle with the full javax.transaction 1.1 classes to remedy the split package issue that would occur otherwise. Must be installed before the use of the package, e.g. the transaction manager -->
         <dependency>
@@ -151,23 +165,18 @@
         <!-- Provided OSGi Dependencies -->
         <dependency>
             <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.core</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <!-- TODO Remove org.apache.felix.framework when Compendium 4.3 is used -->
-        <dependency>
-            <groupId>org.apache.felix</groupId>
-            <artifactId>org.apache.felix.framework</artifactId>
+            <artifactId>osgi.core</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.compendium</artifactId>
+            <artifactId>osgi.cmpn</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.enterprise</artifactId>
+            <artifactId>osgi.enterprise</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

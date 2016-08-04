@@ -14,9 +14,7 @@
  * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define, require */
-
-define("org/forgerock/openidm/ui/common/delegates/SiteConfigurationDelegate", [
+define([
     "org/forgerock/openidm/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/AbstractDelegate",
     "org/forgerock/commons/ui/common/main/Configuration",
@@ -37,17 +35,6 @@ define("org/forgerock/openidm/ui/common/delegates/SiteConfigurationDelegate", [
             url: "",
             headers: headers
         }).then(function(data) {
-
-            if (data.configuration.kbaEnabled === true) {
-                require.config({"map": { "*": {
-                    "UserProfileView" : "org/forgerock/commons/ui/user/profile/UserProfileKBAView"
-                } } } );
-            } else {
-                require.config({"map": { "*": {
-                    "UserProfileView": "org/forgerock/commons/ui/user/profile/UserProfileView"
-                } } } );
-            }
-
             if(successCallback) {
                 successCallback(data.configuration);
             }

@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/assignment/EditAssignmentView", [
+define([
     "jquery",
     "underscore",
     "handlebars",
@@ -107,6 +105,8 @@ define("org/forgerock/openidm/ui/admin/assignment/EditAssignmentView", [
 
                 AdminUtils.findPropertiesList(systemType).then(_.bind(function(properties, connector){
                     this.data.resourceSchema = properties;
+
+                    this.data.resourcePropertiesList = _.chain(properties).keys().sortBy().value();
 
                     if(connector) {
                         this.model.connector = connector;
@@ -374,23 +374,23 @@ define("org/forgerock/openidm/ui/admin/assignment/EditAssignmentView", [
                 unAssignment = this.model.unAssignment.generateScript(),
                 resourceObject = _.clone(this.data.resource);
 
-                if(_.isNull(onAssignment)) {
-                    delete resourceObject.onAssignment;
-                } else {
-                    resourceObject.onAssignment = onAssignment;
-                }
+            if(_.isNull(onAssignment)) {
+                delete resourceObject.onAssignment;
+            } else {
+                resourceObject.onAssignment = onAssignment;
+            }
 
-                if(_.isNull(unAssignment)) {
-                    delete resourceObject.unAssignment;
-                } else {
-                    resourceObject.unAssignment = unAssignment;
-                }
+            if(_.isNull(unAssignment)) {
+                delete resourceObject.unAssignment;
+            } else {
+                resourceObject.unAssignment = unAssignment;
+            }
 
-                ResourceDelegate.updateResource(this.model.serviceUrl,  this.data.resource._id, resourceObject, _.bind(function(result){
-                    EventManager.sendEvent(Constants.EVENT_DISPLAY_MESSAGE_REQUEST, "assignmentSaveSuccess");
+            ResourceDelegate.updateResource(this.model.serviceUrl,  this.data.resource._id, resourceObject, _.bind(function(result){
+                EventManager.sendEvent(Constants.EVENT_DISPLAY_MESSAGE_REQUEST, "assignmentSaveSuccess");
 
-                    this.data.resource = result;
-                }, this));
+                this.data.resource = result;
+            }, this));
         },
 
         saveAssignmentAttribute: function(event) {
@@ -438,10 +438,10 @@ define("org/forgerock/openidm/ui/admin/assignment/EditAssignmentView", [
 
             resourceDelegate.getSchema(this.model.args).then(_.bind(function (schema) {
                 var opts = {
-                        element: ".assignmentRoles",
-                        prop: schema.properties.roles,
-                        schema: schema
-                    };
+                    element: ".assignmentRoles",
+                    prop: schema.properties.roles,
+                    schema: schema
+                };
 
                 opts.prop.propName = "roles";
                 opts.prop.selector = "\\.roles";

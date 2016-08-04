@@ -220,12 +220,10 @@ public class AttributeInfoHelper {
             throws ResourceException {
         try {
             if (null != cryptoService
-                    && (GuardedString.class.isAssignableFrom(getAttributeInfo().getType()) || GuardedByteArray.class
-                            .isAssignableFrom(getAttributeInfo().getType()))) {
+                    && (GuardedString.class.isAssignableFrom(getAttributeInfo().getType())
+                        || GuardedByteArray.class.isAssignableFrom(getAttributeInfo().getType()))) {
                 JsonValue decryptedValue =
-                        new JsonValue(source, new JsonPointer(),
-                                null != cryptoService ? cryptoService.getDecryptionTransformers()
-                                        : null);
+                        new JsonValue(source, new JsonPointer(), cryptoService.getDecryptionTransformers());
                 return build(attributeInfo, decryptedValue.getObject());
             } else {
                 return build(attributeInfo, source);
@@ -351,12 +349,11 @@ public class AttributeInfoHelper {
         } else if (OperationOptions.OP_SORT_KEYS.equals(name)) {
             builder.setSortKeys((List<SortKey>) getMultiValue(value, SortKey.class));
         } else {
-            builder.setOption(name, getNewValue(value == null ? defaultValue : value, attributeInfo
-                    .isMultiValued(), attributeInfo.getType()));
+            builder.setOption(name, getNewValue(value, attributeInfo.isMultiValued(), attributeInfo.getType()));
         }
     }
 
-    private Object getNewValue(Object source, boolean isMultiValued, Class type) {
+    private Object getNewValue(Object source, boolean isMultiValued, Class<?> type) {
         if (isMultiValued) {
             return getMultiValue(source, type);
         } else {
@@ -368,12 +365,13 @@ public class AttributeInfoHelper {
         if (null == source) {
             return null;
         } 
-        
+
         if (source instanceof JsonValue) {
             source = ((JsonValue) source).getObject();
         }
-        
+
         if (source instanceof List) {
+            @SuppressWarnings({ "rawtypes", "unchecked" })
             List c = (List) source;
             if (c.size() < 2) {
                 if (c.isEmpty()) {

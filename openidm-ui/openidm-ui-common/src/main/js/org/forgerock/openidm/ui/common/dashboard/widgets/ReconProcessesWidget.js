@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define, window*/
-
-define("org/forgerock/openidm/ui/common/dashboard/widgets/ReconProcessesWidget", [
+define([
     "jquery",
     "underscore",
     "dimple",
@@ -72,8 +70,8 @@ define("org/forgerock/openidm/ui/common/dashboard/widgets/ReconProcessesWidget",
                         var data = this.model.chartData[e.x];
 
                         return [
-                                "Timestamp: " +  data.timestamp,
-                                "Active Recons : " + data.activeThreads
+                            "Timestamp: " +  data.timestamp,
+                            "Active Recons : " + data.activeThreads
                         ];
 
                     }, this);

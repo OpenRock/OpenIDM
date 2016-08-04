@@ -25,16 +25,15 @@
 package org.forgerock.openidm.servlet.internal;
 
 import org.apache.commons.lang3.StringUtils;
+import org.forgerock.openidm.util.Utils;
 import org.forgerock.services.context.Context;
 import org.forgerock.json.JsonValue;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.services.context.SecurityContext;
 import org.forgerock.json.resource.ServiceUnavailableException;
 import org.forgerock.json.resource.http.HttpContextFactory;
-import org.forgerock.json.resource.http.SecurityContextFactory;
 import org.forgerock.script.Script;
 import org.forgerock.script.ScriptEntry;
-import org.forgerock.script.engine.Utils;
 
 import org.forgerock.script.exception.ScriptThrownException;
 import org.slf4j.Logger;
@@ -70,7 +69,9 @@ public class IDMSecurityContextFactory implements HttpContextFactory {
     @Override
     public Context createContext(Context parent, org.forgerock.http.protocol.Request request) throws ResourceException {
 
-        final SecurityContextFactory securityContextFactory = SecurityContextFactory.getHttpServletContextFactory();
+        @SuppressWarnings("deprecation")
+        final org.forgerock.json.resource.http.SecurityContextFactory securityContextFactory =
+                org.forgerock.json.resource.http.SecurityContextFactory.getHttpServletContextFactory();
         final SecurityContext securityContext = securityContextFactory.createContext(parent);
 
         // execute global security context augmentation scripts
@@ -123,10 +124,10 @@ public class IDMSecurityContextFactory implements HttpContextFactory {
             throw ste.toResourceException(ResourceException.INTERNAL_ERROR,
                     "Security Context augmentation script '" + augmentScript.getName().toString()
                     + "' resulted in an error");
-        } catch (Throwable t) {
-            ResourceException re = Utils.adapt(t);
+        } catch (Exception e) {
+            ResourceException re = Utils.adapt(e);
             logger.warn("augment script {} encountered exception with detail {} " ,
-                    new Object[] { augmentScript.getName().getName(), re.getDetail(), re });
+                    augmentScript.getName().getName(), re.getDetail(), re);
             throw re;
         }
     }

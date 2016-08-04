@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/common/UserModel", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/commons/ui/common/main/AbstractModel",
@@ -73,12 +71,12 @@ define("org/forgerock/openidm/ui/common/UserModel", [
         },
         getUIRoles: function (roles) {
             var getRoleFromRef = function (role) {
-                    if (_.isObject(role) && _.has(role, "_ref")) {
-                        role = role._ref.split("/").pop();
-                    }
+                if (_.isObject(role) && _.has(role, "_ref")) {
+                    role = role._ref.split("/").pop();
+                }
 
-                    return role;
-                };
+                return role;
+            };
 
             return _.chain(roles)
                     .filter(function (r) {
@@ -110,6 +108,16 @@ define("org/forgerock/openidm/ui/common/UserModel", [
 
             headers[Constants.HEADER_PARAM_USERNAME] = username;
             headers[Constants.HEADER_PARAM_PASSWORD] = password;
+            headers[Constants.HEADER_PARAM_NO_SESSION] = false;
+
+            return this.getProfile(headers);
+        },
+        tokenLogin: function (authToken) {
+            var headers = {};
+
+            headers[Constants.HEADER_PARAM_USERNAME] = "";
+            headers[Constants.HEADER_PARAM_PASSWORD] = "";
+            headers[Constants.HEADER_PARAM_AUTH_TOKEN] = authToken;
             headers[Constants.HEADER_PARAM_NO_SESSION] = false;
 
             return this.getProfile(headers);

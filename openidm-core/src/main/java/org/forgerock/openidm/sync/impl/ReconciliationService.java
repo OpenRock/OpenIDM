@@ -23,7 +23,6 @@ import static org.forgerock.util.query.QueryFilter.equalTo;
 
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -134,7 +133,7 @@ public class ReconciliationService
             cardinality = ReferenceCardinality.OPTIONAL_UNARY,
             policy = ReferencePolicy.DYNAMIC
     )
-    Mappings mappings;
+    volatile Mappings mappings;
 
     /**
      * The thread pool for executing full reconciliation runs.
@@ -162,7 +161,7 @@ public class ReconciliationService
     public Promise<ResourceResponse, ResourceException> handleRead(Context context, ReadRequest request) {
         try {
             if (request.getResourcePathObject().isEmpty()) {
-                List<Map> runList = new ArrayList<>();
+                List<Map<String, Object>> runList = new ArrayList<>();
                 for (ReconciliationContext entry : reconRuns.values()) {
                     runList.add(entry.getSummary());
                 }
@@ -173,10 +172,11 @@ public class ReconciliationService
                 final String localId = request.getResourcePathObject().leaf();
                 // First try and get it from in memory
                 if (reconRuns.containsKey(localId)) {
-                	return newResourceResponse(localId, null, new JsonValue(reconRuns.get(localId).getSummary())).asPromise();
+                	return newResourceResponse(localId, null, new JsonValue(reconRuns.get(localId).getSummary()))
+                            .asPromise();
                 } else {
                     // Next, if not in memory, try and get it from audit log
-                    final Collection<ResourceResponse> queryResult = new ArrayList<>();
+                    final List<ResourceResponse> queryResult = new ArrayList<>();
                     getConnectionFactory().getConnection().query(
                             context,
                             Requests.newQueryRequest(AUDIT_RECON).setQueryFilter(
@@ -187,20 +187,17 @@ public class ReconciliationService
                             ),
                             queryResult);
                     
-                    ResourceResponse response = null;
-                    
                     if (queryResult.isEmpty()) {
                     	return new NotFoundException("Reconciliation with id " + localId + " not found." ).asPromise();
                     } else {
-                        for (ResourceResponse resource : queryResult) {
-                        	response = newResourceResponse(localId, null, 
-                                        resource.getContent().get(ReconAuditEventBuilder.MESSAGE_DETAIL).expect(Map.class));
-                        	break;
-                        }
+                        return newResourceResponse(localId, null,
+                                queryResult
+                                        .get(0)
+                                        .getContent()
+                                        .get(ReconAuditEventBuilder.MESSAGE_DETAIL)
+                                        .expect(Map.class))
+                                .asPromise();
                     }
-
-                    return response.asPromise();
-
                 }
             }
         } catch (ResourceException e) {

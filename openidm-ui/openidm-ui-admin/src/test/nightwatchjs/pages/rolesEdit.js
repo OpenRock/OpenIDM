@@ -24,17 +24,11 @@ module.exports = {
         alertMessage: {
             selector: 'div[role=alert]'
         },
-        conditionTabHeader: {
-            selector: 'a[href="#condition"]'
-        },
         enableConditionSlider: {
             selector: '#enableDynamicRoleGrantCheckbox'
         },
         expressionTree: {
             selector: '.expressionTree'
-        },
-        conditionStatus: {
-            selector: '#tabHeader_condition span i.fa-toggle-on'
         },
         conditionOpSelect: {
             selector: '.expressionTree select:first-of-type'
@@ -63,14 +57,65 @@ module.exports = {
         conditionOpNameInputSelectOption: {
             selector: '.selectize-dropdown-content div[data-value="/mail"].option'
         },
-        enableTemporalConstraintSlider: {
-            selector: '#enableTemporalConstraintsCheckbox'
+        enableRoleTemporalConstraintSlider: {
+            selector: '#temporalContstraintsFormContainer .enableTemporalConstraintsCheckbox'
         },
-        temporalConstraintStartDate: {
-            selector: '.temporalConstraintStartDate'
+        roleTemporalConstraintTimezone: {
+            selector: '#temporalContstraintsFormContainer .selectize-control input'
         },
-        temporalConstraintEndDate: {
-            selector: '.temporalConstraintEndDate'
+        timezoneSelectionNY : {
+            selector: '#temporalContstraintsFormContainer .selectize-dropdown-content div[data-value="America/New_York"]'
+        },
+        timezoneSelectionLA : {
+            selector: '#temporalContstraintsFormContainer .selectize-dropdown-content div[data-value="America/Los_Angeles"]'
+        },
+        roleTemporalConstraintStartDate: {
+            selector: '#temporalContstraintsFormContainer .temporalConstraintStartDate'
+        },
+        roleTemporalConstraintEndDate: {
+            selector: '#temporalContstraintsFormContainer .temporalConstraintEndDate'
+        },
+        roleMembersHeader: {
+            selector: 'a[href="#resource-members"]'
+        },
+        addRoleMembersButton: {
+            selector: '#relationshipArray-members .add-relationship-btn'
+        },
+        removeRoleMembersButton: {
+            selector: '#relationshipArray-members .remove-relationships-btn'
+        },
+        membersListSelectAll: {
+            selector: '#relationshipArray-members th input[type=checkbox]'
+        },
+        resourceCollectionSearchDialog: {
+            selector: '#resourceCollectionSearchDialog'
+        },
+        resourceCollectionSearchDialogDropdown : {
+            selector: '#resourceCollectionSearchDialog .selectize-control input[placeholder]'
+        },
+        resourceCollectionSearchDialogSaveBtn : {
+            selector: '#resourceCollectionSearchDialogSaveBtn'
+        },
+        resourceCollectionSearchDialogCloseBtn : {
+            selector: '#resourceCollectionSearchDialogCloseBtn'
+        },
+        roleMemberSelection : {
+            selector: '#resourceCollectionSearchDialog .selectize-dropdown-content div[data-value=dummyUser]'
+        },
+        enableGrantTemporalConstraintSlider: {
+            selector: '#membersTemporalContstraintsFormContainer .enableTemporalConstraintsCheckbox'
+        },
+        roleMembersTemporalConstraintStartDate: {
+            selector: '#membersTemporalContstraintsFormContainer .temporalConstraintStartDate'
+        },
+        roleMembersTemporalConstraintEndDate: {
+            selector: '#membersTemporalContstraintsFormContainer .temporalConstraintEndDate'
+        },
+        membersGrid: {
+            selector: '#relationshipArray-members'
+        },
+        firstMembersGridRowNameCell: {
+            selector: '#relationshipArray-members tbody tr:nth-child(1) td:nth-child(2)'
         }
     }
 };

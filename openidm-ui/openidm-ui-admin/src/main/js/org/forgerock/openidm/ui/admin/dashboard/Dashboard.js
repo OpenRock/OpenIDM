@@ -14,9 +14,7 @@
  * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define window*/
-
-define("org/forgerock/openidm/ui/admin/dashboard/Dashboard", [
+define([
     "jquery",
     "underscore",
     "bootstrap-dialog",
@@ -33,7 +31,6 @@ define("org/forgerock/openidm/ui/admin/dashboard/Dashboard", [
     "org/forgerock/commons/ui/common/util/UIUtils",
     "org/forgerock/commons/ui/common/util/AutoScroll",
     "dragula"
-
 ], function($, _,
             BootstrapDialog,
             Handlebars,
@@ -104,19 +101,19 @@ define("org/forgerock/openidm/ui/admin/dashboard/Dashboard", [
 
                         _.each(this.data.dashboard.widgets, function (widget, index) {
                             this.model.loadedWidgets.push(DashboardWidgetLoader.generateWidget(
-                                    {
-                                        "element" : holderList[index],
-                                        "widget" : widget,
-                                        "dashboardConfig" : dashboardConfig
-                                    },
-                                    // This callback is used to make sure every widget has been rendered before initiating the
-                                    // drag and drop utility.
-                                    _.bind(function() {
-                                        renderedWidgetCount ++;
-                                        if (renderedWidgetCount === this.data.dashboard.widgets.length) {
-                                            this.initDragDrop();
-                                        }
-                                    }, this))
+                                {
+                                    "element" : holderList[index],
+                                    "widget" : widget,
+                                    "dashboardConfig" : dashboardConfig
+                                },
+                                // This callback is used to make sure every widget has been rendered before initiating the
+                                // drag and drop utility.
+                                _.bind(function() {
+                                    renderedWidgetCount ++;
+                                    if (renderedWidgetCount === this.data.dashboard.widgets.length) {
+                                        this.initDragDrop();
+                                    }
+                                }, this))
                             );
 
                         }, this);
@@ -378,9 +375,9 @@ define("org/forgerock/openidm/ui/admin/dashboard/Dashboard", [
             currentConf.adminDashboards[this.model.dashboardIndex].widgets.splice(widgetLocation, 1);
 
             UIUtils.confirmDialog($.t("dashboard.widgetDelete"), "danger", _.bind(function(){
-                 ConfigDelegate.updateEntity("ui/dashboard", currentConf).then(_.bind(function() {
-                     this.render();
-                 }, this));
+                ConfigDelegate.updateEntity("ui/dashboard", currentConf).then(_.bind(function() {
+                    this.render();
+                }, this));
             }, this));
         }
     });

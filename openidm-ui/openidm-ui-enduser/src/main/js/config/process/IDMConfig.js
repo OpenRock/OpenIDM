@@ -14,9 +14,7 @@
  * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("config/process/IDMConfig", [
+define([
     "underscore",
     "org/forgerock/openidm/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/EventManager"

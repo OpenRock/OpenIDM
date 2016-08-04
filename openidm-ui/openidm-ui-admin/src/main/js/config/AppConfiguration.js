@@ -14,9 +14,7 @@
  * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("config/AppConfiguration", [
+define([
     "org/forgerock/openidm/ui/common/util/Constants"
 ], function(constants) {
     var obj = {

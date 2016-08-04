@@ -8,11 +8,23 @@
             },
             "onUpdate" : {
                 "type" : "text/javascript",
-                "source" : "require('roles/conditionalRoles').updateConditionalGrantsForUser(object, 'roles');"
+                "source" : "require('ui/onUpdateUser').preserveLastSync(object, oldObject, request);require('roles/conditionalRoles').updateConditionalGrantsForUser(object, 'roles');"
             },
             "onDelete" : {
                 "type" : "text/javascript",
                 "file" : "ui/onDelete-user-cleanup.js"
+            },
+            "postCreate" : {
+                "type" : "text/javascript",
+                "file" : "roles/postOperation-roles.js"
+            },
+            "postUpdate" : {
+                "type" : "text/javascript",
+                "file" : "roles/postOperation-roles.js"
+            },
+            "postDelete" : {
+                "type" : "text/javascript",
+                "file" : "roles/postOperation-roles.js"
             },
             "schema" : {
                 "id" : "http://jsonschema.net",
@@ -239,6 +251,9 @@
                         "returnByDefault" : false,
                         "items" : {
                             "type" : "relationship",
+                            "reverseRelationship" : true,
+                            "reversePropertyName" : "authzMembers",
+                            "validate" : true,
                             "properties" : {
                                 "_ref" : {
                                     "type" : "string"
@@ -483,7 +498,9 @@
                         "properties" : {
                             "effectiveAssignments" : {
                                 "type" : "array",
-                                "items" : "object"
+                                "items" : {
+                                    "type" : "object"
+                                }
                             },
                             "timestamp" : {
                                 "type" : "string"
@@ -604,6 +621,49 @@
                             ]
                         }
                     },
+                    "authzMembers" : {
+                        "description" : "",
+                        "title" : "Authorization Role Members",
+                        "viewable" : true,
+                        "type" : "array",
+                        "returnByDefault" : false,
+                        "items" : {
+                            "type" : "relationship",
+                            "reverseRelationship" : true,
+                            "reversePropertyName" : "authzRoles",
+                            "validate" : true,
+                            "properties" : {
+                                "_ref" : {
+                                    "type" : "string"
+                                },
+                                "_refProperties" : {
+                                    "type" : "object",
+                                    "properties" : {
+                                        "_id" : {
+                                            "type" : "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "resourceCollection" : [
+                                {
+                                    "path" : "managed/user",
+                                    "label" : "User",
+                                    "query" : {
+                                        "queryFilter" : "true",
+                                        "fields" : [
+                                            "userName",
+                                            "givenName",
+                                            "sn"
+                                        ],
+                                        "sortKeys" : [
+                                            "userName"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    },
                     "assignments" : {
                         "description" : "",
                         "title" : "Managed Assignments",
@@ -681,7 +741,8 @@
                     "description",
                     "assignments",
                     "members",
-                    "condition"
+                    "condition",
+                    "temporalConstraints"
                 ]
             }
         },

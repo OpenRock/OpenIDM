@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/mapping/util/MappingScriptsView", [
+define([
     "underscore",
     "org/forgerock/openidm/ui/admin/mapping/util/MappingAdminAbstractView",
     "org/forgerock/commons/ui/common/main/EventManager",
@@ -90,6 +88,8 @@ define("org/forgerock/openidm/ui/admin/mapping/util/MappingScriptsView", [
 
         saveScripts: function(e) {
             e.preventDefault();
+
+            this.model.mapping = this.getCurrentMapping();
 
             var scriptHook = null,
                 tmpEditor,

@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/common/login/InternalLoginHelper", [
+define([
     "underscore",
     "org/forgerock/openidm/ui/common/UserModel",
     "org/forgerock/commons/ui/common/main/EventManager",
@@ -30,15 +28,27 @@ define("org/forgerock/openidm/ui/common/login/InternalLoginHelper", [
 
     obj.login = function(params, successCallback, errorCallback) {
         cookieHelper.deleteCookie("session-jwt", "/", ""); // resets the session cookie to discard old session that may still exist
-        return UserModel.login(params.userName, params.password).then(successCallback, function (xhr) {
-            var reason = xhr.responseJSON.reason;
-            if (reason === "Unauthorized") {
-                reason = "authenticationFailed";
-            }
-            if (errorCallback) {
-                errorCallback(reason);
-            }
-        });
+        if (_.has(params, "userName") && _.has(params, "password")) {
+            return UserModel.login(params.userName, params.password).then(successCallback, function (xhr) {
+                var reason = xhr.responseJSON.reason;
+                if (reason === "Unauthorized") {
+                    reason = "authenticationFailed";
+                }
+                if (errorCallback) {
+                    errorCallback(reason);
+                }
+            });
+        } else if (_.has(params, "authToken")) {
+            return UserModel.tokenLogin(params.authToken).then(successCallback, function (xhr) {
+                var reason = xhr.responseJSON.reason;
+                if (reason === "Unauthorized") {
+                    reason = "authenticationFailed";
+                }
+                if (errorCallback) {
+                    errorCallback(reason);
+                }
+            });
+        }
     };
 
     obj.logout = function (successCallback, errorCallback) {

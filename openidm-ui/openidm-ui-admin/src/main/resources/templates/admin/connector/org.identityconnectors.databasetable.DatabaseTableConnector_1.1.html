@@ -40,7 +40,8 @@
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="password">{{t "templates.connector.databaseTableConnector.password"}}</label>
                 <div class="col-sm-8">
-                    <input class="form-control" type="password" id="password" name="configurationProperties.password" value="{{connectorDefaults.configurationProperties.password}}" data-validator-event="keyup blur" data-validator="required" />
+                    <!-- autocomplete="new-password" is required to prevent chrome from auto-completing these form fields -->
+                    <input class="form-control" type="password" id="password" autocomplete="new-password" name="configurationProperties.password" value="{{connectorDefaults.configurationProperties.password}}" data-validator-event="keyup blur" data-validator="required" />
                     <span class="error form-control-feedback"><i class='fa validation-icon'></i></span>
                 </div>
             </div>
@@ -76,7 +77,7 @@
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="jdbcDriver">{{t "templates.connector.databaseTableConnector.jdbcDriver"}}</label>
                 <div class="col-sm-8">
-                    <input class="form-control" type="text" id="jdbcDriver" name="configurationProperties.jdbcDriver" data-validator-event="keyup blur" data-validator="required" value={{t "templates.connector.databaseTableConnector.jdbcDefaultDriver"}} />
+                    <input class="form-control" type="text" id="jdbcDriver" name="configurationProperties.jdbcDriver" data-validator-event="keyup blur" data-validator="required" value="{{connectorDefaults.configurationProperties.jdbcDriver}}" />
                     <span class="error form-control-feedback"><i class='fa validation-icon'></i></span>
                     <span class="help-block">{{t "templates.connector.databaseTableConnector.jdbcDriverHelp"}}</span>
                 </div>
@@ -84,7 +85,7 @@
             <div class="form-group">
                 <label class="col-sm-3 control-label" for="jdbcUrlTemplate">{{t "templates.connector.databaseTableConnector.jdbcUrlTemplate"}}</label>
                 <div class="col-sm-8">
-                    <input class="form-control" type="text" id="jdbcUrlTemplate" name="configurationProperties.jdbcUrlTemplate" data-validator-event="keyup blur" data-validator="required" value={{t "templates.connector.databaseTableConnector.jdbcDefaultUrl"}} />
+                    <input class="form-control" type="text" id="jdbcUrlTemplate" name="configurationProperties.jdbcUrlTemplate" data-validator-event="keyup blur" data-validator="required" value="{{connectorDefaults.configurationProperties.jdbcUrlTemplate}}" />
                     <span class="error form-control-feedback"><i class='fa validation-icon'></i></span>
                     <span class="help-block">{{t "templates.connector.databaseTableConnector.jdbcUrlTemplateHelp"}}</span>
                 </div>
@@ -101,7 +102,7 @@
                 <div class="col-sm-8">
                     <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
                         <label>
-                            <input class="toggleBoolean" id="enableEmptyString" type="checkbox" name="configurationProperties.enableEmptyString" value="false">
+                            <input class="toggleBoolean" id="enableEmptyString" type="checkbox" name="configurationProperties.enableEmptyString" value="true" {{#if connectorDefaults.configurationProperties.enableEmptyString}} checked {{/if}}>
                             <span></span>
                         </label>
                     </div>
@@ -113,7 +114,7 @@
                 <div class="col-sm-8">
                     <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
                         <label>
-                            <input class="toggleBoolean" id="rethrowAllSQLExceptions" type="checkbox" name="configurationProperties.rethrowAllSQLExceptions" value="true" checked>
+                            <input class="toggleBoolean" id="rethrowAllSQLExceptions" type="checkbox" name="configurationProperties.rethrowAllSQLExceptions" value="true" {{#if connectorDefaults.configurationProperties.rethrowAllSQLExceptions}} checked {{/if}}>
                             <span></span>
                         </label>
                     </div>
@@ -125,7 +126,7 @@
                 <div class="col-sm-8">
                     <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
                         <label>
-                            <input class="toggleBoolean" id="nativeTimestamps" type="checkbox" name="configurationProperties.nativeTimestamps" value="false" >
+                            <input class="toggleBoolean" id="nativeTimestamps" type="checkbox" name="configurationProperties.nativeTimestamps" value="true" {{#if connectorDefaults.configurationProperties.nativeTimestamps}} checked {{/if}} >
                             <span></span>
                         </label>
                     </div>
@@ -137,7 +138,7 @@
                 <div class="col-sm-8">
                     <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
                         <label>
-                            <input class="toggleBoolean" id="allNative" type="checkbox" name="configurationProperties.allNative" value="false" >
+                            <input class="toggleBoolean" id="allNative" type="checkbox" name="configurationProperties.allNative" value="true" {{#if connectorDefaults.configurationProperties.allNative}} checked {{/if}} >
                             <span></span>
                         </label>
                     </div>

@@ -226,7 +226,7 @@ h3.block-header {
 
   &:hover {
     .fr-search-secondary {
-      color:white;
+      color: white;
     }
   }
 }
@@ -234,10 +234,14 @@ h3.block-header {
 /*
   Panel Styles
 */
-.panel-description.inline-description {
-  margin-bottom:0px;
-  margin-left:33px;
-  margin-top:10px;
+.panel-description {
+  color: #777;
+
+  &.inline-description {
+    margin-bottom: 0px;
+    margin-left: 33px;
+    margin-top: 10px;
+  }
 }
 
 .panel-collapse h4.panel-title {
@@ -755,7 +759,7 @@ Dialog Catch
     -webkit-box-shadow: none;
     box-shadow: none;
   }
-  
+
   #conditionFilterHolder .well {
     background-color: #f5f5f5;
     border-color: #e3e3e3;
@@ -764,7 +768,7 @@ Dialog Catch
   li.resourceListItem:hover {
     background-color: #ededed;
   }
-  
+
   .updateRelationshipButton {
     margin-left: 10px;
   }
@@ -870,6 +874,29 @@ Dialog Catch
 
 .backgrid td.checkMarkCell {
   padding-left:30px;
+}
+
+.margin-top-5 {
+    margin-top: 5px;
+}
+
+.margin-top-10 {
+    margin-top: 10px;
+}
+
+.overflow-visible {
+    overflow: visible !important;
+}
+
+.gray-background {
+    background-color: #f7f7f7;
+}
+
+.api-explorer-iframe {
+    position:fixed;
+    width:100%;
+    border:none;
+    height:75%;
 }
 
 @media (max-width: 767px) {

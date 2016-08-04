@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/common/util/ThemeManager", [
+define([
     "jquery",
     "lodash",
     "org/forgerock/openidm/ui/common/util/Constants",
@@ -33,20 +31,20 @@ define("org/forgerock/openidm/ui/common/util/ThemeManager", [
         $("<link/>", {
             rel: "icon",
             type: "image/x-icon",
-            href: theme.path + theme.icon
+            href: require.toUrl(theme.path + theme.icon)
         }).appendTo("head");
 
         $("<link/>", {
             rel: "shortcut icon",
             type: "image/x-icon",
-            href: theme.path + theme.icon
+            href: require.toUrl(theme.path + theme.icon)
         }).appendTo("head");
 
         _.forEach(theme.stylesheets, function(stylesheet) {
             $("<link/>", {
                 rel: "stylesheet",
                 type: "text/css",
-                href: stylesheet
+                href: require.toUrl(stylesheet)
             }).appendTo("head");
         });
     };

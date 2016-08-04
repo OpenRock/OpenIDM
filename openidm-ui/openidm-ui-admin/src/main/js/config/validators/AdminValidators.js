@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("config/validators/AdminValidators", [
+define([
     "jquery",
     "underscore"
 ], function ($, _) {
@@ -124,6 +122,28 @@ define("config/validators/AdminValidators", [
                     callback();
                 } else {
                     callback([$.t("common.form.validation.unique")]);
+                }
+            }
+        },
+        "restrictedCharacters": {
+            "name": "Cannot contain any of the following characters ;",
+            "dependencies": [
+            ],
+            "validator": function(el, input, callback) {
+                var v = input.val(),
+                    characters = $(input).attr("restrictedCharacters").split(""),
+                    characterCheck = true;
+
+                _.each(characters, (character) => {
+                    if(v.match(character)) {
+                        characterCheck = false;
+                    }
+                });
+
+                if (characterCheck) {
+                    callback();
+                } else {
+                    callback([$.t("common.form.validation.CANNOT_CONTAIN_CHARACTERS", { "forbiddenChars": characters.join(" ")})]);
                 }
             }
         }

@@ -21,7 +21,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -30,23 +29,19 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -69,16 +64,16 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
 import org.forgerock.commons.launcher.OSGiFrameworkService;
-import org.forgerock.guava.common.base.Predicate;
 import org.forgerock.guava.common.base.Strings;
-import org.forgerock.guava.common.collect.Collections2;
 import org.forgerock.json.JsonPointer;
 import org.forgerock.json.JsonValue;
+import org.forgerock.json.resource.CreateRequest;
 import org.forgerock.json.resource.InternalServerErrorException;
 import org.forgerock.json.resource.PatchOperation;
 import org.forgerock.json.resource.PatchRequest;
 import org.forgerock.json.resource.QueryRequest;
 import org.forgerock.json.resource.QueryResourceHandler;
+import org.forgerock.json.resource.ReadRequest;
 import org.forgerock.json.resource.Requests;
 import org.forgerock.json.resource.ResourceException;
 import org.forgerock.json.resource.ResourceResponse;
@@ -87,7 +82,7 @@ import org.forgerock.openidm.config.persistence.ConfigBootstrapHelper;
 import org.forgerock.openidm.core.IdentityServer;
 import org.forgerock.openidm.core.ServerConstants;
 import org.forgerock.openidm.maintenance.impl.UpdateContext;
-import org.forgerock.openidm.repo.RepositoryService;
+import org.forgerock.openidm.repo.RepoBootService;
 import org.forgerock.openidm.router.IDMConnectionFactory;
 import org.forgerock.openidm.util.ContextUtil;
 import org.forgerock.openidm.util.FileUtil;
@@ -100,6 +95,7 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.BundleException;
 import org.osgi.framework.Constants;
 import org.osgi.framework.Filter;
+import org.osgi.framework.ServiceReference;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.util.tracker.ServiceTracker;
 import org.slf4j.Logger;
@@ -108,12 +104,13 @@ import org.slf4j.LoggerFactory;
 /**
  * Basic manager to initiate the product maintenance and upgrade mechanisms.
  */
-@Component(name = UpdateManagerImpl.PID, policy = ConfigurationPolicy.IGNORE, metatype = false,
-        description = "OpenIDM Update Manager", immediate = true)
+@Component(name = UpdateManagerImpl.PID, policy = ConfigurationPolicy.IGNORE, immediate = true,
+    description = "OpenIDM Update Manager", metatype = true)
 @Service
 @Properties({
         @Property(name = Constants.SERVICE_VENDOR, value = ServerConstants.SERVER_VENDOR_NAME),
-        @Property(name = Constants.SERVICE_DESCRIPTION, value = "Product Update Manager")
+        @Property(name = Constants.SERVICE_DESCRIPTION, value = "Product Update Manager"),
+        @Property(name = "suppressMetatypeWarning", value = "true")
 })
 public class UpdateManagerImpl implements UpdateManager {
 
@@ -132,6 +129,7 @@ public class UpdateManagerImpl implements UpdateManager {
     private static final Path ARCHIVE_PATH = Paths.get("bin/update");
     private static final String LICENSE_PATH = "legal-notices/Forgerock_License.txt";
     private static final String BUNDLE_BACKUP_EXT = ".old-";
+    private static final Pattern UI_DEFAULT_PATTER = Pattern.compile("^ui/.+/default/.*$");
     static final String PRODUCT_NAME = "OpenIDM";
 
     static final JsonPointer ORIGIN_PRODUCT = new JsonPointer("/origin/product");
@@ -150,6 +148,12 @@ public class UpdateManagerImpl implements UpdateManager {
 
     private String lastUpdateId = null;
 
+    /** The context of this service */
+    private ComponentContext context;
+
+    /** Listener for repo service used by {@link #getDbDirName()} */
+    private ServiceTracker<RepoBootService, RepoBootService> repoServiceTracker = null;
+
     public enum UpdateStatus {
         IN_PROGRESS,
         COMPLETE,
@@ -164,17 +168,31 @@ public class UpdateManagerImpl implements UpdateManager {
     void activate(ComponentContext compContext) throws Exception {
         logger.debug("Activating UpdateManagerImpl {}", compContext.getProperties());
         BundleContext bundleContext = compContext.getBundleContext();
-        Filter filter = bundleContext
+        Filter osgiFrameworkFilter = bundleContext
                 .createFilter("(" + Constants.OBJECTCLASS + "=org.forgerock.commons.launcher.OSGiFramework)");
-        ServiceTracker serviceTracker = new ServiceTracker(bundleContext, filter, null);
+        ServiceTracker<OSGiFrameworkService, OSGiFrameworkService> serviceTracker =
+                new ServiceTracker<>(bundleContext, osgiFrameworkFilter, null);
         serviceTracker.open(true);
-        this.osgiFrameworkService = (OSGiFrameworkService) serviceTracker.getService();
+        this.osgiFrameworkService = serviceTracker.getService();
 
         if (osgiFrameworkService != null) {
             logger.debug("Obtained OSGiFrameworkService", compContext.getProperties());
         } else {
             throw new InternalServerErrorException("Cannot instantiate service without OSGiFrameworkService");
         }
+
+        repoServiceTracker = new ServiceTracker<>(bundleContext, RepoBootService.class.getName(), null);
+        repoServiceTracker.open(true);
+    }
+
+    @Deactivate
+    void deactivate(ComponentContext compContext) {
+        if (repoServiceTracker != null) {
+            repoServiceTracker.close();
+            repoServiceTracker = null;
+        }
+        this.context = null;
+        this.osgiFrameworkService = null;
     }
 
     /** The update logging service */
@@ -184,10 +202,6 @@ public class UpdateManagerImpl implements UpdateManager {
     /** The connection factory */
     @Reference(policy = ReferencePolicy.STATIC)
     protected IDMConnectionFactory connectionFactory;
-
-    /** The repository service */
-    @Reference(policy = ReferencePolicy.DYNAMIC)
-    protected volatile RepositoryService repositoryService;
 
     /**
      * Execute a {@link Function} on an input stream for the given {@link Path}.
@@ -311,12 +325,12 @@ public class UpdateManagerImpl implements UpdateManager {
         } catch (IOException e) {
             throw new UpdateException("Cannot create temporary directory to unzip archive");
         } finally {
-            try {
-                if (tempUnzipDir != null) {
+            if (tempUnzipDir != null) {
+                try {
                     FileUtils.deleteDirectory(tempUnzipDir.toFile());
+                } catch (IOException e) {
+                    logger.error("Could not remove temporary directory: " + tempUnzipDir.toString(), e);
                 }
-            } catch (IOException e) {
-                logger.error("Could not remove temporary directory: " + tempUnzipDir.toString(), e);
             }
         }
     }
@@ -373,15 +387,16 @@ public class UpdateManagerImpl implements UpdateManager {
      * @param checker
      * @return
      */
-    private List<Path> listRequiredRepoUpdates(final Archive archive, final FileStateChecker checker) throws IOException {
+    private List<Path> listRequiredRepoUpdates(final Archive archive, final FileStateChecker checker) throws IOException, UpdateException {
         final List<Path> newUpdates = new ArrayList<>();
-        final String dbDir = repositoryService.getDbDirname();
 
-        if (Strings.isNullOrEmpty(dbDir)) {
+        final String dbDirName = getDbDirName();
+
+        if (Strings.isNullOrEmpty(dbDirName)) {
             return new ArrayList<>();
         }
 
-        final Pattern updatePattern = Pattern.compile("db/"+dbDir+"/scripts/updates/v(\\d+)_(\\w+).(pg)?sql");
+        final Pattern updatePattern = Pattern.compile("db/"+dbDirName+"/scripts/updates/v(\\d+)_(\\w+).(pg)?sql");
 
         for (Path updateFile : archive.getFiles()) {
             if (updatePattern.matcher(updateFile.toString()).matches()
@@ -410,21 +425,16 @@ public class UpdateManagerImpl implements UpdateManager {
 
     @Override
     public JsonValue listRepoUpdates(final Path archivePath) throws UpdateException {
-        final String dbDir = repositoryService.getDbDirname();
-
-        if (Strings.isNullOrEmpty(dbDir)) {
+        if (Strings.isNullOrEmpty(getDbDirName())) {
             return json(array());
         }
 
-        // If no archive is specified output updates from the currently running thread.
         // If archive is requested and it's the running thread we must use the cached thread updates
         // since they have already been replaced on disk
-        if (archivePath == null || (updateThread != null && archivePath.equals(updateThread.archivePath))) {
-            if (updateThread != null && updateThread.isAlive()) {
-                return formatRepoUpdateList(updateThread.repoUpdates);
-            } else {
-                throw new UpdateException("No archive specified and no running update");
-            }
+        if (updateThread != null
+                && updateThread.isAlive()
+                && archivePath.equals(updateThread.archivePath)) {
+            return formatRepoUpdateList(updateThread.repoUpdates);
         } else {
             return usingArchive(archivePath, IdentityServer.getInstance().getInstallLocation().toPath(),
                     new UpgradeAction<JsonValue>() {
@@ -509,6 +519,35 @@ public class UpdateManagerImpl implements UpdateManager {
     }
 
     /**
+     * Return the full product version string.
+     *
+     * @return full product version
+     */
+    String getProductVersion() {
+        return ServerConstants.getVersion();
+    }
+
+    /**
+     * Remove non-numeric version extensions such as -SNAPSHOT and -RCn. Numeric extensions such as -1 are
+     * still significant.
+     *
+     * @return base product version
+     */
+    String getBaseProductVersion() {
+        String ver = getProductVersion();
+        int idx = ver.lastIndexOf("-");
+        while (idx > -1) {
+            String part = ver.substring(idx + 1);
+            if (part.matches("\\d*")) {
+                return ver;
+            }
+            ver = ver.substring(0, idx);
+            idx = ver.lastIndexOf("-");
+        }
+        return ver;
+    }
+
+    /**
      * Check if the file is for the correct version.
      *
      * @param updateConfig Configuration for the archive.
@@ -516,11 +555,12 @@ public class UpdateManagerImpl implements UpdateManager {
      * @throws InvalidArchiveUpdateException
      * @see ServerConstants#getVersion()
      */
-    private void validateCorrectVersion(JsonValue updateConfig, File updateFile) throws InvalidArchiveUpdateException {
-        if (!updateConfig.get(ORIGIN_VERSION).asList().contains(ServerConstants.getVersion())) {
+    void validateCorrectVersion(JsonValue updateConfig, File updateFile) throws UpdateException {
+        if (!updateConfig.get(ORIGIN_VERSION).asList().contains(getProductVersion()) &&
+                !updateConfig.get(ORIGIN_VERSION).asList().contains(getBaseProductVersion())) {
             throw new InvalidArchiveUpdateException(updateFile.getName(), "The archive " + updateFile.getName()
                     + " can be used only to update version '" + updateConfig.get(ORIGIN_VERSION).asList()
-                    + "' and you are running version " + ServerConstants.getVersion());
+                    + "' and you are running version " + getProductVersion());
         }
     }
 
@@ -776,14 +816,23 @@ public class UpdateManagerImpl implements UpdateManager {
 
     @Override
     public void restartNow() {
+        // Update Thread will restart immediately if it's waiting
         restartImmediately.set(true);
+
+        // If no update thread is running we can restart
         if (updateThread == null) {
-            try {
-                // FIXME - New thread just to restart? yuck.
-                new UpdateThread().restart();
-            } catch (BundleException e) {
-                logger.debug("Failed to restart!", e);
-            }
+            restartOsgiFramework();
+        }
+    }
+
+    /**
+     * Send an update event to the {@link OSGiFrameworkService} effectively restarting the application
+     */
+    private void restartOsgiFramework() {
+        try {
+            osgiFrameworkService.getSystemBundle().update();
+        } catch (BundleException e) {
+            logger.error("Failed to restart!", e);
         }
     }
 
@@ -827,6 +876,15 @@ public class UpdateManagerImpl implements UpdateManager {
     }
 
     private class UpdateThread extends Thread {
+        // OPENIDM-6182
+        private final List<Path> nonJsonConf = Arrays.asList(
+                Paths.get("conf/boot/boot.properties"),
+                Paths.get("conf/config.properties"),
+                Paths.get("conf/logging.properties"),
+                Paths.get("conf/system.properties"),
+                Paths.get("conf/jetty.xml"),
+                Paths.get("script/access.js"));
+
         private final UpdateLogEntry updateEntry;
         private final Archive archive;
         private final FileStateChecker fileStateChecker;
@@ -835,6 +893,7 @@ public class UpdateManagerImpl implements UpdateManager {
         private final Path tempDirectory;
         private final long timestamp = new Date().getTime();
         private final Path archivePath;
+        private final Path installDir;
         private boolean completeable = false;
 
         private final Lock lock = new ReentrantLock();
@@ -843,26 +902,15 @@ public class UpdateManagerImpl implements UpdateManager {
         /** List of new repo updates found in archive */
         private final List<Path> repoUpdates;
 
-        // FIXME - Does this even work? Can we just make this private?
-        public UpdateThread() {
-            this.updateEntry = null;
-            this.archive = null;
-            this.archivePath = null;
-            this.fileStateChecker = null;
-            this.staticFileUpdate = null;
-            this.updateConfig = null;
-            this.tempDirectory = null;
-            this.repoUpdates = new ArrayList<>();
-        }
-
         public UpdateThread(UpdateLogEntry updateEntry, Path archivePath, Archive archive, FileStateChecker fileStateChecker,
-                Path installDir, JsonValue updateConfig, Path tempDirectory) throws IOException {
+                Path installDir, JsonValue updateConfig, Path tempDirectory) throws IOException, UpdateException {
             this.updateEntry = updateEntry;
             this.archive = archive;
             this.archivePath = archivePath;
             this.fileStateChecker = fileStateChecker;
             this.updateConfig = updateConfig;
             this.tempDirectory = tempDirectory;
+            this.installDir = installDir;
 
             this.staticFileUpdate = new StaticFileUpdate(fileStateChecker, installDir,
                     archive, new ProductVersion(ServerConstants.getVersion(),
@@ -871,14 +919,16 @@ public class UpdateManagerImpl implements UpdateManager {
         }
 
         public void run() {
-            // FIXME - smelly ...
-            if (updateEntry == null) {
-                return;
-            }
-
             try {
                 final String projectDir = IdentityServer.getInstance().getProjectLocation().toString();
                 final String installDir = IdentityServer.getInstance().getInstallLocation().toString();
+                final Path repoConfPath;
+
+                if (Strings.isNullOrEmpty(getDbDirName())) {
+                    repoConfPath = null;
+                } else {
+                    repoConfPath = Paths.get("db", getDbDirName(), "conf");
+                }
 
                 // Start by removing all files we no longer need
                 for (String file : updateConfig.get(REMOVEFILE).asList(String.class)) {
@@ -919,78 +969,69 @@ public class UpdateManagerImpl implements UpdateManager {
                             }
                         });
 
+                // if in project, treat /conf as static
+                // if not in project, treat project/conf as static
+                // summary: prevent .json overwrite in project dir
+
                 for (final Path path : archive.getFiles()) {
+                    logger.trace("processing archive file: {}", path);
                     if (path.startsWith(BUNDLE_PATH)) {
-                        Path newPath = Paths.get(tempDirectory.toString(), "openidm", path.toString());
-                        String symbolicName = null;
-                        try {
-                            Attributes manifest = readManifest(newPath);
-                            symbolicName = manifest.getValue(Constants.BUNDLE_SYMBOLICNAME);
-                        } catch (Exception e) {
-                            // jar does not contain a manifest
-                        }
-                        if (symbolicName == null) {
-                            // treat it as a static file
-                            Path backupFile = staticFileUpdate.replace(path);
-                            if (backupFile != null) {
-                                UpdateFileLogEntry fileEntry = new UpdateFileLogEntry()
-                                        .setFilePath(path.toString())
-                                        .setFileState(fileStateChecker.getCurrentFileState(path).name())
-                                        .setActionTaken(UpdateAction.REPLACED.toString());
-                                fileEntry.setBackupFile(backupFile.toString());
-                                logUpdate(updateEntry.addFile(fileEntry.toJson()));
+                        // This is a bundle
+                        replaceBundle(bundleHandler, path);
+                    } else if (path.getFileName().toString().endsWith(JSON_EXT)) {
+                        // This is a conf file
+
+                        // TODO: Support config deletion
+
+                        if (!projectDir.equals(installDir) &&
+                                projectDir.startsWith(installDir) &&
+                                path.startsWith(projectDir.substring(installDir.length() + 1) + "/" + CONF_PATH)) {
+                            // Running in a project directory and this conf file targets that conf directory.
+                            // Ignore it if it already exists else create it.
+                            if (!configExists(path.getFileName())) {
+                                createNewConfig(path);
+                            }
+                        } else if (!projectDir.equals(installDir) &&
+                                !projectDir.startsWith(installDir) &&
+                                path.startsWith(CONF_PATH)) {
+                            // Running in a project directory outside of the installation directory
+                            // and this conf file targets a config in the root conf
+                            // Create this config if it does not exist (might be required for proper functionality);
+                            // skip it otherwise (we'd expect a .patch file to patch existing config)
+                            if (!configExists(path.getFileName())) {
+                                createNewConfig(path);
+                            }
+                        } else if (projectDir.equals(installDir) && path.startsWith(CONF_PATH)) {
+                            // Not running in a project directory and this conf file targets the root conf directory.
+                            // Ignore it if it already exists else create it.
+                            if (!configExists(path.getFileName())) {
+                                createNewConfig(path);
                             }
                         } else {
-                            bundleHandler.upgradeBundle(newPath, symbolicName);
-                            fileStateChecker.updateState(path);
+                            // Conf is in some non-project conf directory, treat it as a static file.
+                            updateStaticFile(path);
                         }
-                    } else if (path.getFileName().toString().endsWith(JSON_EXT) &&
-                            !projectDir.equals(installDir) &&
-                            path.startsWith(projectDir.substring(installDir.length() + 1) + "/" + CONF_PATH)) {
-                        // a json config in the current project - ignore it
-                    } else if (path.startsWith(CONF_PATH) &&
-                            path.getFileName().toString().endsWith(JSON_EXT)) {
-                        // a json config in the default project - ignore it
-                    } else if (path.startsWith(CONF_PATH) &&
+                    } else if ((path.startsWith(CONF_PATH) || (repoConfPath != null && path.startsWith(repoConfPath))) &&
                             path.getFileName().toString().endsWith(PATCH_EXT)) {
-                        // a patch file for a config in the repo
-                        File patchFile = new File(new File(tempDirectory.toString(), "openidm").toString(),
-                                path.toString());
-                        Path configFile = Paths.get(path.toString()
-                                .substring(0, path.toString().length() - PATCH_EXT.length()));
-                        UpdateFileLogEntry fileEntry = new UpdateFileLogEntry()
-                                .setFilePath(path.toString())
-                                .setFileState(fileStateChecker.getCurrentFileState(configFile).name());
-                        String pid = parsePid(configFile.getFileName().toString());
-                        patchConfig(ContextUtil.createInternalContext(),
-                                "config/" + pid, JsonUtil.parseStringified(FileUtil.readFile(patchFile)));
-                        fileEntry.setActionTaken(UpdateAction.APPLIED.toString());
-                        logUpdate(updateEntry.addFile(fileEntry.toJson()));
+                        // This is a patch file for a config in the repo
+                        applyConfigPatch(path);
                     } else {
-                        // normal static file; update it
-                        UpdateFileLogEntry fileEntry = new UpdateFileLogEntry()
-                                .setFilePath(path.toString())
-                                .setFileState(fileStateChecker.getCurrentFileState(path).name());
-
-                        if (!isReadOnly(path)) {
-                            Path stockFile = staticFileUpdate.keep(path);
-                            fileEntry.setActionTaken(UpdateAction.PRESERVED.toString());
-                            if (stockFile != null) {
-                                fileEntry.setStockFile(stockFile.toString());
+                        // This is a normal static file
+                        // 1. copy it into its normal place
+                        updateStaticFile(path);
+                        // 2. (OPENIDM-6182) copy non-conf project files to the project directory if the
+                        // project direct is external
+                        try {
+                            if (!projectDir.startsWith(installDir)
+                                    && (nonJsonConf.contains(path))) {
+                                staticFileUpdate.addToProjectDirectory(path, Paths.get(projectDir));
                             }
-                        } else {
-                            Path backupFile = staticFileUpdate.replace(path);
-                            fileEntry.setActionTaken(UpdateAction.REPLACED.toString());
-                            if (backupFile != null) {
-                                fileEntry.setBackupFile(backupFile.toString());
-                            }
+                        } catch (IOException e) {
+                            logger.warn("Unable to copy \"" + path.toString() + "\" to project directory "
+                                    + "\"" + projectDir + "\"", e);
                         }
-
-                        if (fileEntry.getStockFile() == null && fileEntry.getBackupFile() == null) {
-                            fileEntry.setActionTaken(UpdateAction.REPLACED.toString());
-                        }
-                        logUpdate(updateEntry.addFile(fileEntry.toJson()));
                     }
+
                     logUpdate(updateEntry.setCompletedTasks(updateEntry.getCompletedTasks() + 1)
                             .setStatusMessage("Processed " + path.getFileName().toString()));
                 }
@@ -1023,12 +1064,12 @@ public class UpdateManagerImpl implements UpdateManager {
                 logger.debug("Failed to install update!", e);
                 return;
             } finally {
-                try {
-                    if (tempDirectory != null) {
+                if (tempDirectory != null) {
+                    try {
                         FileUtils.deleteDirectory(tempDirectory.toFile());
+                    } catch (IOException e) {
+                        logger.error("Could not remove temporary directory: " + tempDirectory.toString(), e);
                     }
-                } catch (IOException e) {
-                    logger.error("Could not remove temporary directory: " + tempDirectory.toString(), e);
                 }
             }
 
@@ -1037,12 +1078,89 @@ public class UpdateManagerImpl implements UpdateManager {
 
             // Restart if necessary
             if (updateConfig.get(UPDATE_RESTARTREQUIRED).asBoolean()) {
-                try {
-                    restart();
-                } catch (BundleException e) {
-                    logger.debug("Failed to restart!", e);
+                restart();
+            }
+        }
+
+        void replaceBundle(BundleHandler bundleHandler, Path path) throws IOException, UpdateException {
+            Path newPath = Paths.get(tempDirectory.toString(), "openidm", path.toString());
+            String symbolicName = null;
+            try {
+                Attributes manifest = readManifest(newPath);
+                symbolicName = manifest.getValue(Constants.BUNDLE_SYMBOLICNAME);
+            } catch (Exception e) {
+                // jar does not contain a manifest
+            }
+            if (symbolicName == null) {
+                // treat it as a static file
+                Path backupFile = staticFileUpdate.replace(path);
+                if (backupFile != null) {
+                    UpdateFileLogEntry fileEntry = new UpdateFileLogEntry()
+                            .setFilePath(path.toString())
+                            .setFileState(fileStateChecker.getCurrentFileState(path).name())
+                            .setActionTaken(UpdateAction.REPLACED.toString());
+                    fileEntry.setBackupFile(backupFile.toString());
+                    logUpdate(updateEntry.addFile(fileEntry.toJson()));
+                }
+            } else {
+                bundleHandler.upgradeBundle(newPath, symbolicName);
+                fileStateChecker.updateState(path);
+            }
+        }
+
+        void createNewConfig(Path path) throws IOException, UpdateException {
+            // Never create this file if it is missing -- the installed IDM uses another database
+            if (path.getFileName().toString().equals("repo.orientdb.json")) {
+                return;
+            }
+            File configFile = new File(new File(tempDirectory.toString(), "openidm").toString(),
+                    path.toString());
+            UpdateFileLogEntry fileEntry = new UpdateFileLogEntry()
+                    .setFilePath(path.toString())
+                    .setFileState(fileStateChecker.getCurrentFileState(path).name());
+            createConfig(ContextUtil.createInternalContext(),
+                    path, JsonUtil.parseStringified(FileUtil.readFile(configFile)));
+            fileEntry.setActionTaken(UpdateAction.REPLACED.toString());
+            logUpdate(updateEntry.addFile(fileEntry.toJson()));
+        }
+
+        void applyConfigPatch(Path path) throws IOException, UpdateException {
+            File patchFile = new File(new File(tempDirectory.toString(), "openidm").toString(),
+                    path.toString());
+            Path configFile = Paths.get(path.toString()
+                    .substring(0, path.toString().length() - PATCH_EXT.length()));
+            UpdateFileLogEntry fileEntry = new UpdateFileLogEntry()
+                    .setFilePath(path.toString())
+                    .setFileState(fileStateChecker.getCurrentFileState(configFile).name());
+            patchConfig(ContextUtil.createInternalContext(),
+                    configFile, JsonUtil.parseStringified(FileUtil.readFile(patchFile)));
+            fileEntry.setActionTaken(UpdateAction.APPLIED.toString());
+            logUpdate(updateEntry.addFile(fileEntry.toJson()));
+        }
+
+        void updateStaticFile(Path path) throws IOException, UpdateException {
+            UpdateFileLogEntry fileEntry = new UpdateFileLogEntry()
+                    .setFilePath(path.toString())
+                    .setFileState(fileStateChecker.getCurrentFileState(path).name());
+
+            if (!isReadOnly(path)) {
+                Path stockFile = staticFileUpdate.keep(path);
+                fileEntry.setActionTaken(UpdateAction.PRESERVED.toString());
+                if (stockFile != null) {
+                    fileEntry.setStockFile(stockFile.toString());
+                }
+            } else {
+                Path backupFile = staticFileUpdate.replace(path);
+                fileEntry.setActionTaken(UpdateAction.REPLACED.toString());
+                if (backupFile != null) {
+                    fileEntry.setBackupFile(backupFile.toString());
                 }
             }
+
+            if (fileEntry.getStockFile() == null && fileEntry.getBackupFile() == null) {
+                fileEntry.setActionTaken(UpdateAction.REPLACED.toString());
+            }
+            logUpdate(updateEntry.addFile(fileEntry.toJson()));
         }
 
         /**
@@ -1080,12 +1198,16 @@ public class UpdateManagerImpl implements UpdateManager {
             if (n > 0) {
                 String factoryPid = pid.substring(n + 1);
                 pid = pid.substring(0, n);
+                return ConfigBootstrapHelper.qualifyPid(pid) + "/" + factoryPid;
+            } else {
+                return ConfigBootstrapHelper.qualifyPid(pid);
             }
-            pid = ConfigBootstrapHelper.qualifyPid(pid);
-            return pid;
         }
 
-        protected void restart() throws BundleException {
+        /**
+         * Restart in 30 seconds unless {@link #restartImmediately} is {@code true}
+         */
+        private void restart() {
             long timeout = System.currentTimeMillis() + 30000;
             try {
                 do {
@@ -1094,21 +1216,76 @@ public class UpdateManagerImpl implements UpdateManager {
             } catch (Exception e) {
                 // restart now
             }
-            // Send updated FrameworkEvent
-            osgiFrameworkService.getSystemBundle().update();
+
+            restartOsgiFramework();
         }
 
         /**
-         * Apply a JsonPatch to a config object on the router.
+         * Determine if the config referenced by path (just the bare filename) exists by reading it from the config
+         * store.
+         *
+         * @param path A config filename
+         * @return whether the config object for that name exists in the config store
+         */
+        boolean configExists(Path path) {
+            final String pid = parsePid(path.toString());
+
+            try {
+                ReadRequest request = Requests.newReadRequest("config/" + pid);
+                UpdateManagerImpl.this.connectionFactory.getConnection().read(
+                        new UpdateContext(ContextUtil.createInternalContext()), request);
+                return true;
+            } catch (ResourceException e) {
+                // We're mostly concerned about NotFoundException which means the configuration does not exist.
+                // But in the case of a general fault reading the config, assume it does not exist - the worst
+                // that will happen is we will fail in trying to create the config if it already exists and
+                // we couldn't read it.
+                return false;
+            }
+        }
+
+        /**
+         * Create a config object on the router.
          *
          * @param context the context for the patch request.
-         * @param resourceName the name of the resource to be patched.
-         * @param patch a JsonPatch to be applied to the named config resource.
+         * @param configFile the config file to be patched.
+         * @param content a JsonValue containing the new config to be created.
          * @throws UpdateException
          */
-        private void patchConfig(Context context, String resourceName, JsonValue patch) throws UpdateException {
+        private void createConfig(final Context context, final Path configFile, final JsonValue content)
+                throws UpdateException {
+            final String pid = parsePid(configFile.getFileName().toString());
+
             try {
-                PatchRequest request = Requests.newPatchRequest(resourceName);
+                // XXX undo the work by parsePid to make sure we call create on config properly
+                final String[] paths = pid.split("/");
+                final CreateRequest request;
+                if (paths.length == 2)
+                    request = Requests.newCreateRequest("config/" + paths[0], paths[1], content);
+                else {
+                    request = Requests.newCreateRequest("config", paths[0], content);
+                }
+
+                UpdateManagerImpl.this.connectionFactory.getConnection().create(new UpdateContext(context), request);
+            } catch (ResourceException e) {
+                throw new UpdateException("Create request failed", e);
+            }
+        }
+
+        /**
+         * Apply a json-patch to a config object on the router.
+         *
+         * @param context the context for the patch request.
+         * @param configFile the config file to be patched.
+         * @param patch a json-patch to be applied to the named config resource.
+         * @throws UpdateException
+         */
+        private void patchConfig(final Context context, final Path configFile, final JsonValue patch) throws UpdateException {
+            final String pid = parsePid(configFile.getFileName().toString());
+            final Path projectDir = Paths.get(IdentityServer.getInstance().getProjectLocation().toString());
+
+            try {
+                PatchRequest request = Requests.newPatchRequest("config/" + pid);
                 for (PatchOperation op : PatchOperation.valueOfList(patch)) {
                     request.addPatchOperation(op);
                 }
@@ -1125,15 +1302,21 @@ public class UpdateManagerImpl implements UpdateManager {
     }
 
     private boolean isReadOnly(Path path) {
-        Pattern uiDefaults = Pattern.compile("^ui/*/default");
-        return path.startsWith("bin") || uiDefaults.matcher(path.toString()).find();
+        // Replace any \ with / in the path to support windows along with everyone else.  'File.separator' does not
+        // work in the pattern matcher as the \'s would escape the regex characters.
+        return path.startsWith("bin") || UI_DEFAULT_PATTER.matcher(path.toString().replace("\\", "/")).find();
     }
 
     private void logUpdate(UpdateLogEntry entry) throws UpdateException {
         try {
             updateLogService.updateUpdate(entry);
         } catch (ResourceException e) {
-            throw new UpdateException("Failed to modify update log entry.", e);
+            try {
+                Thread.sleep(2000L);
+                updateLogService.updateUpdate(entry);
+            } catch (Exception e2) {
+                logger.warn("Failed to modify update log entry for " + entry.toJson().toString(), e2);
+            }
         }
     }
 
@@ -1169,13 +1352,20 @@ public class UpdateManagerImpl implements UpdateManager {
      * Given a zip file, this will read data in UPDATE_CONFIG_FILE.
      * @param file the zip file given
      * @return jsonValue that holds data read from UPDATE_CONFIG_FILE.
-     * @throws UpdateException
+     * @throws InvalidArchiveUpdateException if unable to read {@link #UPDATE_CONFIG_FILE}
      */
-    JsonValue readUpdateConfig(File file) throws UpdateException {
-        Path tmpDir = extractFileToDirectory(file, Paths.get("openidm/" + UPDATE_CONFIG_FILE));
-        try (InputStream inp = new FileInputStream(tmpDir.toString() + "/" + UPDATE_CONFIG_FILE)) {
+    JsonValue readUpdateConfig(File file) throws InvalidArchiveUpdateException {
+        final Path tmpDir;
+
+        try {
+            tmpDir = extractFileToDirectory(file, Paths.get("openidm/" + UPDATE_CONFIG_FILE));
+        } catch (UpdateException e) {
+            throw new InvalidArchiveUpdateException(file.toString(), "Unable to load " + UPDATE_CONFIG_FILE + ".", e);
+        }
+
+        try (InputStream inp = new FileInputStream(tmpDir.toString() + "/" + UPDATE_CONFIG_FILE);
+                Reader reader = new InputStreamReader(inp, "UTF-8")) {
             StringBuilder sb = new StringBuilder();
-            Reader reader = new InputStreamReader(inp, "UTF-8");
             char[] buf = new char[1024];
             int chr = reader.read(buf);
             while(chr > 0) {
@@ -1184,7 +1374,7 @@ public class UpdateManagerImpl implements UpdateManager {
             }
             return JsonUtil.parseStringified(sb.toString());
         } catch (IOException e) {
-            throw new UpdateException("Unable to load " + UPDATE_CONFIG_FILE + ".", e);
+            throw new InvalidArchiveUpdateException(file.toString(), "Unable to load " + UPDATE_CONFIG_FILE + ".", e);
         } finally {
             new File(tmpDir.toString() + "/" + UPDATE_CONFIG_FILE).delete();
         }
@@ -1201,41 +1391,20 @@ public class UpdateManagerImpl implements UpdateManager {
     }
 
     /**
-     * Fetch the zip file from the URL and write it to the local filesystem.
+     * Return the name of the db directory in db/ representing the current repo.
      *
-     * @param url
-     * @return
-     * @throws UpdateException
+     * This is retrieved from the OSGi context stored as the db.dirname property on the RepositoryService
+     *
+     * @return The name of the directory in db/ for the current repo or null if none exists
+     * @throws UpdateException If the repo bundle cannot be found
      */
-    private Path readZipFile(URL url) throws UpdateException {
+    private String getDbDirName() throws UpdateException {
+        final ServiceReference<RepoBootService> repoReference = repoServiceTracker.getServiceReference();
 
-        // Download the patch file
-        final ReadableByteChannel channel;
-        try {
-            channel = Channels.newChannel(url.openStream());
-        } catch (IOException ex) {
-            throw new UpdateException("Failed to access the specified file " + url + " " + ex.getMessage(), ex);
+        if (repoReference == null) {
+            throw new UpdateException("Could not find repo service");
+        } else {
+            return (String) repoReference.getProperty("db.dirname");
         }
-
-        String workingDir = "";
-        final String targetFileName = new File(url.getPath()).getName();
-        final File patchDir = ARCHIVE_PATH.toFile();
-        patchDir.mkdirs();
-        final File targetFile = new File(patchDir, targetFileName);
-        final FileOutputStream fos;
-        try {
-            fos = new FileOutputStream(targetFile);
-        } catch (FileNotFoundException ex) {
-            throw new UpdateException("Error in getting the specified file to " + targetFile, ex);
-        }
-
-        try {
-            fos.getChannel().transferFrom(channel, 0, Long.MAX_VALUE);
-            System.out.println("Downloaded to " + targetFile);
-        } catch (IOException ex) {
-            throw new UpdateException("Failed to get the specified file " + url + " to: " + targetFile, ex);
-        }
-
-        return targetFile.toPath();
     }
 }

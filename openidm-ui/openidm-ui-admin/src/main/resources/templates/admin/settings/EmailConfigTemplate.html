@@ -2,7 +2,7 @@
 	License terms: https://forgerock.org/cddlv1-0/ -->
 <form id="emailConfigForm" class="form clearfix panel-collapse-group" autocomplete="off">
     <div class="panel-body">
-        <a class="pull-right" href="{{docHelpUrl}}integrators-guide/index.html#chap-mail" target="_blank">{{t "templates.connector.help"}} <i class="fa fa-question-circle"></i></a>
+        <a class="pull-right" href="{{docHelpUrl}}integrators-guide#chap-mail" target="_blank">{{t "templates.connector.help"}} <i class="fa fa-question-circle"></i></a>
 
         <div class="group-body">
             <p class="panel-description">
@@ -54,7 +54,7 @@
                             <div class="col-sm-6">
                                 <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
                                     <label>
-                                        <input type="checkbox" name="starttls.enable" id="emailTLS" {{#if config.starttls.enable}}checked{{/if}}/><span></span>
+                                        <input type="checkbox" name="starttls.enable" id="emailTLS" value="true" {{#if config.starttls.enable}}checked{{/if}}/><span></span>
                                     </label>
                                 </div>
                             </div>
@@ -65,7 +65,7 @@
                             <div class="col-sm-6">
                                 <div class="checkbox checkbox-slider-primary checkbox-slider checkbox-slider--b checkbox-slider-md">
                                     <label>
-                                        <input type="checkbox" name="auth.enable" id="emailAuth" {{#if config.auth.enable}}checked{{/if}}/><span></span>
+                                        <input type="checkbox" name="auth.enable" id="emailAuth" value="true" {{#if config.auth.enable}}checked{{/if}}/><span></span>
                                     </label>
                                 </div>
                             </div>

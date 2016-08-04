@@ -11,16 +11,15 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
-
-/*global require, define, window */
 
 require.config({
     map: {
         "*" : {
             "Footer": "org/forgerock/openidm/ui/common/components/Footer",
             "ThemeManager": "org/forgerock/openidm/ui/common/util/ThemeManager",
+            "UserProfileView": "org/forgerock/commons/ui/user/profile/UserProfileView",
             "LoginView": "org/forgerock/openidm/ui/common/login/LoginView",
             "LoginDialog": "org/forgerock/commons/ui/common/LoginDialog",
             "RegisterView": "org/forgerock/openidm/ui/user/anonymousProcess/SelfRegistrationView",
@@ -36,8 +35,8 @@ require.config({
         i18next: "libs/i18next-1.7.3-min",
         backbone: "libs/backbone-1.1.2-min",
         lodash: "libs/lodash-3.10.1-min",
-        js2form: "libs/js2form-2.0",
-        form2js: "libs/form2js-2.0",
+        js2form: "libs/js2form-2.0-769718a",
+        form2js: "libs/form2js-2.0-769718a",
         spin: "libs/spin-2.0.1-min",
         jquery: "libs/jquery-2.1.1-min",
         xdate: "libs/xdate-0.8-min",
@@ -94,7 +93,7 @@ require.config({
         },
         i18next: {
             deps: ["jquery", "handlebars"],
-            exports: "i18next"
+            exports: "i18n"
         },
         moment: {
             exports: "moment"

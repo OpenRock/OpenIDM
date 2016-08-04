@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014-2015 ForgeRock AS.
+ * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/common/MandatoryPasswordChangeDialog", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/commons/ui/common/main/AbstractView",
@@ -40,7 +38,7 @@ define("org/forgerock/openidm/ui/common/MandatoryPasswordChangeDialog", [
         },
 
         render: function(args, callback) {
-            ModuleLoader.load(router.configuration.routes.landingPage.view).then(_.bind(function (landingView) {
+            ModuleLoader.load(router.configuration.routes.landingPage.view).then((landingView) => {
                 var _this = this,
                     currentDialog = $('<div id="mandatoryPasswordChangeDialog"></div>');
 
@@ -93,7 +91,7 @@ define("org/forgerock/openidm/ui/common/MandatoryPasswordChangeDialog", [
                     }, _this),
                     "append");
 
-            }, this));
+            });
 
         },
 

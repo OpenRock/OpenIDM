@@ -11,25 +11,25 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define  */
-
-define("org/forgerock/openidm/ui/admin/user/EditUserView", [
+define([
     "jquery",
     "lodash",
     "handlebars",
     "org/forgerock/commons/ui/common/main/AbstractView",
     "org/forgerock/openidm/ui/common/resource/GenericEditResourceView",
-    "org/forgerock/commons/ui/common/main/ValidatorsManager"
+    "org/forgerock/commons/ui/common/main/ValidatorsManager",
+    "org/forgerock/openidm/ui/admin/role/MembersView"
 ],
-function ($, _, Handlebars, AbstractView, GenericEditResourceView, ValidatorsManager) {
+function ($, _, Handlebars, AbstractView, GenericEditResourceView, ValidatorsManager, MembersView) {
     var EditUserView = function () {
         return AbstractView.apply(this, arguments);
     };
 
     EditUserView.prototype = Object.create(GenericEditResourceView);
+    EditUserView.prototype.tabViewOverrides.roles = MembersView;
     EditUserView.prototype.events = _.extend({
         "change #password :input": "showPendingChanges",
         "keyup #password :input": "showPendingChanges"
@@ -69,9 +69,8 @@ function ($, _, Handlebars, AbstractView, GenericEditResourceView, ValidatorsMan
         var passwordText = this.$el.find("#input-password").val();
 
         if (ValidatorsManager.formValidated(this.$el.find("#password")) && passwordText && passwordText.length) {
-            return _.extend({
-                    "password": passwordText
-                },
+            return _.extend(
+                { "password": passwordText },
                 GenericEditResourceView.getFormValue.call(this)
             );
         } else {

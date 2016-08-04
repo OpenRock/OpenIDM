@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2014-2015 ForgeRock AS.
+ * Copyright 2014-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
+define([
     "jquery",
     "underscore",
     "jsonEditor",
@@ -287,13 +285,12 @@ define("org/forgerock/openidm/ui/admin/util/InlineScriptEditor", [
                 if (script !== null) {
                     this.$el.find(".script-eval-message").hide();
 
-                    ScriptDelegate.evalScript(this.generateScript()).then(_.bind(function(result){
-                            this.$el.find(".preview-pane .preview-results").html("<pre>" +result +"</pre>");
-                        }, this),
-                        _.bind(function(result){
-                            this.$el.find(".script-eval-message").show();
-                            this.$el.find(".script-eval-message .message").html(result.responseJSON.message);
-                        }, this));
+                    ScriptDelegate.evalScript(this.generateScript()).then(_.bind(function(result) {
+                        this.$el.find(".preview-pane .preview-results").html("<pre>" +result +"</pre>");
+                    }, this), _.bind(function(result) {
+                        this.$el.find(".script-eval-message").show();
+                        this.$el.find(".script-eval-message .message").html(result.responseJSON.message);
+                    }, this));
                 } else {
                     this.$el.find(".script-eval-message").show();
                     this.$el.find(".script-eval-message .message").html("Please enter script details");

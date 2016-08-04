@@ -14,9 +14,7 @@
  * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/dashboard/DashboardWidgetLoader", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/openidm/ui/admin/util/AdminAbstractView",

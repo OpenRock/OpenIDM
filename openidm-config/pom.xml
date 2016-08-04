@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.forgerock.openidm</groupId>
         <artifactId>openidm-project</artifactId>
-        <version>4.1.0-SNAPSHOT</version>
+        <version>5.0.0-SNAPSHOT</version>
     </parent>
     <artifactId>openidm-config</artifactId>
     <packaging>bundle</packaging>
@@ -35,10 +35,6 @@
     <description>This bundle ...</description>
 
     <dependencies>
-        <dependency>
-            <groupId>org.forgerock.commons</groupId>
-            <artifactId>json-patch</artifactId>
-        </dependency>
         <dependency>
             <groupId>org.forgerock.commons</groupId>
             <artifactId>json-resource</artifactId>
@@ -90,18 +86,12 @@
         <!-- Provided OSGi Dependencies -->
         <dependency>
             <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.core</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <!-- TODO Remove org.apache.felix.framework when Compendium 4.3 is used -->
-        <dependency>
-            <groupId>org.apache.felix</groupId>
-            <artifactId>org.apache.felix.framework</artifactId>
+            <artifactId>osgi.core</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.osgi</groupId>
-            <artifactId>org.osgi.compendium</artifactId>
+            <artifactId>osgi.cmpn</artifactId>
             <scope>provided</scope>
         </dependency>
 

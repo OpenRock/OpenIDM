@@ -11,17 +11,14 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/util/BackgridUtils", [
+define([
     "underscore",
     "backbone",
     "org/forgerock/commons/ui/common/backgrid/Backgrid",
     "org/forgerock/commons/ui/common/util/BackgridUtils"
-
 ], function (_, Backbone, Backgrid, commonBackgridUtils) {
     var obj = _.extend({}, commonBackgridUtils);
 
@@ -32,8 +29,8 @@ define("org/forgerock/openidm/ui/admin/util/BackgridUtils", [
             additionalFilters = data._queryFilter || [],
             getFilter = (function () {
                 return function (filterName, filterQuery) {
-                        return filterName + ' sw "' + filterQuery.replace(/"/g, '\\"') + '"';
-                    };
+                    return filterName + ' sw "' + filterQuery.replace(/"/g, '\\"') + '"';
+                };
             }());
 
         _.each(this.state.filters, function (filter) {
@@ -45,20 +42,17 @@ define("org/forgerock/openidm/ui/admin/util/BackgridUtils", [
 
         return params.length === 0 ? true : params.join(" AND ");
     };
-    
+
     obj.getQueryParams = function (data, isSystemResource) {
         data = data || {};
         var queryParams = {
-                _sortKeys: this.sortKeys,
-                _queryFilter: function () {
-                    return obj.queryFilter.call(this, { _queryFilter: data._queryFilter });
-                },
-                _fields: data._fields || "",
-                pageSize: "_pageSize",
-                _pagedResultsOffset: this.pagedResultsOffset,
-                _totalPagedResultsPolicy: "ESTIMATE"
-            };
-        
+            _queryFilter: function () {
+                return obj.queryFilter.call(this, { _queryFilter: data._queryFilter });
+            },
+            _fields: data._fields || "",
+            _totalPagedResultsPolicy: "ESTIMATE"
+        };
+
         if (isSystemResource) {
             delete queryParams._fields;
         }
@@ -77,7 +71,7 @@ define("org/forgerock/openidm/ui/admin/util/BackgridUtils", [
         }
         return state;
     };
-    
+
     obj.escapedStringCell = function (prop) {
         return Backgrid.Cell.extend({
             render: function () {
@@ -90,7 +84,7 @@ define("org/forgerock/openidm/ui/admin/util/BackgridUtils", [
             }
         });
     };
-    
+
     return obj;
 
 });

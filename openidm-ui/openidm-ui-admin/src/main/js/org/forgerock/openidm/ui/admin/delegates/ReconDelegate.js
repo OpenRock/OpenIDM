@@ -11,30 +11,39 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/delegates/ReconDelegate", [
+define([
     "jquery",
     "underscore",
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/commons/ui/common/main/AbstractDelegate",
     "org/forgerock/commons/ui/common/main/Configuration",
     "org/forgerock/commons/ui/common/main/EventManager",
-    "org/forgerock/commons/ui/common/main/SpinnerManager"
-], function($, _, constants, AbstractDelegate, configuration, eventManager, spinner) {
+    "org/forgerock/commons/ui/common/main/SpinnerManager",
+    "org/forgerock/commons/ui/common/main/Router"
+], function($, _, constants, AbstractDelegate, configuration, eventManager, spinner, router) {
 
     var obj = new AbstractDelegate(constants.host + "/openidm/recon");
 
-    obj.waitForAll = function (reconIds, suppressSpinner, progressCallback) {
-            var resultPromise = $.Deferred(),
-                completedRecons = [],
-                checkCompleted;
+    obj.waitForAll = function (reconIds, suppressSpinner, progressCallback, delayTime) {
+        var resultPromise = $.Deferred(),
+            completedRecons = [],
+            checkCompleted,
+            startView = router.currentRoute.view;
 
-            checkCompleted = function () {
+        if (!delayTime) {
+            delayTime = 1000;
+        }
 
+        checkCompleted = function () {
+            /**
+            * Check to make sure we are still on the same page we were when this process
+            * started. If not then cancel the process so ajax requests
+            * will not continue to fire in the background.
+            */
+            if (router.currentRoute.view === startView) {
                 obj.serviceCall({
                     "type": "GET",
                     "url": "/" + reconIds[completedRecons.length],
@@ -55,13 +64,13 @@ define("org/forgerock/openidm/ui/admin/delegates/ReconDelegate", [
                         if (completedRecons.length === reconIds.length) {
                             resultPromise.resolve(completedRecons);
                         } else {
-                            _.delay(checkCompleted, 1000);
+                            _.delay(checkCompleted, delayTime);
                         }
                     } else {
                         if (!suppressSpinner) {
                             spinner.showSpinner();
                         }
-                        _.delay(checkCompleted, 1000);
+                        _.delay(checkCompleted, delayTime);
                     }
 
 
@@ -76,21 +85,21 @@ define("org/forgerock/openidm/ui/admin/delegates/ReconDelegate", [
                     if (completedRecons.length === reconIds.length) {
                         resultPromise.resolve(completedRecons);
                     } else {
-                        _.delay(checkCompleted, 1000);
+                        _.delay(checkCompleted, delayTime);
                     }
                 });
-
-            };
-
-            if (!suppressSpinner) {
-                spinner.showSpinner();
+            } else {
+                resultPromise.reject();
             }
-            _.delay(checkCompleted, 100);
-
-            return resultPromise;
         };
 
+        if (!suppressSpinner) {
+            spinner.showSpinner();
+        }
+        _.delay(checkCompleted, 100);
 
+        return resultPromise;
+    };
 
     obj.triggerRecons = function (mappings, suppressSpinner) {
         var reconIds = [],
@@ -98,29 +107,28 @@ define("org/forgerock/openidm/ui/admin/delegates/ReconDelegate", [
 
         _.each(mappings, function (m) {
             reconPromises.push(obj.serviceCall({
-                    "suppressSpinner": suppressSpinner,
-                    "url": "?_action=recon&mapping=" + m,
-                    "type": "POST"
-                }).then(function (reconId) {
-                    reconIds.push(reconId._id);
-                }));
+                "suppressSpinner": suppressSpinner,
+                "url": "?_action=recon&mapping=" + m,
+                "type": "POST"
+            }).then(function (reconId) {
+                reconIds.push(reconId._id);
+            }));
         });
 
         return $.when.apply($, reconPromises);
 
     };
 
-    obj.triggerRecon = function (mapping, suppressSpinner, progressCallback) {
-
+    obj.triggerRecon = function (mapping, suppressSpinner, progressCallback, delayTime) {
         return obj.serviceCall({
             "suppressSpinner": suppressSpinner,
             "url": "?_action=recon&mapping=" + mapping,
             "type": "POST"
         }).then(function (reconId) {
 
-            return obj.waitForAll([reconId._id], suppressSpinner, progressCallback)
+            return obj.waitForAll([reconId._id], suppressSpinner, progressCallback, delayTime)
                       .then(function (reconArray) {
-                        return reconArray[0];
+                          return reconArray[0];
                       }) ;
         });
 

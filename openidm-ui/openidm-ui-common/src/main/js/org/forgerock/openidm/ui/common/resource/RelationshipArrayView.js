@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2011-2015 ForgeRock AS.
+ * Copyright 2011-2016 ForgeRock AS.
  */
 
-/*global define, sessionStorage */
-
-define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
+define([
     "jquery",
     "underscore",
     "handlebars",
@@ -27,6 +25,7 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
     "org/forgerock/openidm/ui/common/delegates/ResourceDelegate",
     "org/forgerock/commons/ui/common/components/Messages",
     "org/forgerock/commons/ui/common/main/AbstractCollection",
+    "org/forgerock/commons/ui/common/main/AbstractModel",
     "org/forgerock/openidm/ui/common/util/ResourceCollectionUtils",
     "org/forgerock/openidm/ui/common/resource/ResourceCollectionSearchDialog",
     "org/forgerock/commons/ui/common/util/UIUtils",
@@ -44,8 +43,9 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
         resourceDelegate,
         messagesManager,
         AbstractCollection,
+        AbstractModel,
         resourceCollectionUtils,
-        resourceCollectionSearchDialog,
+        ResourceCollectionSearchDialog,
         uiUtils,
         d3) {
     var RelationshipArrayView = AbstractView.extend({
@@ -100,13 +100,25 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
             }
 
             uiUtils.confirmDialog($.t("templates.admin.ResourceEdit.confirmDeleteSelected"),  "danger", _.bind(function(){
-                var promArr = [];
-
+                var promise;
+                /*
+                loop over the selectedItems you want to delete and
+                build "promise" by tacking on a "then" for each item
+                */
                 _.each(this.data.selectedItems, _.bind(function(relationship) {
-                    promArr.push(this.deleteRelationship(relationship));
+                    if (!promise) {
+                        //no promise exists so create it
+                        promise = this.deleteRelationship(relationship);
+                    } else {
+                        //promise exists now "concat" a new "then" onto the original promise
+                        promise = promise.then(_.bind(function () {
+                            return this.deleteRelationship(relationship);
+                        }, this));
+                    }
                 }, this));
 
-                $.when.apply($,promArr).then(_.bind(function(proms){
+                //"concat" the final "then" onto promise
+                promise.then(_.bind(function(proms){
                     this.reloadGrid(null, _.bind(function() {
                         messagesManager.messages.addMessage({"message": $.t("templates.admin.ResourceEdit.deleteSelectedSuccess")});
                     },this));
@@ -118,7 +130,7 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
             if(event) {
                 event.preventDefault();
             }
-            this.render(this.args);
+            this.render(this.args, callback);
         },
         getURL: function(){
             return "/" + constants.context + "/" + this.relationshipUrl;
@@ -193,17 +205,15 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
 
             _.each(relationshipProp.properties._refProperties.properties, _.bind(function(col,colName){
                 if(colName !== "_id"){
-                    cols.push(
-                            {
-                                "name": "/_refProperties/" + colName,
-                                "label": col.title || col.label || colName,
-                                "headerCell": BackgridUtils.FilterHeaderCell,
-                                "cell": "string",
-                                "sortable": true,
-                                "editable": false,
-                                "sortType": "toggle"
-                            }
-                    );
+                    cols.push({
+                        "name": "/_refProperties/" + colName,
+                        "label": col.title || col.label || colName,
+                        "headerCell": BackgridUtils.FilterHeaderCell,
+                        "cell": "string",
+                        "sortable": true,
+                        "editable": false,
+                        "sortType": "toggle"
+                    });
                 }
             }, this));
 
@@ -234,14 +244,14 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
 
             this.parentRender(function() {
 
-                this.buildRelationshipArrayGrid(this.getCols());
-
-                if(callback) {
-                    callback();
-                }
+                this.buildRelationshipArrayGrid(this.getCols(), args.onGridChange).then(function () {
+                    if(callback) {
+                        callback();
+                    }
+                });
             });
         },
-        buildRelationshipArrayGrid: function (cols) {
+        buildRelationshipArrayGrid: function (cols, onGridChange) {
             var _this = this,
                 grid_id = this.grid_id_selector,
                 url = this.getURL(),
@@ -252,12 +262,30 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
                     queryParams: BackgridUtils.getQueryParams({
                         _queryFilter: 'true',
                         _fields: ''
+                    }),
+                    model: AbstractModel.extend({
+                        /*
+                            By default AbstractModel sets the idAttribute to "_id".
+                            In this grid the "_id" property is not actually the _id
+                            of the relationship it is the _id of the resource being
+                            displayed. There could be duplicates of this _id if a
+                            relationship is created multiple times on the same resource.
+                            Overriding the "idAttribute" by setting it to use "_refProperties._id"
+                            allows the "duplicates" to be displayed/edited/removed.
+                        */
+                        idAttribute: "_refProperties._id"
                     })
                 }),
                 relationshipGrid,
                 paginator;
 
             this.model.relationships = new RelationshipCollection();
+
+            this.model.relationships.on('sync', function(){
+                if (onGridChange) {
+                    onGridChange();
+                }
+            });
 
             relationshipGrid = new Backgrid.Grid({
                 className: "backgrid table table-hover",
@@ -295,7 +323,7 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
             this.$el.find(pager_id).append(paginator.render().el);
             this.bindDefaultHandlers();
 
-            this.model.relationships.getFirstPage();
+            return this.model.relationships.getFirstPage();
 
         },
 
@@ -305,7 +333,7 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
                     this.data.selectedItems.push(model.attributes);
                 }
             } else {
-                this.data.selectedItems = _.without(this.data.selectedItems, model.id);
+                this.data.selectedItems = _.without(this.data.selectedItems, model.attributes);
             }
             this.toggleActions();
 
@@ -367,10 +395,10 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
                 type: "POST",
                 data: JSON.stringify(newVal),
                 errorsHandlers : {
-                        "error": {
-                            status: "400"
-                        }
-                    },
+                    "error": {
+                        status: "400"
+                    }
+                },
                 error: function (e) {
                     if (e.status === 400 && e.responseJSON.message.indexOf("conflict with existing") > -1) {
                         messagesManager.messages.addMessage({ "type": "error", "message": $.t("templates.admin.ResourceEdit.conflictWithExistingRelationship") });
@@ -380,32 +408,56 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
                 }
             });
         },
-        openResourceCollectionDialog: function (propertyValue) {
-            var _this = this,
-                opts = {
-                property: _this.data.prop,
-                propertyValue: propertyValue,
-                schema: _this.schema
-            };
+        updateRelationship: function (value, oldValue) {
+            var newVal = _.pick(value,"_ref","_refProperties"),
+                oldVal = _.pick(oldValue,"_ref","_refProperties"),
+                patchUrl = "/" + constants.context + "/" + this.data.prop.relationshipUrl;
 
-            if (!propertyValue) {
-                opts.onChange = function (value, newText) {
-                    _this.createRelationship(value).then(function () {
-                        _this.args.showChart = _this.data.showChart;
-                        _this.render(_this.args);
+            //make sure there is actually a change before updating
+            if (_.isEqual(newVal,oldVal)) {
+                return $.Deferred().resolve();
+            } else {
+                return resourceDelegate.patchResourceDifferences(patchUrl, {id: value._refProperties._id, rev: value._refProperties._rev}, oldVal, newVal);
+            }
+        },
+        openResourceCollectionDialog: function (propertyValue) {
+            var opts = this.getResourceCollectionDialogOptions(propertyValue);
+
+            new ResourceCollectionSearchDialog().render(opts);
+        },
+        getResourceCollectionDialogOptions: function (propertyValue) {
+            var isNew = !propertyValue,
+                opts = {
+                    property: this.data.prop,
+                    propertyValue: propertyValue,
+                    schema: this.schema,
+                    /*
+                     * if there is no propertyValue this is an "add new"
+                     * in this case allow the ability to add multiple relationships
+                     */
+                    multiSelect: (isNew) ? true : false
+                };
+
+            if (isNew) {
+                opts.onChange = (value, oldValue, newText, isFinalPromise) => {
+                    return this.createRelationship(value).then( () => {
+                        if (isFinalPromise) {
+                            this.args.showChart = this.data.showChart;
+                            this.render(this.args);
+                            messagesManager.messages.addMessage({"message": $.t("templates.admin.ResourceEdit.addSuccess",{ objectTitle: this.data.prop.title })});
+                        }
                     });
                 };
             } else {
-                opts.onChange = function (value, newText) {
-                    _this.deleteRelationship(value).then(function () {
-                        _this.createRelationship(value).then(function () {
-                            _this.render(_this.args);
-                        });
+                opts.onChange = (value, oldValue, newText) => {
+                    return this.updateRelationship(value, oldValue).then( () => {
+                        this.render(this.args);
+                        messagesManager.messages.addMessage({"message": $.t("templates.admin.ResourceEdit.editSuccess",{ objectTitle: this.data.prop.title })});
                     });
                 };
             }
 
-            resourceCollectionSearchDialog.render(opts);
+            return opts;
         },
         loadChart: function(models) {
             this.$el.find("#relationshipGraphBody-" + this.data.prop.propName).empty();
@@ -495,13 +547,15 @@ define("org/forgerock/openidm/ui/common/resource/RelationshipArrayView", [
             _.each(models, _.bind(function(model){
                 var propertyValuePath = resourceCollectionUtils.getPropertyValuePath(model.attributes),
                     resourceCollectionIndex = resourceCollectionUtils.getResourceCollectionIndex(this.schema, propertyValuePath, this.data.prop.propName),
-                    displayText = resourceCollectionUtils.getDisplayText(this.data.prop, model.attributes, resourceCollectionIndex);
+                    displayText = resourceCollectionUtils.getDisplayText(this.data.prop, model.attributes, resourceCollectionIndex),
+                    child = { "name" : displayText, "parent" : "null" };
 
-                treeData.children.push({
-                    "name" : displayText,
-                    "parent" : "null",
-                    "url" : "#resource/" + propertyValuePath + "/edit/" + model.attributes._id
-                });
+                // Can't link to internal roles, so filter them here
+                if (!propertyValuePath.match(/^repo\//)) {
+                    child.url = "#resource/" + propertyValuePath + "/edit/" + model.attributes._id;
+                }
+
+                treeData.children.push(child);
             }, this));
 
             root = treeData;

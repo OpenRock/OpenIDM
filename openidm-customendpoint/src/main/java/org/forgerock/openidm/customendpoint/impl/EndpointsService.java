@@ -43,7 +43,9 @@ import org.slf4j.LoggerFactory;
         description = "OpenIDM Custom Endpoints Service", immediate = true)
 @Properties({
     @Property(name = Constants.SERVICE_VENDOR, value = ServerConstants.SERVER_VENDOR_NAME),
-    @Property(name = Constants.SERVICE_DESCRIPTION, value = "OpenIDM Custom Endpoints Service") })
+    @Property(name = Constants.SERVICE_DESCRIPTION, value = "OpenIDM Custom Endpoints Service") ,
+    @Property(name = "suppressMetatypeWarning", value = "true")
+})
 public class EndpointsService extends AbstractScriptedService {
 
     public static final String PID = "org.forgerock.openidm.endpoint";
@@ -57,7 +59,7 @@ public class EndpointsService extends AbstractScriptedService {
 
     /** Enhanced configuration service. */
     @Reference(policy = ReferencePolicy.DYNAMIC)
-    private EnhancedConfig enhancedConfig;
+    private volatile EnhancedConfig enhancedConfig;
 
     private ComponentContext context;
 

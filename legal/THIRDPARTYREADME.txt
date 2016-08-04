@@ -897,9 +897,9 @@ Version: groovy-connector-1.4.2.0.jar
 Copyright: Copyright (c) 2015 ForgeRock AS.
            Copyright 2003-2013 the original author or authors. (Groovy)
 
-Version: ldap-connector-1.4.1.0.jar
+Version: ldap-connector-1.4.1.1.jar
 Copyright: Copyright 2010 Sun Microsystems, Inc.,
-           Portions copyright 2010-2015 ForgeRock AS
+           Portions copyright 2010-2016 ForgeRock AS
 
 Version: xml-connector-1.1.0.2.jar
 Copyright: Copyright (c) 2010-2012 ForgeRock Inc.
@@ -1328,6 +1328,9 @@ Copyright: Copyright 2012 Stefan Petre
 
 Version: contentflow.js (version 1.0.2)
 Copyright: (c) 2007 - 2010 Sebastian Kutsch
+
+Version: dragula-3.6.7-min.js
+Copyright: 2015-2016 Nicolas Bevacqua <https://bevacqua.github.io/dragula/>
 
 Version: dimple-2.1.2-min.js
 Copyright: Copyright: 2014 PMSI-AlignAlytics

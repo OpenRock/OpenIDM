@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2011-2015 ForgeRock AS. All Rights Reserved
+ * Copyright (c) 2011-2016 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -80,6 +80,7 @@ public final class JsonUtil {
 
     private JsonUtil() {
     }
+
 
     public static boolean jsonIsNull(JsonValue value) {
         return (value == null || value.isNull());
@@ -180,9 +181,8 @@ public final class JsonUtil {
                          * Expected if the value is null or the type does not
                          * match
                          */
-                    } catch (Throwable t) {
-                        logger.debug("Failed to substitute variable with unexpected error {}", key,
-                                t);
+                    } catch (Exception e) {
+                        logger.debug("Failed to substitute variable with unexpected error {}", key, e);
                     }
                     if (eager && null == defaultValue) {
                         StringBuilder sb =
@@ -229,8 +229,9 @@ public final class JsonUtil {
             String lf = null;
             try {
                 lf = System.getProperty("line.separator");
-            } catch (Throwable t) {
-            } // access exception?
+            } catch (Exception e) {
+                // access exception?
+            }
             SYSTEM_LINE_SEPARATOR = (lf == null) ? "\n" : lf;
         }
 

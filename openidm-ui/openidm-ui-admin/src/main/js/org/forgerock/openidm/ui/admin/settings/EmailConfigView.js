@@ -11,12 +11,10 @@
  * Header, with the fields enclosed by brackets [] replaced by your own identifying
  * information: "Portions copyright [year] [name of copyright owner]".
  *
- * Copyright 2015 ForgeRock AS.
+ * Copyright 2015-2016 ForgeRock AS.
  */
 
-/*global define */
-
-define("org/forgerock/openidm/ui/admin/settings/EmailConfigView", [
+define([
     "jquery",
     "underscore",
     "form2js",
@@ -25,7 +23,6 @@ define("org/forgerock/openidm/ui/admin/settings/EmailConfigView", [
     "org/forgerock/commons/ui/common/util/Constants",
     "org/forgerock/openidm/ui/common/delegates/ConfigDelegate",
     "org/forgerock/commons/ui/common/main/ValidatorsManager"
-
 ], function($, _, form2js,
             AdminAbstractView,
             eventManager,
@@ -132,14 +129,13 @@ define("org/forgerock/openidm/ui/admin/settings/EmailConfigView", [
             this.data.password = $(e.currentTarget).val();
         },
 
-        save: function() {
+        save: function(e) {
+            e.preventDefault();
             var formData = form2js("emailConfigForm",".", true);
 
             _.extend(this.data.config, formData);
 
-            if (_.has(formData, "starttls") && _.has(formData.starttls, "enable")) {
-                this.data.config.starttls.enable = true;
-            } else {
+            if (!_.has(formData, "starttls") || !_.has(formData.starttls, "enable")) {
                 delete this.data.config.starttls;
             }
 
@@ -148,9 +144,7 @@ define("org/forgerock/openidm/ui/admin/settings/EmailConfigView", [
                     this.data.config.auth.password = this.data.password;
                 }
 
-                if (_.has(formData.auth, "enable")) {
-                    this.data.config.auth.enable = true;
-                } else {
+                if (!_.has(formData.auth, "enable")) {
                     delete this.data.config.auth;
                 }
             }

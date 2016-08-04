@@ -23,7 +23,7 @@
  *
  *
  *      Copyright 2006-2010 Sun Microsystems, Inc.
- *      Portions Copyright 2010-2015 ForgeRock AS
+ *      Portions Copyright 2010-2016 ForgeRock AS
  */
 package org.forgerock.openidm.core;
 
@@ -220,7 +220,36 @@ public final class ServerConstants {
         MAX_LINE_WIDTH = columns - 1;
     }
 
+    /**
+     * The Felix SCR property name used to identify the route on which a RequestHandler should be registered.
+     */
     public static final String ROUTER_PREFIX = "openidm.router.prefix";
+
+    /**
+     * The "external" router/ConnectionFactory serivce PID.
+     */
+    public static final String EXTERNAL_ROUTER_SERVICE_PID = "org.forgerock.openidm.router.servlet";
+
+    /**
+     * A Felix SCR service PID filter for the external router.
+     */
+    public static final String EXTERNAL_ROUTER_SERVICE_PID_FILTER = "(service.pid=" + EXTERNAL_ROUTER_SERVICE_PID + ")";
+
+    /**
+     * Felix SCR property for scheduled service invoke service names.
+     */
+    public static final String SCHEDULED_SERVICE_INVOKE_SERVICE = "openidm.scheduledservice.invokeService";
+
+    /**
+     * Default prefix for OpenIDM OSGi services.  Also used as prefix for scheduled service job "invokeService" attributes.
+     */
+    public static final String SERVICE_RDN_PREFIX = "org.forgerock.openidm.";
+
+    /** the boot.properties property for the jwtsession hmac signing key alias */
+    public static final String JWTSESSION_SIGNING_KEY_ALIAS_PROPERTY = "openidm.config.crypto.jwtsession.hmackey.alias";
+
+    /** the default jwtsession hmac signing key alias */
+    public static final String DEFAULT_JWTSESSION_SIGNING_KEY_ALIAS = "openidm-jwtsessionhmac-key";
 
     /**
      * Query input value for the QUERY_ID input key.
